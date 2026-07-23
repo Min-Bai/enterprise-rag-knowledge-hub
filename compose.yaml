@@ -37,7 +37,7 @@ services:
       retries: 3
 
   qdrant:
-    image: qdrant/qdrant:v1.13.4
+    image: docker.m.daocloud.io/qdrant/qdrant:v1.13.4
     volumes:
       - todo-qdrant-data:/qdrant/storage
 
