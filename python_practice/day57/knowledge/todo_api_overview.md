@@ -21,3 +21,7 @@ Routers receive HTTP requests, validate request data with Pydantic schemas, and 
 ## Redis
 
 Redis provides rate limiting for login and AI endpoints. The login limiter counts failed requests in a time window. AI endpoints are limited per current user so a single user cannot consume unlimited model requests.
+
+## 健康检查
+
+健康检查接口是 `GET /health`，用于确认 API 服务是否正常运行。
