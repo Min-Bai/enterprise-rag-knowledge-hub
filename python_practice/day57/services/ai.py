@@ -1,10 +1,12 @@
 import json
+import re
+from pathlib import Path
 
 import requests
 from pydantic import ValidationError
 
 from ..config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
-from ..schemas.ai import TaskPlanSuggestionResponse
+from ..schemas.ai import ProjectQuestionResponse, TaskPlanSuggestionResponse
 
 
 class AiNotConfiguredError(Exception):
@@ -13,6 +15,37 @@ class AiNotConfiguredError(Exception):
 
 class AiProviderError(Exception):
     pass
+
+
+KNOWLEDGE_DIR = Path(__file__).resolve().parents[1] / "knowledge"
+
+
+def _search_terms(text: str) -> set[str]:
+    terms = set(re.findall(r"[a-z0-9_]+", text.lower()))
+    chinese_chars = re.findall(r"[\u4e00-\u9fff]", text)
+    terms.update(
+        "".join(chinese_chars[index : index + 2])
+        for index in range(len(chinese_chars) - 1)
+    )
+    return terms
+
+
+def retrieve_project_context(question: str, limit: int = 3) -> list[tuple[str, str]]:
+    question_terms = _search_terms(question)
+    matches: list[tuple[int, str, str]] = []
+
+    for document in sorted(KNOWLEDGE_DIR.glob("*.md")):
+        for chunk in document.read_text(encoding="utf-8").split("\n\n"):
+            clean_chunk = chunk.strip()
+            if not clean_chunk:
+                continue
+
+            score = len(question_terms & _search_terms(clean_chunk))
+            if score:
+                matches.append((score, document.name, clean_chunk))
+
+    matches.sort(key=lambda match: match[0], reverse=True)
+    return [(source, chunk) for _, source, chunk in matches[:limit]]
 
 
 def rewrite_task_title_service(title: str) -> str:
@@ -95,3 +128,51 @@ def suggest_task_plan_service(title: str) -> TaskPlanSuggestionResponse:
         requests.RequestException,
     ) as error:
         raise AiProviderError from error
+
+
+def answer_project_question_service(question: str) -> ProjectQuestionResponse:
+    if not DEEPSEEK_API_KEY:
+        raise AiNotConfiguredError
+
+    context_chunks = retrieve_project_context(question)
+    context = "\n\n".join(
+        f"Source: {source}\n{chunk}" for source, chunk in context_chunks
+    )
+    if not context:
+        context = "No relevant project documentation was retrieved."
+
+    payload = {
+        "model": DEEPSEEK_MODEL,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "Answer questions about this Todo project using only the "
+                    "provided context. If the context does not contain the answer, "
+                    "say that the project documentation does not provide it."
+                ),
+            },
+            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"},
+        ],
+        "stream": False,
+    }
+
+    try:
+        response = requests.post(
+            f"{DEEPSEEK_BASE_URL}/chat/completions",
+            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+            json=payload,
+            timeout=30,
+        )
+        response.raise_for_status()
+        answer = response.json()["choices"][0]["message"]["content"].strip()
+    except (KeyError, IndexError, ValueError, requests.RequestException) as error:
+        raise AiProviderError from error
+
+    if not answer:
+        raise AiProviderError
+
+    return ProjectQuestionResponse(
+        answer=answer,
+        sources=[source for source, _ in context_chunks],
+    )
