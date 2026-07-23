@@ -1,21 +1,35 @@
-# Day57 - Project Structure Todo API
+# Todo API Backend
 
-This version keeps the same Todo API behavior as day56, but splits the code into a more realistic project structure.
+This directory is the backend project root. In the original learning workspace,
+it is located at `python_practice/day57`.
 
 ```text
-day57/
-├── main.py
-├── database.py
-├── models/
-│   └── task.py
-├── schemas/
-│   └── task.py
-├── routers/
-│   └── tasks.py
-├── services/
-│   └── tasks.py
-└── tests/
-    └── test_tasks_api.py
+./
+|- main.py                 # FastAPI application entry point
+|- config.py               # Environment configuration
+|- database.py             # SQLAlchemy database session
+|- auth.py                 # Authentication dependencies
+|- security.py             # Password hashing and JWT helpers
+|- rate_limit.py           # Redis rate limiting
+|- models/                 # SQLAlchemy ORM models
+|  |- task.py
+|  `- user.py
+|- schemas/                # Pydantic request and response schemas
+|  |- task.py
+|  |- user.py
+|  |- auth.py
+|  `- ai.py
+|- routers/                # HTTP endpoints and HTTP error conversion
+|  |- tasks.py
+|  |- users.py
+|  |- auth.py
+|  `- ai.py
+|- services/               # Business logic and database operations
+|  |- tasks.py
+|  |- users.py
+|  `- ai.py
+|- migrations/             # Alembic database migrations
+`- tests/                  # Automated tests
 ```
 
 ## Run
