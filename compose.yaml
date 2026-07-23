@@ -36,6 +36,11 @@ services:
       timeout: 5s
       retries: 3
 
+  qdrant:
+    image: qdrant/qdrant:v1.13.4
+    volumes:
+      - todo-qdrant-data:/qdrant/storage
+
   frontend:
     build:
       context: ./frontend
@@ -50,3 +55,4 @@ volumes:
   todo-api-data:
     external: true
   todo-redis-data:
+  todo-qdrant-data:
