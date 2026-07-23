@@ -1,0 +1,93 @@
+import logging
+
+from fastapi import HTTPException, Request
+from redis import Redis
+from redis.exceptions import RedisError
+
+from .config import (
+    AI_RATE_LIMIT,
+    AI_RATE_WINDOW_SECONDS,
+    LOGIN_RATE_LIMIT,
+    LOGIN_RATE_WINDOW_SECONDS,
+)
+from .redis_client import redis_client
+
+
+logger = logging.getLogger("todo_api.rate_limit")
+
+
+class LoginRateLimiter:
+    def __init__(
+        self,
+        client: Redis,
+        limit: int,
+        window_seconds: int,
+        key_prefix: str = "rate_limit:login",
+    ):
+        self.client = client
+        self.limit = limit
+        self.window_seconds = window_seconds
+        self.key_prefix = key_prefix
+
+    def is_allowed(self, client_id: str) -> bool:
+        key = f"{self.key_prefix}:{client_id}"
+        count = self.client.incr(key)
+
+        if count == 1:
+            self.client.expire(key, self.window_seconds)
+
+        return count <= self.limit
+
+
+def enforce_login_rate_limit(request: Request) -> None:
+    if redis_client is None:
+        return
+
+    client_id = request.client.host if request.client else "unknown"
+    limiter = LoginRateLimiter(
+        client=redis_client,
+        limit=LOGIN_RATE_LIMIT,
+        window_seconds=LOGIN_RATE_WINDOW_SECONDS,
+    )
+
+    try:
+        allowed = limiter.is_allowed(client_id)
+    except RedisError:
+        logger.exception("login rate limit check failed")
+        raise HTTPException(
+            status_code=503,
+            detail="rate limit service unavailable",
+        )
+
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="too many login attempts",
+        )
+
+
+def enforce_ai_rate_limit(user_id: int) -> None:
+    if redis_client is None:
+        return
+
+    limiter = LoginRateLimiter(
+        client=redis_client,
+        limit=AI_RATE_LIMIT,
+        window_seconds=AI_RATE_WINDOW_SECONDS,
+        key_prefix="rate_limit:ai:rewrite",
+    )
+
+    try:
+        allowed = limiter.is_allowed(str(user_id))
+    except RedisError:
+        logger.exception("AI rate limit check failed")
+        raise HTTPException(
+            status_code=503,
+            detail="rate limit service unavailable",
+        )
+
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="AI request limit exceeded",
+        )
