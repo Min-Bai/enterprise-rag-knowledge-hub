@@ -123,3 +123,16 @@ export async function rewriteTaskTitle(accessToken, title) {
   const data = await readJson(response, 'AI 标题优化失败')
   return data.reply
 }
+
+export async function suggestTaskPlan(accessToken, title) {
+  const response = await fetch(`${API_PREFIX}/ai/suggest-task-plan`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ title }),
+  })
+
+  return readJson(response, 'AI task plan suggestion failed')
+}

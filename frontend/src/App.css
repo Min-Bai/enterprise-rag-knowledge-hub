@@ -131,6 +131,67 @@
   background: #0f6148;
 }
 
+.ai-plan-button {
+  background: #0f766e;
+  border: 1px solid #0f766e;
+  border-radius: 4px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  padding: 10px 16px;
+}
+
+.ai-plan-button:hover {
+  background: #115e59;
+}
+
+.ai-plan-preview {
+  border-top: 1px solid #d5ddda;
+  margin-top: 20px;
+  padding-top: 16px;
+}
+
+.ai-plan-preview h2 {
+  color: #1f2933;
+  font-size: 18px;
+  margin: 0 0 8px;
+}
+
+.ai-plan-preview p {
+  color: #52605c;
+  margin: 6px 0;
+}
+
+.ai-plan-preview .plan-title {
+  color: #1f2933;
+  font-weight: 700;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.tag-list span {
+  background: #e6f4f1;
+  border: 1px solid #9fd8cd;
+  border-radius: 4px;
+  color: #115e59;
+  padding: 4px 8px;
+}
+
+.ai-plan-preview button {
+  background: #2364aa;
+  border: 1px solid #2364aa;
+  border-radius: 4px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 12px;
+}
+
 .task-group {
   margin-top: 32px;
 }

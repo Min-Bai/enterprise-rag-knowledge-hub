@@ -9,6 +9,7 @@ import {
   logout,
   rewriteTaskTitle,
   setTaskDone,
+  suggestTaskPlan,
   updateTaskTitle,
 } from './api.js'
 import LoginForm from './LoginForm.jsx'
@@ -20,7 +21,9 @@ function App() {
     sessionStorage.getItem('access_token'),
   )
   const [draftTitle, setDraftTitle] = useState('')
+  const [taskPlan, setTaskPlan] = useState(null)
   const [isCreating, setIsCreating] = useState(false)
+  const [isSuggestingPlan, setIsSuggestingPlan] = useState(false)
   const [deletingTaskId, setDeletingTaskId] = useState(null)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [updatingTaskId, setUpdatingTaskId] = useState(null)
@@ -89,6 +92,33 @@ function App() {
     setAccessToken(null)
   }
 
+  async function handleSuggestTaskPlan() {
+    const title = draftTitle.trim()
+
+    if (!title) {
+      setTaskMessage('Please enter a task title first')
+      return
+    }
+
+    setIsSuggestingPlan(true)
+    setTaskMessage('AI is creating a task suggestion...')
+
+    try {
+      const suggestion = await suggestTaskPlan(accessToken, title)
+      setTaskPlan(suggestion)
+      setTaskMessage('')
+    } catch (error) {
+      if (error.status === 401) {
+        clearSession()
+        return
+      }
+
+      setTaskMessage(error.message)
+    } finally {
+      setIsSuggestingPlan(false)
+    }
+  }
+
   async function handleCreateTask(event) {
     event.preventDefault()
 
@@ -105,6 +135,7 @@ function App() {
       const newTask = await createTask(accessToken, title)
       setTasks((currentTasks) => [newTask, ...currentTasks])
       setDraftTitle('')
+      setTaskPlan(null)
       setTaskMessage('')
     } catch (error) {
       if (error.status === 401) {
@@ -249,12 +280,44 @@ function App() {
               id="new-task-title"
               value={draftTitle}
               placeholder="输入任务标题"
-              onChange={(event) => setDraftTitle(event.target.value)}
+              onChange={(event) => {
+                setDraftTitle(event.target.value)
+                setTaskPlan(null)
+              }}
             />
             <button type="submit" disabled={isCreating}>
               添加任务
             </button>
+            <button
+              className="ai-plan-button"
+              type="button"
+              disabled={isCreating || isSuggestingPlan}
+              onClick={handleSuggestTaskPlan}
+            >
+              {isSuggestingPlan ? 'AI generating...' : 'AI suggest'}
+            </button>
           </form>
+          {taskPlan && (
+            <section className="ai-plan-preview" aria-label="AI task suggestion">
+              <h2>AI task suggestion</h2>
+              <p className="plan-title">{taskPlan.title}</p>
+              <p>{taskPlan.description}</p>
+              <div className="tag-list">
+                {taskPlan.tags.map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftTitle(taskPlan.title)
+                  setTaskPlan(null)
+                }}
+              >
+                Use suggested title
+              </button>
+            </section>
+          )}
           <p className="task-message" role="status">{taskMessage}</p>
           <TaskList
             title="未完成"
