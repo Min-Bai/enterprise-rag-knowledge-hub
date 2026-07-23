@@ -174,5 +174,5 @@ def answer_project_question_service(question: str) -> ProjectQuestionResponse:
 
     return ProjectQuestionResponse(
         answer=answer,
-        sources=[source for source, _ in context_chunks],
+        sources=list(dict.fromkeys(source for source, _ in context_chunks)),
     )
