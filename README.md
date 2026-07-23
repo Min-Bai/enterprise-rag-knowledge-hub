@@ -1,45 +1,20 @@
-# Todo API Backend
+# Todo API
 
-This directory is the backend project root. In the original learning workspace,
-it is located at `python_practice/day57`.
+Full-stack Todo application with FastAPI, MySQL, Redis, React, and Docker.
 
 ```text
 ./
-|- main.py                 # FastAPI application entry point
-|- config.py               # Environment configuration
-|- database.py             # SQLAlchemy database session
-|- auth.py                 # Authentication dependencies
-|- security.py             # Password hashing and JWT helpers
-|- rate_limit.py           # Redis rate limiting
-|- models/                 # SQLAlchemy ORM models
-|  |- task.py
-|  `- user.py
-|- schemas/                # Pydantic request and response schemas
-|  |- task.py
-|  |- user.py
-|  |- auth.py
-|  `- ai.py
-|- routers/                # HTTP endpoints and HTTP error conversion
-|  |- tasks.py
-|  |- users.py
-|  |- auth.py
-|  `- ai.py
-|- services/               # Business logic and database operations
-|  |- tasks.py
-|  |- users.py
-|  `- ai.py
-|- migrations/             # Alembic database migrations
-`- tests/                  # Automated tests
+|- python_practice/day57/  # FastAPI backend
+|- frontend/               # React frontend
+|- Dockerfile              # Backend image
+|- compose.yaml            # API, Redis, and frontend services
+`- requirements.txt        # Backend dependencies
 ```
 
-## Run
+## Deployment
 
-```powershell
-& 'python_practice/day31/.venv/Scripts/python.exe' -m uvicorn python_practice.day57.main:app --reload
-```
+Create `python_practice/day57/.env` from `.env.example`, then run:
 
-## Test
-
-```powershell
-& 'python_practice/day31/.venv/Scripts/python.exe' -m pytest python_practice/day57/tests/test_tasks_api.py -q
+```bash
+docker compose up -d --build
 ```

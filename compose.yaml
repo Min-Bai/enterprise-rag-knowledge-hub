@@ -1,0 +1,52 @@
+services:
+  api:
+    build: .
+    image: todo-api:2
+    env_file:
+      - python_practice/day57/.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - todo-api-data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "alembic -c python_practice/day57/alembic.ini upgrade head &&
+      uvicorn python_practice.day57.main:app --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "from urllib.request import urlopen; urlopen('http://localhost:8000/health')"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  redis:
+    image: docker.m.daocloud.io/library/redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - todo-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+    image: todo-frontend:1
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  todo-api-data:
+    external: true
+  todo-redis-data:

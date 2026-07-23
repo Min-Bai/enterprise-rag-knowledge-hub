@@ -1,0 +1,269 @@
+.app-shell {
+  width: min(720px, calc(100% - 32px));
+  margin: 48px auto;
+}
+
+.app-header {
+  align-items: flex-start;
+  border-bottom: 1px solid #d5ddda;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  padding-bottom: 24px;
+}
+
+.app-header h1,
+.task-group h2 {
+  color: #1f2933;
+  margin: 0;
+}
+
+.app-header h1 {
+  font-size: 32px;
+}
+
+.app-header p {
+  color: #52605c;
+  margin: 8px 0 0;
+}
+
+.api-status {
+  color: #13795b;
+}
+
+.api-status.error {
+  color: #b42318;
+}
+
+.logout-button {
+  background: #68737a;
+  border: 1px solid #68737a;
+  border-radius: 4px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 12px;
+}
+
+.logout-button:hover {
+  background: #52605c;
+}
+
+.login-section {
+  border-top: 1px solid #d5ddda;
+  margin-top: 28px;
+  padding-top: 24px;
+}
+
+.login-section h2 {
+  color: #1f2933;
+  font-size: 22px;
+  margin: 0 0 16px;
+}
+
+.login-form {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 100px 1fr;
+}
+
+.login-form input {
+  border: 1px solid #aeb8b5;
+  border-radius: 4px;
+  font: inherit;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.login-form button {
+  background: #13795b;
+  border: 1px solid #13795b;
+  border-radius: 4px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  grid-column: 2;
+  justify-self: start;
+  padding: 10px 16px;
+}
+
+.login-form button:hover {
+  background: #0f6148;
+}
+
+.login-message,
+.task-message {
+  color: #52605c;
+  min-height: 24px;
+}
+
+.login-message {
+  color: #b42318;
+}
+
+.task-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 28px;
+}
+
+.task-form input {
+  border: 1px solid #aeb8b5;
+  border-radius: 4px;
+  flex: 1;
+  font: inherit;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.task-form button {
+  background: #13795b;
+  border: 1px solid #13795b;
+  border-radius: 4px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  padding: 10px 16px;
+}
+
+.task-form button:hover {
+  background: #0f6148;
+}
+
+.task-group {
+  margin-top: 32px;
+}
+
+.task-group h2 {
+  font-size: 22px;
+  margin-bottom: 12px;
+}
+
+.task-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.empty-state {
+  color: #68737a;
+  margin: 0;
+  padding: 12px 4px;
+}
+
+.task-item {
+  border-bottom: 1px solid #d5ddda;
+  padding: 12px 4px;
+}
+
+.task-label {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  gap: 10px;
+}
+
+.task-label input[type="checkbox"] {
+  accent-color: #13795b;
+  height: 18px;
+  margin: 0;
+  width: 18px;
+}
+
+.task-label.done span {
+  color: #68737a;
+  text-decoration: line-through;
+}
+
+.task-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.delete-button {
+  background: #b42318;
+  border: 1px solid #b42318;
+  border-radius: 4px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  padding: 7px 10px;
+}
+
+.delete-button:hover {
+  background: #8f1c13;
+}
+
+.edit-button,
+.cancel-button,
+.ai-button {
+  border-radius: 4px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  padding: 7px 10px;
+}
+
+.edit-button {
+  background: #2364aa;
+  border: 1px solid #2364aa;
+}
+
+.edit-button:hover {
+  background: #1b4f87;
+}
+
+.ai-button {
+  background: #805ad5;
+  border: 1px solid #805ad5;
+}
+
+.ai-button:hover {
+  background: #6546ad;
+}
+
+.cancel-button {
+  background: #68737a;
+  border: 1px solid #68737a;
+}
+
+.cancel-button:hover {
+  background: #52605c;
+}
+
+.inline-edit-input {
+  border: 1px solid #aeb8b5;
+  border-radius: 4px;
+  flex: 1;
+  font: inherit;
+  min-width: 0;
+  padding: 7px 10px;
+}
+
+.item-message {
+  color: #b42318;
+  margin: 8px 0 0 28px;
+}
+
+.screen-reader-only {
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+}
+
+@media (max-width: 480px) {
+  .login-form {
+    grid-template-columns: 1fr;
+  }
+
+  .login-form button {
+    grid-column: auto;
+  }
+
+  .task-form {
+    flex-direction: column;
+  }
+}
