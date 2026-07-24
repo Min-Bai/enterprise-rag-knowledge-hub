@@ -48,6 +48,27 @@ def retrieve_project_context(question: str, limit: int = 3) -> list[tuple[str, s
     return [(source, chunk) for _, source, chunk in matches[:limit]]
 
 
+def retrieve_project_context_with_fallback(
+    question: str,
+    limit: int = 3,
+) -> list[tuple[str, str]]:
+    try:
+        from .vector_store import search_knowledge
+
+        vector_results = search_knowledge(question, limit=limit)
+        if vector_results:
+            return [
+                (str(result["source"]), str(result["text"]))
+                for result in vector_results
+            ]
+    except Exception:
+        # The keyword implementation keeps the AI endpoint available while the
+        # vector index is unavailable or still being built.
+        pass
+
+    return retrieve_project_context(question, limit=limit)
+
+
 def rewrite_task_title_service(title: str) -> str:
     if not DEEPSEEK_API_KEY:
         raise AiNotConfiguredError
@@ -134,7 +155,7 @@ def answer_project_question_service(question: str) -> ProjectQuestionResponse:
     if not DEEPSEEK_API_KEY:
         raise AiNotConfiguredError
 
-    context_chunks = retrieve_project_context(question)
+    context_chunks = retrieve_project_context_with_fallback(question)
     context = "\n\n".join(
         f"Source: {source}\n{chunk}" for source, chunk in context_chunks
     )
