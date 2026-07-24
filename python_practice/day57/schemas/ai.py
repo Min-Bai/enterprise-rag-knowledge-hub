@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -58,3 +60,4 @@ class ProjectQuestionRequest(BaseModel):
 class ProjectQuestionResponse(BaseModel):
     answer: str = Field(min_length=1)
     sources: list[str]
+    retrieval_mode: Literal["vector", "keyword_fallback"]
