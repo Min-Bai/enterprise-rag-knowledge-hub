@@ -8,6 +8,7 @@ services:
       - "8000:8000"
     environment:
       HF_HOME: /app/model-cache
+      HF_ENDPOINT: https://hf-mirror.com
       QDRANT_URL: http://qdrant:6333
     volumes:
       - todo-api-data:/app/data
