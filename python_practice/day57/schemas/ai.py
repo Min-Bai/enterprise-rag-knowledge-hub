@@ -61,3 +61,28 @@ class ProjectQuestionResponse(BaseModel):
     answer: str = Field(min_length=1)
     sources: list[str]
     retrieval_mode: Literal["vector", "keyword_fallback"]
+
+
+class AssistantRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str = Field(min_length=2, max_length=500)
+
+    @field_validator("message")
+    @classmethod
+    def validate_message(cls, value: str) -> str:
+        message = value.strip()
+        if not message:
+            raise ValueError("message cannot be empty")
+        return message
+
+
+class AssistantResponse(BaseModel):
+    reply: str = Field(min_length=1)
+    used_tools: list[str]
+
+
+class ListMyOpenTasksArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    limit: int = Field(default=5, ge=1, le=10)

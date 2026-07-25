@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import get_current_user
+from ..database import get_db
 from ..models.user import UserORM
 from ..rate_limit import enforce_ai_rate_limit
 from ..schemas.ai import (
+    AssistantRequest,
+    AssistantResponse,
     ProjectQuestionRequest,
     ProjectQuestionResponse,
     TaskPlanSuggestionRequest,
@@ -15,12 +18,24 @@ from ..services.ai import (
     AiNotConfiguredError,
     AiProviderError,
     answer_project_question_service,
+    answer_assistant_service,
     rewrite_task_title_service,
     suggest_task_plan_service,
 )
 
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+
+@router.post("/assistant", response_model=AssistantResponse)
+def assistant(request: AssistantRequest, db=Depends(get_db), current_user: UserORM = Depends(get_current_user)):
+    enforce_ai_rate_limit(current_user.id)
+    try:
+        return answer_assistant_service(request.message, current_user, db)
+    except AiNotConfiguredError:
+        raise HTTPException(status_code=503, detail="AI service is not configured")
+    except AiProviderError:
+        raise HTTPException(status_code=502, detail="AI provider request failed")
 
 
 @router.post("/rewrite-task-title", response_model=TaskTitleRewriteResponse)

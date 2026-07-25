@@ -4,9 +4,17 @@ from pathlib import Path
 
 import requests
 from pydantic import ValidationError
+from sqlalchemy.orm import Session
 
 from ..config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
-from ..schemas.ai import ProjectQuestionResponse, TaskPlanSuggestionResponse
+from ..models.user import UserORM
+from ..schemas.ai import (
+    AssistantResponse,
+    ListMyOpenTasksArgs,
+    ProjectQuestionResponse,
+    TaskPlanSuggestionResponse,
+)
+from .tasks import get_tasks_service
 
 
 class AiNotConfiguredError(Exception):
@@ -18,6 +26,7 @@ class AiProviderError(Exception):
 
 
 KNOWLEDGE_DIR = Path(__file__).resolve().parents[1] / "knowledge"
+ASSISTANT_TOOLS = [{"type": "function", "function": {"name": "list_my_open_tasks", "description": "List unfinished and unarchived tasks for the current user.", "parameters": {"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5}}}}}]
 
 
 def _search_terms(text: str) -> set[str]:
@@ -201,3 +210,61 @@ def answer_project_question_service(question: str) -> ProjectQuestionResponse:
         sources=list(dict.fromkeys(source for source, _ in context_chunks)),
         retrieval_mode=retrieval_mode,
     )
+
+
+def answer_assistant_service(
+    message: str, current_user: UserORM, db: Session
+) -> AssistantResponse:
+    if not DEEPSEEK_API_KEY:
+        raise AiNotConfiguredError
+
+    messages = [
+        {"role": "system", "content": "Use tools for current task data. Never invent tasks."},
+        {"role": "user", "content": message},
+    ]
+    try:
+        response = requests.post(
+            f"{DEEPSEEK_BASE_URL}/chat/completions",
+            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+            json={"model": DEEPSEEK_MODEL, "messages": messages, "tools": ASSISTANT_TOOLS},
+            timeout=30,
+        )
+        response.raise_for_status()
+        assistant_message = response.json()["choices"][0]["message"]
+        tool_calls = assistant_message.get("tool_calls", [])
+        if not tool_calls:
+            reply = assistant_message.get("content", "").strip()
+            if not reply:
+                raise AiProviderError
+            return AssistantResponse(reply=reply, used_tools=[])
+
+        tool_call = tool_calls[0]
+        function = tool_call["function"]
+        if function["name"] != "list_my_open_tasks":
+            raise AiProviderError
+        args = ListMyOpenTasksArgs.model_validate(json.loads(function["arguments"]))
+        result = get_tasks_service(
+            db=db, user_id=current_user.id, done=False, archived=False, limit=args.limit
+        )
+        tool_result = [
+            {"id": task.id, "title": task.title, "done": task.done}
+            for task in result["items"]
+        ]
+        messages.extend([
+            assistant_message,
+            {"role": "tool", "tool_call_id": tool_call["id"], "content": json.dumps(tool_result, ensure_ascii=False)},
+        ])
+        final_response = requests.post(
+            f"{DEEPSEEK_BASE_URL}/chat/completions",
+            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+            json={"model": DEEPSEEK_MODEL, "messages": messages},
+            timeout=30,
+        )
+        final_response.raise_for_status()
+        reply = final_response.json()["choices"][0]["message"]["content"].strip()
+    except (KeyError, IndexError, TypeError, ValueError, ValidationError, requests.RequestException) as error:
+        raise AiProviderError from error
+
+    if not reply:
+        raise AiProviderError
+    return AssistantResponse(reply=reply, used_tools=["list_my_open_tasks"])
