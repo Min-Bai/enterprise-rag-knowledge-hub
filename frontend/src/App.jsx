@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import {
   createTask,
+  askAssistant,
   deleteTask,
   getApiHealth,
   getMyTasks,
@@ -28,6 +29,11 @@ function App() {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [updatingTaskId, setUpdatingTaskId] = useState(null)
   const [taskMessage, setTaskMessage] = useState('')
+  const [assistantMessage, setAssistantMessage] = useState('')
+  const [assistantReply, setAssistantReply] = useState('')
+  const [assistantError, setAssistantError] = useState('')
+  const [assistantLoading, setAssistantLoading] = useState(false)
+  const [usedTools, setUsedTools] = useState([])
   const [apiStatus, setApiStatus] = useState({
     message: '正在检查 API...',
     isError: false,
@@ -247,6 +253,30 @@ function App() {
     }
   }
 
+  async function handleAssistantSubmit(event) {
+    event.preventDefault()
+    const message = assistantMessage.trim()
+    if (!message || assistantLoading) return
+
+    setAssistantLoading(true)
+    setAssistantError('')
+    setAssistantReply('')
+    try {
+      const data = await askAssistant(accessToken, message)
+      setAssistantReply(data.reply)
+      setUsedTools(data.used_tools)
+      setAssistantMessage('')
+    } catch (error) {
+      if (error.status === 401) {
+        clearSession()
+        return
+      }
+      setAssistantError(error.message)
+    } finally {
+      setAssistantLoading(false)
+    }
+  }
+
   return (
     <main className="app-shell">
       <header className="app-header">
@@ -319,6 +349,20 @@ function App() {
             </section>
           )}
           <p className="task-message" role="status">{taskMessage}</p>
+          <section className="assistant-panel" aria-label="AI assistant">
+            <h2>AI assistant</h2>
+            {assistantReply && <p className="assistant-reply">{assistantReply}</p>}
+            {usedTools.includes('list_my_open_tasks') && (
+              <p className="assistant-source">Used your current task data</p>
+            )}
+            {assistantError && <p className="assistant-error">{assistantError}</p>}
+            <form onSubmit={handleAssistantSubmit}>
+              <textarea value={assistantMessage} maxLength={500} placeholder="Ask about your tasks" onChange={(event) => setAssistantMessage(event.target.value)} />
+              <button type="submit" disabled={assistantLoading || !assistantMessage.trim()}>
+                {assistantLoading ? 'Thinking...' : 'Send'}
+              </button>
+            </form>
+          </section>
           <TaskList
             title="未完成"
             listId="unfinished-title"

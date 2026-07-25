@@ -136,3 +136,16 @@ export async function suggestTaskPlan(accessToken, title) {
 
   return readJson(response, 'AI task plan suggestion failed')
 }
+
+export async function askAssistant(accessToken, message) {
+  const response = await fetch(`${API_PREFIX}/ai/assistant`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ message }),
+  })
+
+  return readJson(response, 'AI assistant request failed')
+}
