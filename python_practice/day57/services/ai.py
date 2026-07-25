@@ -266,6 +266,8 @@ def answer_assistant_service(
         reply = final_response.json()["choices"][0]["message"]["content"].strip()
     except (KeyError, IndexError, TypeError, ValueError, ValidationError, requests.RequestException) as error:
         logger.exception("AI assistant request failed")
+        if isinstance(error, requests.HTTPError) and error.response is not None:
+            logger.error("AI provider response: %s", error.response.text)
         raise AiProviderError from error
 
     if not reply:
