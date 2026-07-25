@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import logging
 from time import perf_counter
+from uuid import uuid4
 from .config import CORS_ORIGINS, LOG_LEVEL
 from .database import get_db
 from .routers.tasks import router as task_router
@@ -52,21 +53,25 @@ app.include_router(ai_router)
 @app.middleware("http")
 async def log_request(request: Request, call_next):
     start_time = perf_counter()
+    request_id = uuid4().hex
     try:
         response = await call_next(request)
     except Exception:
         elapsed_ms = (perf_counter() - start_time) * 1000
         logger.exception(
-        "%s %s failed after %.1fms",
-        request.method,
-        request.url.path,
-        elapsed_ms,
+            "request_id=%s %s %s failed after %.1fms",
+            request_id,
+            request.method,
+            request.url.path,
+            elapsed_ms,
         )
         raise
     elapsed_ms = (perf_counter() - start_time) * 1000
+    response.headers["X-Request-ID"] = request_id
 
     logger.info(
-        "%s %s -> %s in %.1fms",
+        "request_id=%s %s %s -> %s in %.1fms",
+        request_id,
         request.method,
         request.url.path,
         response.status_code,

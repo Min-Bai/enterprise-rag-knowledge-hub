@@ -14,6 +14,7 @@ def test_health_check():
         "status": "ok",
         "database": "ok",
     }
+    assert response.headers["x-request-id"]
 
 def test_cors_allows_configured_origin():
     response = client.options(
