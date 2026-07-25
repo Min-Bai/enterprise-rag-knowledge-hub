@@ -2,6 +2,7 @@ services:
   api:
     build: .
     image: todo-api:2
+    restart: unless-stopped
     env_file:
       - python_practice/day57/.env
     ports:
@@ -34,6 +35,7 @@ services:
 
   redis:
     image: docker.m.daocloud.io/library/redis:7-alpine
+    restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
       - todo-redis-data:/data
@@ -45,6 +47,7 @@ services:
 
   qdrant:
     image: docker.m.daocloud.io/qdrant/qdrant:v1.13.4
+    restart: unless-stopped
     volumes:
       - todo-qdrant-data:/qdrant/storage
 
@@ -52,6 +55,7 @@ services:
     build:
       context: ./frontend
     image: todo-frontend:1
+    restart: unless-stopped
     ports:
       - "8080:80"
     depends_on:
