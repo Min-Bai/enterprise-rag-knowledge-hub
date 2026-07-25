@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from pathlib import Path
 
@@ -26,6 +27,7 @@ class AiProviderError(Exception):
 
 
 KNOWLEDGE_DIR = Path(__file__).resolve().parents[1] / "knowledge"
+logger = logging.getLogger(__name__)
 ASSISTANT_TOOLS = [{"type": "function", "function": {"name": "list_my_open_tasks", "description": "List unfinished and unarchived tasks for the current user.", "parameters": {"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5}}}}}]
 
 
@@ -263,6 +265,7 @@ def answer_assistant_service(
         final_response.raise_for_status()
         reply = final_response.json()["choices"][0]["message"]["content"].strip()
     except (KeyError, IndexError, TypeError, ValueError, ValidationError, requests.RequestException) as error:
+        logger.exception("AI assistant request failed")
         raise AiProviderError from error
 
     if not reply:
