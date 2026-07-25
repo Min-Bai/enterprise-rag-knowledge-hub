@@ -6,6 +6,10 @@ async function readJson(response, fallbackMessage) {
   if (!response.ok) {
     const error = new Error(data.detail || fallbackMessage)
     error.status = response.status
+    const retryAfter = Number(response.headers.get('Retry-After'))
+    if (Number.isFinite(retryAfter) && retryAfter > 0) {
+      error.retryAfter = retryAfter
+    }
     throw error
   }
 

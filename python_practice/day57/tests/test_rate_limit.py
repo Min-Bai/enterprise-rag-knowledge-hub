@@ -13,6 +13,9 @@ class FakeRedis:
     def expire(self, key: str, seconds: int) -> None:
         self.expirations[key] = seconds
 
+    def ttl(self, key: str) -> int:
+        return self.expirations.get(key, -2)
+
 
 def test_login_rate_limiter_allows_requests_within_limit():
     client = FakeRedis()
@@ -24,8 +27,9 @@ def test_login_rate_limiter_allows_requests_within_limit():
 
 
 def test_login_rate_limiter_rejects_requests_over_limit():
+    client = FakeRedis()
     limiter = LoginRateLimiter(
-        client=FakeRedis(),
+        client=client,
         limit=2,
         window_seconds=60,
     )
@@ -33,6 +37,7 @@ def test_login_rate_limiter_rejects_requests_over_limit():
     assert limiter.is_allowed("127.0.0.1") is True
     assert limiter.is_allowed("127.0.0.1") is True
     assert limiter.is_allowed("127.0.0.1") is False
+    assert limiter.retry_after("127.0.0.1") == 60
 
 
 def test_rate_limiter_supports_a_custom_key_prefix():

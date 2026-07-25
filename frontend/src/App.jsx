@@ -271,6 +271,10 @@ function App() {
         clearSession()
         return
       }
+      if (error.status === 429 && error.retryAfter) {
+        setAssistantError(`Too many requests. Try again in ${error.retryAfter} seconds.`)
+        return
+      }
       setAssistantError(error.message)
     } finally {
       setAssistantLoading(false)

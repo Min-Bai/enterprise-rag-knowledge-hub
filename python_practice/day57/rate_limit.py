@@ -38,6 +38,11 @@ class LoginRateLimiter:
 
         return count <= self.limit
 
+    def retry_after(self, client_id: str) -> int:
+        key = f"{self.key_prefix}:{client_id}"
+        ttl = self.client.ttl(key)
+        return ttl if ttl > 0 else self.window_seconds
+
 
 def enforce_login_rate_limit(request: Request) -> None:
     if redis_client is None:
@@ -63,6 +68,7 @@ def enforce_login_rate_limit(request: Request) -> None:
         raise HTTPException(
             status_code=429,
             detail="too many login attempts",
+            headers={"Retry-After": str(limiter.retry_after(client_id))},
         )
 
 
@@ -90,4 +96,5 @@ def enforce_ai_rate_limit(user_id: int) -> None:
         raise HTTPException(
             status_code=429,
             detail="AI request limit exceeded",
+            headers={"Retry-After": str(limiter.retry_after(str(user_id)))},
         )
