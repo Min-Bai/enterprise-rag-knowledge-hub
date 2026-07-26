@@ -17,7 +17,7 @@ jobs:
       JWT_SECRET_KEY: ci-test-secret-not-for-production
       JWT_EXPIRE_MINUTES: "30"
       SQL_ECHO: "false"
-      CORS_ORIGINS: http://localhost:8080
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
       LOG_LEVEL: INFO
       DEEPSEEK_API_KEY: ""
       REDIS_URL: ""
