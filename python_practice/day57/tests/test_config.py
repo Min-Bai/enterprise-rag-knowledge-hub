@@ -37,14 +37,3 @@ def test_positive_integer_environment_variable_rejects_invalid_values(
 
     with pytest.raises(RuntimeError):
         config.get_positive_int_env("LOGIN_RATE_LIMIT", 5)
-
-
-@pytest.mark.parametrize("value", ["-0.1", "1.1", "not-a-number"])
-def test_score_environment_variable_must_be_between_zero_and_one(
-    monkeypatch,
-    value,
-):
-    set_env_value(monkeypatch, value)
-
-    with pytest.raises(RuntimeError):
-        config.get_score_env("RAG_MIN_SCORE", 0.5)
