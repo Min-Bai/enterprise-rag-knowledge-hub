@@ -1,0 +1,26 @@
+name: Runner Check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runner-check:
+    name: Verify self-hosted runner
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 5
+    steps:
+      - name: Show runner information
+        run: |
+          echo "Runner host: $(hostname)"
+          whoami
+          docker --version
+          docker compose version
+
+      - name: Check deployment prerequisites
+        run: |
+          test -x "$HOME/deploy-api.sh"
+          cd "$HOME/todo-api"
+          sudo docker compose ps
