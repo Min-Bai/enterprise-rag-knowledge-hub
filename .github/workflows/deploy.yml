@@ -1,0 +1,23 @@
+name: Deploy API
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Ubuntu VM
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    steps:
+      - name: Deploy latest main branch
+        shell: powershell
+        run: |
+          ssh todo-vm "bash ~/deploy-api.sh"
+
+      - name: Check API health
+        shell: powershell
+        run: |
+          ssh todo-vm "curl --fail --silent --show-error http://localhost:8000/health"
