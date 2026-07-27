@@ -13,13 +13,13 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Show runner information
-        shell: pwsh
+        shell: powershell
         run: |
           Write-Output "Runner host: $env:COMPUTERNAME"
           whoami
           ssh -V
 
       - name: Check Ubuntu deployment prerequisites
-        shell: pwsh
+        shell: powershell
         run: |
           ssh todo-vm "test -x ~/deploy-api.sh && cd ~/todo-api && sudo docker compose ps"
