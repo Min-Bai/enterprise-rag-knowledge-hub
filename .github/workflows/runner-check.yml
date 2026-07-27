@@ -8,19 +8,18 @@ permissions:
 
 jobs:
   runner-check:
-    name: Verify self-hosted runner
-    runs-on: [self-hosted, Linux, X64]
+    name: Verify Windows runner and Ubuntu access
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 5
     steps:
       - name: Show runner information
+        shell: pwsh
         run: |
-          echo "Runner host: $(hostname)"
+          Write-Output "Runner host: $env:COMPUTERNAME"
           whoami
-          docker --version
-          docker compose version
+          ssh -V
 
-      - name: Check deployment prerequisites
+      - name: Check Ubuntu deployment prerequisites
+        shell: pwsh
         run: |
-          test -x "$HOME/deploy-api.sh"
-          cd "$HOME/todo-api"
-          sudo docker compose ps
+          ssh todo-vm "test -x ~/deploy-api.sh && cd ~/todo-api && sudo docker compose ps"
