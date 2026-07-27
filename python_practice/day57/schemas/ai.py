@@ -57,10 +57,21 @@ class ProjectQuestionRequest(BaseModel):
         return question
 
 
+class ProjectCitation(BaseModel):
+    source: str
+    section: str | None = None
+    score: float | None = None
+
+
 class ProjectQuestionResponse(BaseModel):
     answer: str = Field(min_length=1)
     sources: list[str]
-    retrieval_mode: Literal["vector", "keyword_fallback"]
+    citations: list[ProjectCitation] = Field(default_factory=list)
+    retrieval_mode: Literal[
+        "vector",
+        "keyword_fallback",
+        "no_relevant_context",
+    ]
 
 
 class AssistantRequest(BaseModel):
@@ -80,6 +91,15 @@ class AssistantRequest(BaseModel):
 class AssistantResponse(BaseModel):
     reply: str = Field(min_length=1)
     used_tools: list[str]
+
+
+class AssistantHistoryMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class AssistantHistoryResponse(BaseModel):
+    items: list[AssistantHistoryMessage]
 
 
 class ListMyOpenTasksArgs(BaseModel):

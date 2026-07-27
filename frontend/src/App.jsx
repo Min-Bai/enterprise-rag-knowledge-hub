@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import {
   createTask,
+  answerProjectQuestion,
   askAssistant,
+  clearAssistantHistory,
   deleteTask,
   getApiHealth,
+  getAssistantHistory,
   getMyTasks,
   login,
   logout,
@@ -30,10 +33,16 @@ function App() {
   const [updatingTaskId, setUpdatingTaskId] = useState(null)
   const [taskMessage, setTaskMessage] = useState('')
   const [assistantMessage, setAssistantMessage] = useState('')
-  const [assistantReply, setAssistantReply] = useState('')
+  const [assistantHistory, setAssistantHistory] = useState([])
   const [assistantError, setAssistantError] = useState('')
   const [assistantLoading, setAssistantLoading] = useState(false)
+  const [assistantCooldown, setAssistantCooldown] = useState(0)
+  const [isClearingAssistantHistory, setIsClearingAssistantHistory] = useState(false)
   const [usedTools, setUsedTools] = useState([])
+  const [projectQuestion, setProjectQuestion] = useState('')
+  const [projectAnswer, setProjectAnswer] = useState(null)
+  const [projectQuestionError, setProjectQuestionError] = useState('')
+  const [isAnsweringProjectQuestion, setIsAnsweringProjectQuestion] = useState(false)
   const [apiStatus, setApiStatus] = useState({
     message: '正在检查 API...',
     isError: false,
@@ -86,6 +95,38 @@ function App() {
 
     loadTasks()
   }, [accessToken])
+
+  useEffect(() => {
+    if (!accessToken) {
+      setAssistantHistory([])
+      return
+    }
+
+    async function loadAssistantHistory() {
+      try {
+        const data = await getAssistantHistory(accessToken)
+        setAssistantHistory(data.items)
+      } catch (error) {
+        if (error.status === 401) {
+          clearSession()
+          return
+        }
+        setAssistantError(error.message)
+      }
+    }
+
+    loadAssistantHistory()
+  }, [accessToken])
+
+  useEffect(() => {
+    if (assistantCooldown <= 0) return undefined
+
+    const timerId = window.setInterval(() => {
+      setAssistantCooldown((seconds) => Math.max(seconds - 1, 0))
+    }, 1000)
+
+    return () => window.clearInterval(timerId)
+  }, [assistantCooldown])
 
   async function handleLogin(username, password) {
     const data = await login(username, password)
@@ -260,24 +301,71 @@ function App() {
 
     setAssistantLoading(true)
     setAssistantError('')
-    setAssistantReply('')
     try {
       const data = await askAssistant(accessToken, message)
-      setAssistantReply(data.reply)
+      setAssistantHistory((currentHistory) => [
+        ...currentHistory,
+        { role: 'user', content: message },
+        { role: 'assistant', content: data.reply },
+      ])
       setUsedTools(data.used_tools)
       setAssistantMessage('')
+      setAssistantCooldown(0)
     } catch (error) {
       if (error.status === 401) {
         clearSession()
         return
       }
       if (error.status === 429 && error.retryAfter) {
-        setAssistantError(`Too many requests. Try again in ${error.retryAfter} seconds.`)
+        setAssistantCooldown(error.retryAfter)
         return
       }
       setAssistantError(error.message)
     } finally {
       setAssistantLoading(false)
+    }
+  }
+
+  async function handleClearAssistantHistory() {
+    setIsClearingAssistantHistory(true)
+    setAssistantError('')
+
+    try {
+      await clearAssistantHistory(accessToken)
+      setAssistantMessage('')
+      setAssistantHistory([])
+      setUsedTools([])
+      setAssistantCooldown(0)
+    } catch (error) {
+      if (error.status === 401) {
+        clearSession()
+        return
+      }
+      setAssistantError(error.message)
+    } finally {
+      setIsClearingAssistantHistory(false)
+    }
+  }
+
+  async function handleProjectQuestionSubmit(event) {
+    event.preventDefault()
+    const question = projectQuestion.trim()
+    if (!question || isAnsweringProjectQuestion) return
+
+    setIsAnsweringProjectQuestion(true)
+    setProjectQuestionError('')
+    setProjectAnswer(null)
+    try {
+      const data = await answerProjectQuestion(accessToken, question)
+      setProjectAnswer(data)
+    } catch (error) {
+      if (error.status === 401) {
+        clearSession()
+        return
+      }
+      setProjectQuestionError(error.message)
+    } finally {
+      setIsAnsweringProjectQuestion(false)
     }
   }
 
@@ -354,18 +442,75 @@ function App() {
           )}
           <p className="task-message" role="status">{taskMessage}</p>
           <section className="assistant-panel" aria-label="AI assistant">
-            <h2>AI assistant</h2>
-            {assistantReply && <p className="assistant-reply">{assistantReply}</p>}
+            <div className="assistant-panel-header">
+              <h2>AI assistant</h2>
+              <button
+                className="assistant-clear-button"
+                type="button"
+                disabled={assistantLoading || isClearingAssistantHistory}
+                onClick={handleClearAssistantHistory}
+              >
+                {isClearingAssistantHistory ? 'Clearing...' : 'Clear conversation'}
+              </button>
+            </div>
+            {assistantHistory.length > 0 && (
+              <div className="assistant-history">
+                {assistantHistory.map((item, index) => (
+                  <p className={`assistant-message ${item.role}`} key={`${item.role}-${index}`}>
+                    {item.content}
+                  </p>
+                ))}
+              </div>
+            )}
             {usedTools.includes('list_my_open_tasks') && (
               <p className="assistant-source">Used your current task data</p>
             )}
-            {assistantError && <p className="assistant-error">{assistantError}</p>}
+            {assistantCooldown > 0 ? (
+              <p className="assistant-error">Too many requests. Try again in {assistantCooldown} seconds.</p>
+            ) : (
+              assistantError && <p className="assistant-error">{assistantError}</p>
+            )}
             <form onSubmit={handleAssistantSubmit}>
               <textarea value={assistantMessage} maxLength={500} placeholder="Ask about your tasks" onChange={(event) => setAssistantMessage(event.target.value)} />
-              <button type="submit" disabled={assistantLoading || !assistantMessage.trim()}>
-                {assistantLoading ? 'Thinking...' : 'Send'}
+              <button type="submit" disabled={assistantLoading || assistantCooldown > 0 || !assistantMessage.trim()}>
+                {assistantLoading ? 'Thinking...' : assistantCooldown > 0 ? `Retry in ${assistantCooldown}s` : 'Send'}
               </button>
             </form>
+          </section>
+          <section className="knowledge-panel" aria-label="Project knowledge assistant">
+            <h2>Project knowledge</h2>
+            <form onSubmit={handleProjectQuestionSubmit}>
+              <textarea
+                value={projectQuestion}
+                maxLength={500}
+                placeholder="Ask about this project's API or deployment"
+                onChange={(event) => setProjectQuestion(event.target.value)}
+              />
+              <button
+                type="submit"
+                disabled={isAnsweringProjectQuestion || !projectQuestion.trim()}
+              >
+                {isAnsweringProjectQuestion ? 'Searching...' : 'Ask'}
+              </button>
+            </form>
+            {projectQuestionError && (
+              <p className="assistant-error">{projectQuestionError}</p>
+            )}
+            {projectAnswer && (
+              <div className="knowledge-answer">
+                <p>{projectAnswer.answer}</p>
+                {projectAnswer.sources.length > 0 && (
+                  <ul className="knowledge-sources" aria-label="Answer sources">
+                    {projectAnswer.sources.map((source) => (
+                      <li key={source}>{source}</li>
+                    ))}
+                  </ul>
+                )}
+                {projectAnswer.retrieval_mode === 'keyword_fallback' && (
+                  <p className="knowledge-mode">Keyword retrieval fallback</p>
+                )}
+              </div>
+            )}
           </section>
           <TaskList
             title="未完成"

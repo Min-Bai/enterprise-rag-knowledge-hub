@@ -71,6 +71,23 @@ LOGIN_RATE_WINDOW_SECONDS = get_positive_int_env(
 AI_RATE_LIMIT = get_positive_int_env("AI_RATE_LIMIT", 10)
 AI_RATE_WINDOW_SECONDS = get_positive_int_env("AI_RATE_WINDOW_SECONDS", 60)
 
+
+def get_score_env(name: str, default: float) -> float:
+    value = getenv(name, str(default))
+
+    try:
+        score = float(value)
+    except ValueError:
+        raise RuntimeError(f"{name} must be a number")
+
+    if not 0 <= score <= 1:
+        raise RuntimeError(f"{name} must be between 0 and 1")
+
+    return score
+
+
+RAG_MIN_SCORE = get_score_env("RAG_MIN_SCORE", 0.5)
+
 CORS_ORIGINS = [
     origin.strip()
     for origin in get_required_env("CORS_ORIGINS").split(",")

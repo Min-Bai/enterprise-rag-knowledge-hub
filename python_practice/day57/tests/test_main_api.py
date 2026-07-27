@@ -16,6 +16,24 @@ def test_health_check():
     }
     assert response.headers["x-request-id"]
 
+
+def test_liveness_check():
+    response = client.get("/health/live")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_readiness_check():
+    response = client.get("/health/ready")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "database": "ok",
+    }
+
+
 def test_cors_allows_configured_origin():
     response = client.options(
         "/health",
