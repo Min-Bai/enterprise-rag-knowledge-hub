@@ -2,6 +2,10 @@ name: Deploy API
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -9,13 +13,22 @@ permissions:
 jobs:
   deploy:
     name: Deploy to Ubuntu VM
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 15
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    env:
+      DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
     steps:
-      - name: Deploy latest main branch
+      - name: Deploy checked CI commit
         shell: powershell
         run: |
-          ssh todo-vm "bash ~/deploy-api.sh"
+          ssh todo-vm "bash ~/deploy-api.sh $env:DEPLOY_SHA"
 
       - name: Check API health
         shell: powershell
