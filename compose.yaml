@@ -3,6 +3,11 @@ services:
     build: .
     image: todo-api:2
     restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
     env_file:
       - python_practice/day57/.env
     ports:
@@ -36,6 +41,11 @@ services:
   redis:
     image: docker.m.daocloud.io/library/redis:7-alpine
     restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
     command: redis-server --appendonly yes
     volumes:
       - todo-redis-data:/data
@@ -48,6 +58,11 @@ services:
   qdrant:
     image: docker.m.daocloud.io/qdrant/qdrant:v1.13.4
     restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - todo-qdrant-data:/qdrant/storage
 
@@ -56,6 +71,11 @@ services:
       context: ./frontend
     image: todo-frontend:1
     restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "8080:80"
     depends_on:
