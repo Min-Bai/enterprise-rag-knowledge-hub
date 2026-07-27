@@ -1,4 +1,5 @@
 from fastapi import Depends, FastAPI, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,13 +38,28 @@ def read_root():
         "docs": "/docs",
     }
 
-@app.get("/health")
-def health_check(db: Session = Depends(get_db)):
+
+def database_ready_response(db: Session):
     db.execute(text("SELECT 1"))
     return {
         "status": "ok",
         "database": "ok",
     }
+
+
+@app.get("/health/live")
+def liveness_check():
+    return {"status": "ok"}
+
+
+@app.get("/health/ready")
+def readiness_check(db: Session = Depends(get_db)):
+    return database_ready_response(db)
+
+
+@app.get("/health")
+def health_check(db: Session = Depends(get_db)):
+    return database_ready_response(db)
 
 app.include_router(task_router)
 app.include_router(user_router)
@@ -65,7 +81,11 @@ async def log_request(request: Request, call_next):
             request.url.path,
             elapsed_ms,
         )
-        raise
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "internal server error"},
+            headers={"X-Request-ID": request_id},
+        )
     elapsed_ms = (perf_counter() - start_time) * 1000
     response.headers["X-Request-ID"] = request_id
 

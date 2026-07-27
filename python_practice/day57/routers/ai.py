@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..auth import get_current_user
 from ..database import get_db
@@ -6,6 +6,7 @@ from ..models.user import UserORM
 from ..rate_limit import enforce_ai_rate_limit
 from ..schemas.ai import (
     AssistantRequest,
+    AssistantHistoryResponse,
     AssistantResponse,
     ProjectQuestionRequest,
     ProjectQuestionResponse,
@@ -15,16 +16,39 @@ from ..schemas.ai import (
     TaskTitleRewriteResponse,
 )
 from ..services.ai import (
+    AiHistoryStoreError,
     AiNotConfiguredError,
     AiProviderError,
     answer_project_question_service,
     answer_assistant_service,
+    clear_assistant_history,
+    load_assistant_history,
     rewrite_task_title_service,
     suggest_task_plan_service,
 )
 
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+
+@router.get("/assistant/history", response_model=AssistantHistoryResponse)
+def get_assistant_conversation(
+    current_user: UserORM = Depends(get_current_user),
+):
+    return {"items": load_assistant_history(current_user.id)}
+
+
+@router.delete("/assistant/history", status_code=status.HTTP_204_NO_CONTENT)
+def clear_assistant_conversation(
+    current_user: UserORM = Depends(get_current_user),
+):
+    try:
+        clear_assistant_history(current_user.id)
+    except AiHistoryStoreError:
+        raise HTTPException(
+            status_code=503,
+            detail="assistant history service unavailable",
+        )
 
 
 @router.post("/assistant", response_model=AssistantResponse)

@@ -153,3 +153,39 @@ export async function askAssistant(accessToken, message) {
 
   return readJson(response, 'AI assistant request failed')
 }
+
+export async function answerProjectQuestion(accessToken, question) {
+  const response = await fetch(`${API_PREFIX}/ai/answer-project-question`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ question }),
+  })
+
+  return readJson(response, 'Project question request failed')
+}
+
+export async function clearAssistantHistory(accessToken) {
+  const response = await fetch(`${API_PREFIX}/ai/assistant/history`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  if (!response.ok) {
+    return readJson(response, 'Could not clear AI conversation')
+  }
+}
+
+export async function getAssistantHistory(accessToken) {
+  const response = await fetch(`${API_PREFIX}/ai/assistant/history`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  return readJson(response, 'Could not load AI conversation')
+}
