@@ -10,6 +10,7 @@ sys.path.append(str(PROJECT_ROOT))
 from python_practice.day57.database import Base, engine
 from python_practice.day57.models.task import TaskORM
 from python_practice.day57.models.user import UserORM
+from python_practice.day57.models.document import DocumentORM
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

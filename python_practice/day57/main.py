@@ -13,6 +13,7 @@ from .routers.tasks import router as task_router
 from .routers.users import router as user_router
 from .routers.auth import router as auth_router
 from .routers.ai import router as ai_router
+from .routers.documents import router as document_router
 
 app = FastAPI(title="Todo Project Structure API")
 
@@ -65,6 +66,7 @@ app.include_router(task_router)
 app.include_router(user_router)
 app.include_router(auth_router)
 app.include_router(ai_router)
+app.include_router(document_router)
 
 @app.middleware("http")
 async def log_request(request: Request, call_next):
