@@ -6,6 +6,7 @@ from .task import (
     TaskUpdate,
 )
 from .user import UserCreate, UserDetailResponse, UserResponse, UserUpdate
+from .document import DocumentResponse
 
 __all__ = [
     "TaskCountResponse",
@@ -17,4 +18,5 @@ __all__ = [
     "UserResponse",
     "UserUpdate",
     "UserDetailResponse",
+    "DocumentResponse"
 ]
