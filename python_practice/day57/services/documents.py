@@ -29,3 +29,17 @@ def get_documents_service(db: Session, user_id: int) -> list[DocumentORM]:
         .order_by(DocumentORM.created_at.desc())
     )
     return list(db.scalars(statement).all())
+
+def get_ready_documents_service(
+    db: Session,
+    user_id: int,
+) -> list[DocumentORM]:
+    statement = (
+        select(DocumentORM)
+        .where(
+            DocumentORM.user_id == user_id,
+            DocumentORM.status == "ready",
+        )
+        .order_by(DocumentORM.created_at.desc())
+    )
+    return list(db.scalars(statement).all())
