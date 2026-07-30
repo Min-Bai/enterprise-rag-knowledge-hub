@@ -75,3 +75,46 @@ def index_document_chunks(
         points=points,
         wait=True,
     )
+
+def search_document_chunks(
+    question: str,
+    user_id: int,
+    document_ids: list[int],
+    limit: int = 3,
+) -> list[dict[str, object]]:
+    if not document_ids:
+        return []
+
+    vector = get_embedding_model().encode(
+        question,
+        normalize_embeddings=True,
+    ).tolist()
+
+    response = get_qdrant_client().query_points(
+        collection_name=DOCUMENT_COLLECTION_NAME,
+        query=vector,
+        query_filter=models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="user_id",
+                    match=models.MatchValue(value=user_id),
+                ),
+                models.FieldCondition(
+                    key="document_id",
+                    match=models.MatchAny(any=document_ids),
+                ),
+            ],
+        ),
+        limit=limit,
+        with_payload=True,
+    )
+
+    return [
+        {
+            "document_id": point.payload["document_id"],
+            "chunk_index": point.payload["chunk_index"],
+            "text": point.payload["text"],
+            "score": point.score,
+        }
+        for point in response.points
+    ]
