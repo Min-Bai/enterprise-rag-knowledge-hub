@@ -106,3 +106,19 @@ class ListMyOpenTasksArgs(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     limit: int = Field(default=5, ge=1, le=10)
+
+class DocumentAnswerRequest(BaseModel):
+    document_id: int = Field(gt=0)
+    question: str = Field(min_length=1, max_length=2000)
+
+
+class SourceItem(BaseModel):
+    document_id: int
+    filename: str
+    page: int | None = None
+    chunk_index: int
+
+
+class DocumentAnswerResponse(BaseModel):
+    answer: str
+    sources: list[SourceItem]
