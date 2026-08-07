@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.7
-
 FROM docker.m.daocloud.io/library/python:3.12-slim
 
 WORKDIR /app
