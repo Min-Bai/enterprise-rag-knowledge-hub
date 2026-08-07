@@ -1,24 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-class DocumentResponse(BaseModel):
-    id: int
-    filename: str
-    status: str
-    error_message: str | None
-    created_at: datetime
-    model_config = ConfigDict(from_attributes=True)
-
-class DocumentChunkResponse(BaseModel):
-    document_id: int
-    filename: str
-    chunk_index: int
-    text: str
-    score: float
-
-class DocumentSearchResponse(BaseModel):
-    items: list[DocumentChunkResponse]
-
 class DocumentSearchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -31,6 +13,7 @@ class DocumentSearchRequest(BaseModel):
         if not question:
             raise ValueError("question cannot be empty")
         return question
+
 
 class DocumentAnswerRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
