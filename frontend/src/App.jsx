@@ -15,6 +15,8 @@ import {
   setTaskDone,
   suggestTaskPlan,
   updateTaskTitle,
+  getMyDocuments,
+  answerDocument,
 } from './api.js'
 import LoginForm from './LoginForm.jsx'
 import TaskList from './TaskList.jsx'
@@ -49,6 +51,12 @@ function App() {
   })
   const unfinishedTasks = tasks.filter((task) => !task.done)
   const completedTasks = tasks.filter((task) => task.done)
+  const [documents, setDocuments] = useState([])
+  const [selectedDocumentId, setSelectedDocumentId] = useState('')
+  const [documentQuestion, setDocumentQuestion] = useState('')
+  const [documentAnswer, setDocumentAnswer] = useState(null)
+  const [documentAnswerError, setDocumentAnswerError] = useState('')
+  const [isAnsweringDocument, setIsAnsweringDocument] = useState(false)
 
   useEffect(() => {
     async function checkApiHealth() {
@@ -127,6 +135,38 @@ function App() {
 
     return () => window.clearInterval(timerId)
   }, [assistantCooldown])
+
+  useEffect(() => {
+  if (!accessToken) {
+    setDocuments([])
+    setSelectedDocumentId('')
+    return
+  }
+
+  async function loadDocuments() {
+    try {
+      const data = await getMyDocuments(accessToken)
+      setDocuments(data)
+
+      const firstReadyDocument = data.find(
+        (document) => document.status === 'ready',
+      )
+
+      if (firstReadyDocument) {
+        setSelectedDocumentId(String(firstReadyDocument.id))
+      }
+    } catch (error) {
+      if (error.status === 401) {
+        clearSession()
+        return
+      }
+
+      setDocumentAnswerError(error.message)
+    }
+  }
+
+  loadDocuments()
+}, [accessToken])
 
   async function handleLogin(username, password) {
     const data = await login(username, password)
@@ -368,6 +408,38 @@ function App() {
       setIsAnsweringProjectQuestion(false)
     }
   }
+  async function handleDocumentQuestionSubmit(event) {
+  event.preventDefault()
+
+  const question = documentQuestion.trim()
+
+  if (!selectedDocumentId || !question || isAnsweringDocument) {
+    return
+  }
+
+  setIsAnsweringDocument(true)
+  setDocumentAnswerError('')
+  setDocumentAnswer(null)
+
+  try {
+    const data = await answerDocument(
+      accessToken,
+      Number(selectedDocumentId),
+      question,
+    )
+
+    setDocumentAnswer(data)
+  } catch (error) {
+    if (error.status === 401) {
+      clearSession()
+      return
+    }
+
+    setDocumentAnswerError(error.message)
+  } finally {
+    setIsAnsweringDocument(false)
+  }
+}
 
   return (
     <main className="app-shell">
@@ -512,6 +584,75 @@ function App() {
               </div>
             )}
           </section>
+          <section className="document-answer-panel" aria-label="Document question">
+  <h2>Ask your document</h2>
+
+  {documents.length === 0 ? (
+    <p>No documents uploaded yet.</p>
+  ) : (
+    <form onSubmit={handleDocumentQuestionSubmit}>
+      <label htmlFor="document-select">Document</label>
+      <select
+        id="document-select"
+        value={selectedDocumentId}
+        onChange={(event) => {
+          setSelectedDocumentId(event.target.value)
+          setDocumentAnswer(null)
+          setDocumentAnswerError('')
+        }}
+      >
+        <option value="">Choose a ready document</option>
+        {documents
+          .filter((document) => document.status === 'ready')
+          .map((document) => (
+            <option key={document.id} value={document.id}>
+              {document.filename}
+            </option>
+          ))}
+      </select>
+
+      <label htmlFor="document-question">Question</label>
+      <textarea
+        id="document-question"
+        value={documentQuestion}
+        maxLength={2000}
+        placeholder="Ask about the selected document"
+        onChange={(event) => setDocumentQuestion(event.target.value)}
+      />
+
+      <button
+        type="submit"
+        disabled={
+          isAnsweringDocument ||
+          !selectedDocumentId ||
+          !documentQuestion.trim()
+        }
+      >
+        {isAnsweringDocument ? 'Answering...' : 'Ask document'}
+      </button>
+    </form>
+  )}
+
+  {documentAnswerError && (
+    <p className="assistant-error">{documentAnswerError}</p>
+  )}
+
+  {documentAnswer && (
+    <div className="document-answer">
+      <p>{documentAnswer.answer}</p>
+
+      {documentAnswer.sources.length > 0 && (
+        <ul className="knowledge-sources" aria-label="Document sources">
+          {documentAnswer.sources.map((source) => (
+            <li key={`${source.document_id}-${source.chunk_index}`}>
+              {source.filename} - chunk {source.chunk_index}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )}
+</section>
           <TaskList
             title="未完成"
             listId="unfinished-title"
