@@ -76,6 +76,34 @@ def index_document_chunks(
         wait=True,
     )
 
+def delete_document_vectors(
+    document_id: int,
+    user_id: int,
+) -> None:
+    client = get_qdrant_client()
+
+    if not client.collection_exists(DOCUMENT_COLLECTION_NAME):
+        return
+
+    client.delete(
+        collection_name=DOCUMENT_COLLECTION_NAME,
+        points_selector=models.FilterSelector(
+            filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="user_id",
+                        match=models.MatchValue(value=user_id),
+                    ),
+                    models.FieldCondition(
+                        key="document_id",
+                        match=models.MatchValue(value=document_id),
+                    ),
+                ],
+            ),
+        ),
+        wait=True,
+    )
+
 def search_document_chunks(
     question: str,
     user_id: int,

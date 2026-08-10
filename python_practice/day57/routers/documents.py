@@ -12,11 +12,14 @@ from ..schemas.document import (
 from ..services.document_storage import save_document_file
 from ..services.documents import (
     create_document_service,
+    delete_document_service,
     get_documents_service,
     get_ready_documents_service,
 )
 from ..services.document_processor import process_document
 from ..services.document_vectors import search_document_chunks
+
+from ..exceptions import DocumentNotFoundError
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -82,3 +85,24 @@ def search_documents(
         for chunk in chunks
     ]
     return {"items": items}
+
+@router.delete(
+    "/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_document(
+    document_id: int,
+    current_user: UserORM = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        delete_document_service(
+            document_id=document_id,
+            user_id=current_user.id,
+            db=db,
+        )
+    except DocumentNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail="document not found",
+        )
