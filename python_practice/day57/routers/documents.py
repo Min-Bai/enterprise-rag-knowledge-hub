@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -16,7 +16,7 @@ from ..services.documents import (
     get_documents_service,
     get_ready_documents_service,
 )
-from ..services.document_processor import process_document
+from ..services.document_queue import enqueue_document_processing
 from ..services.document_vectors import search_document_chunks
 
 from ..exceptions import DocumentNotFoundError
@@ -34,7 +34,6 @@ def get_documents(
 
 @router.post("", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     current_user: UserORM = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -53,7 +52,7 @@ async def upload_document(
         storage_path=storage_path,
     )
 
-    background_tasks.add_task(process_document, document.id)
+    enqueue_document_processing(document.id)
     return document
 
 @router.post("/search", response_model=DocumentSearchResponse)
