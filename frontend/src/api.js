@@ -206,6 +206,21 @@ export async function answerDocument(accessToken, documentId, question) {
   return readJson(response, 'Document answer request failed')
 }
 
+export async function uploadDocument(accessToken, file) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch(`${API_PREFIX}/documents`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: formData,
+  })
+
+  return readJson(response, 'Failed to upload document')
+}
+
 export async function getMyDocuments(accessToken) {
   const response = await fetch(`${API_PREFIX}/documents`, {
     headers: {

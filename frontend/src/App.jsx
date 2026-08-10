@@ -17,6 +17,7 @@ import {
   updateTaskTitle,
   getMyDocuments,
   answerDocument,
+  uploadDocument,
   deleteDocument,
 } from './api.js'
 import LoginForm from './LoginForm.jsx'
@@ -58,10 +59,19 @@ function App() {
   const [documentAnswer, setDocumentAnswer] = useState(null)
   const [documentAnswerError, setDocumentAnswerError] = useState('')
   const [isAnsweringDocument, setIsAnsweringDocument] = useState(false)
+  const [documentFile, setDocumentFile] = useState(null)
+const [documentUploadError, setDocumentUploadError] = useState('')
+const [isUploadingDocument, setIsUploadingDocument] = useState(false)
   const [deletingDocumentId, setDeletingDocumentId] = useState(null)
 
   const readyDocuments = documents.filter(
     (document) => document.status === 'ready',
+  )
+
+  const hasPendingDocuments = documents.some(
+  (document) =>
+    document.status === 'uploaded' ||
+    document.status === 'processing',
   )
 
   useEffect(() => {
@@ -173,6 +183,39 @@ function App() {
 
   loadDocuments()
 }, [accessToken])
+
+useEffect(() => {
+  if (!accessToken || !hasPendingDocuments) {
+    return undefined
+  }
+
+  const timerId = window.setInterval(async () => {
+    try {
+      const data = await getMyDocuments(accessToken)
+      setDocuments(data)
+
+      const firstReadyDocument = data.find(
+        (document) => document.status === 'ready',
+      )
+
+      if (firstReadyDocument) {
+        setSelectedDocumentId(
+          (currentDocumentId) =>
+            currentDocumentId || String(firstReadyDocument.id),
+        )
+      }
+    } catch (error) {
+      if (error.status === 401) {
+        clearSession()
+        return
+      }
+
+      setDocumentUploadError(error.message)
+    }
+  }, 3000)
+
+  return () => window.clearInterval(timerId)
+}, [accessToken, hasPendingDocuments])
 
   async function handleLogin(username, password) {
     const data = await login(username, password)
@@ -415,6 +458,38 @@ function App() {
     }
   }
 
+async function handleDocumentUpload(event) {
+  event.preventDefault()
+
+  if (!documentFile || isUploadingDocument) {
+    return
+  }
+
+  setIsUploadingDocument(true)
+  setDocumentUploadError('')
+
+  try {
+    const document = await uploadDocument(accessToken, documentFile)
+
+    setDocuments((currentDocuments) => [
+      document,
+      ...currentDocuments,
+    ])
+
+    setDocumentFile(null)
+    event.currentTarget.reset()
+  } catch (error) {
+    if (error.status === 401) {
+      clearSession()
+      return
+    }
+
+    setDocumentUploadError(error.message)
+  } finally {
+    setIsUploadingDocument(false)
+  }
+}
+
 async function handleDeleteDocument(documentId) {
   if (!window.confirm('Delete this document?')) {
     return
@@ -624,6 +699,33 @@ async function handleDeleteDocument(documentId) {
           </section>
           <section className="document-answer-panel" aria-label="Document question">
   <h2>Ask your document</h2>
+  <form
+  className="document-upload-form"
+  onSubmit={handleDocumentUpload}
+>
+  <label htmlFor="document-file">Upload PDF</label>
+
+  <input
+    id="document-file"
+    type="file"
+    accept="application/pdf,.pdf"
+    onChange={(event) => {
+      setDocumentFile(event.target.files?.[0] ?? null)
+      setDocumentUploadError('')
+    }}
+  />
+
+  <button
+    type="submit"
+    disabled={!documentFile || isUploadingDocument}
+  >
+    {isUploadingDocument ? 'Uploading...' : 'Upload document'}
+  </button>
+</form>
+
+{documentUploadError && (
+  <p className="assistant-error">{documentUploadError}</p>
+)}
 
 {documents.length > 0 && (
   <ul className="document-list" aria-label="Uploaded documents">
