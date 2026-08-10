@@ -460,6 +460,7 @@ useEffect(() => {
 
 async function handleDocumentUpload(event) {
   event.preventDefault()
+  const form = event.currentTarget
 
   if (!documentFile || isUploadingDocument) {
     return
@@ -477,7 +478,7 @@ async function handleDocumentUpload(event) {
     ])
 
     setDocumentFile(null)
-    event.currentTarget.reset()
+    form.reset()
   } catch (error) {
     if (error.status === 401) {
       clearSession()
