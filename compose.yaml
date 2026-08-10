@@ -37,6 +37,31 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+      
+  worker:
+    build: .
+    image: todo-api:2
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - python_practice/day57/.env
+    environment:
+      HF_HOME: /app/model-cache
+      HF_ENDPOINT: https://hf-mirror.com
+      QDRANT_URL: http://qdrant:6333
+    volumes:
+      - todo-api-data:/app/data
+      - todo-model-cache:/app/model-cache
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    command: python -m python_practice.day57.worker
 
   redis:
     image: docker.m.daocloud.io/library/redis:7-alpine
