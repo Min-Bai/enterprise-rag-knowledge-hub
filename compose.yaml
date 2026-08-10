@@ -17,7 +17,8 @@ services:
       HF_ENDPOINT: https://hf-mirror.com
       QDRANT_URL: http://qdrant:6333
     volumes:
-      - todo-api-data:/app/python_practice/data
+      - todo-api-data:/app/data
+      - todo-document-data:/app/python_practice/data
       - todo-model-cache:/app/model-cache
     depends_on:
       redis:
@@ -54,7 +55,8 @@ services:
       HF_ENDPOINT: https://hf-mirror.com
       QDRANT_URL: http://qdrant:6333
     volumes:
-      - todo-api-data:/app/python_practice/data
+      - todo-api-data:/app/data
+      - todo-document-data:/app/python_practice/data
       - todo-model-cache:/app/model-cache
     depends_on:
       redis:
@@ -113,3 +115,4 @@ volumes:
   todo-redis-data:
   todo-qdrant-data:
   todo-model-cache:
+  todo-document-data:
