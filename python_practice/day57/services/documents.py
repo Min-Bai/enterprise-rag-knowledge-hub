@@ -1,3 +1,8 @@
+from pathlib import Path
+
+from ..exceptions import DocumentNotFoundError
+from .document_vectors import delete_document_vectors
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -43,3 +48,27 @@ def get_ready_documents_service(
         .order_by(DocumentORM.created_at.desc())
     )
     return list(db.scalars(statement).all())
+
+def delete_document_service(
+    document_id: int,
+    user_id: int,
+    db: Session,
+) -> None:
+    statement = select(DocumentORM).where(
+        DocumentORM.id == document_id,
+        DocumentORM.user_id == user_id,
+    )
+    document = db.scalar(statement)
+
+    if document is None:
+        raise DocumentNotFoundError
+
+    delete_document_vectors(
+        document_id=document.id,
+        user_id=user_id,
+    )
+
+    Path(document.storage_path).unlink(missing_ok=True)
+
+    db.delete(document)
+    db.commit()

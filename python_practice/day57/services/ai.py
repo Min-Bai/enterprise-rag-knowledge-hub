@@ -30,23 +30,17 @@ from ..schemas.ai import (
     SourceItem,
 )
 from .tasks import get_tasks_service
+from ..exceptions import DocumentNotFoundError
 
 
 class AiNotConfiguredError(Exception):
     pass
 
-
 class AiProviderError(Exception):
     pass
 
-
 class AiHistoryStoreError(Exception):
     pass
-
-
-class DocumentNotFoundError(Exception):
-    pass
-
 
 class DocumentNotReadyError(Exception):
     pass

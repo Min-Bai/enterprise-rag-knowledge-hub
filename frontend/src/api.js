@@ -215,3 +215,18 @@ export async function getMyDocuments(accessToken) {
 
   return readJson(response, 'Failed to load documents')
 }
+
+export async function deleteDocument(accessToken, documentId) {
+  const response = await fetch(`${API_PREFIX}/documents/${documentId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  if (response.status === 204) {
+    return
+  }
+
+  return readJson(response, 'Failed to delete document')
+}

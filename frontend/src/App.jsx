@@ -17,6 +17,7 @@ import {
   updateTaskTitle,
   getMyDocuments,
   answerDocument,
+  deleteDocument,
 } from './api.js'
 import LoginForm from './LoginForm.jsx'
 import TaskList from './TaskList.jsx'
@@ -57,6 +58,11 @@ function App() {
   const [documentAnswer, setDocumentAnswer] = useState(null)
   const [documentAnswerError, setDocumentAnswerError] = useState('')
   const [isAnsweringDocument, setIsAnsweringDocument] = useState(false)
+  const [deletingDocumentId, setDeletingDocumentId] = useState(null)
+
+  const readyDocuments = documents.filter(
+    (document) => document.status === 'ready',
+  )
 
   useEffect(() => {
     async function checkApiHealth() {
@@ -408,6 +414,38 @@ function App() {
       setIsAnsweringProjectQuestion(false)
     }
   }
+
+async function handleDeleteDocument(documentId) {
+  if (!window.confirm('Delete this document?')) {
+    return
+  }
+
+  setDeletingDocumentId(documentId)
+
+  try {
+    await deleteDocument(accessToken, documentId)
+
+    setDocuments((currentDocuments) =>
+      currentDocuments.filter((document) => document.id !== documentId),
+    )
+
+    if (selectedDocumentId === String(documentId)) {
+      setSelectedDocumentId('')
+      setDocumentAnswer(null)
+      setDocumentAnswerError('')
+    }
+  } catch (error) {
+    if (error.status === 401) {
+      clearSession()
+      return
+    }
+
+    setDocumentAnswerError(error.message)
+  } finally {
+    setDeletingDocumentId(null)
+  }
+}
+
   async function handleDocumentQuestionSubmit(event) {
   event.preventDefault()
 
@@ -587,9 +625,38 @@ function App() {
           <section className="document-answer-panel" aria-label="Document question">
   <h2>Ask your document</h2>
 
+{documents.length > 0 && (
+  <ul className="document-list" aria-label="Uploaded documents">
+    {documents.map((document) => (
+      <li key={document.id} className="document-list-item">
+        <div>
+          <strong>{document.filename}</strong>
+          <span className={`document-status ${document.status}`}>
+            {document.status}
+          </span>
+          {document.error_message && (
+            <p className="document-error">{document.error_message}</p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className="delete-button"
+          disabled={deletingDocumentId !== null}
+          onClick={() => handleDeleteDocument(document.id)}
+        >
+          {deletingDocumentId === document.id ? 'Deleting...' : 'Delete'}
+        </button>
+      </li>
+    ))}
+  </ul>
+)}
+
   {documents.length === 0 ? (
-    <p>No documents uploaded yet.</p>
-  ) : (
+  <p>No documents uploaded yet.</p>
+) : readyDocuments.length === 0 ? (
+  <p>No documents are ready for questions yet.</p>
+) : (
     <form onSubmit={handleDocumentQuestionSubmit}>
       <label htmlFor="document-select">Document</label>
       <select
@@ -602,9 +669,8 @@ function App() {
         }}
       >
         <option value="">Choose a ready document</option>
-        {documents
-          .filter((document) => document.status === 'ready')
-          .map((document) => (
+        {
+          readyDocuments.map((document) => (
             <option key={document.id} value={document.id}>
               {document.filename}
             </option>
