@@ -1,17 +1,28 @@
+from functools import lru_cache
+
+from redis import Redis
 from rq import Queue
 
-from ..redis_client import redis_client
+from ..config import REDIS_URL
 from .document_processor import process_document
 
 
 DOCUMENT_QUEUE_NAME = "document-processing"
 
 
-def get_document_queue() -> Queue:
-    if redis_client is None:
+@lru_cache
+def get_document_redis() -> Redis:
+    if not REDIS_URL:
         raise RuntimeError("REDIS_URL is required for document processing")
 
-    return Queue(DOCUMENT_QUEUE_NAME, connection=redis_client)
+    return Redis.from_url(REDIS_URL, decode_responses=False)
+
+
+def get_document_queue() -> Queue:
+    return Queue(
+        DOCUMENT_QUEUE_NAME,
+        connection=get_document_redis(),
+    )
 
 
 def enqueue_document_processing(document_id: int) -> None:
