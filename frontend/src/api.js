@@ -1,16 +1,34 @@
 const API_PREFIX = '/api'
 
 async function readJson(response, fallbackMessage) {
-  const data = await response.json()
+  const contentType = response.headers.get('Content-Type') || ''
+  const isJson = contentType.includes('application/json')
+  const data = isJson ? await response.json() : null
 
   if (!response.ok) {
-    const error = new Error(data.detail || fallbackMessage)
+    let message = fallbackMessage
+
+    if (data?.detail) {
+      message = data.detail
+    } else if (response.status === 413) {
+      message = 'File size must not exceed 10 MB'
+    } else if (!isJson) {
+      message = `${fallbackMessage} (HTTP ${response.status})`
+    }
+
+    const error = new Error(message)
     error.status = response.status
+
     const retryAfter = Number(response.headers.get('Retry-After'))
     if (Number.isFinite(retryAfter) && retryAfter > 0) {
       error.retryAfter = retryAfter
     }
+
     throw error
+  }
+
+  if (data === null) {
+    throw new Error(`${fallbackMessage} (invalid server response)`)
   }
 
   return data
