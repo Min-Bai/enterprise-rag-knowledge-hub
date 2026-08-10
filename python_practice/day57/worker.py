@@ -1,14 +1,11 @@
 from rq import Worker
 
-from .redis_client import redis_client
-from .services.document_queue import DOCUMENT_QUEUE_NAME
+from .services.document_queue import get_document_queue
 
 
 def main() -> None:
-    if redis_client is None:
-        raise RuntimeError("REDIS_URL is required for document worker")
-
-    worker = Worker([DOCUMENT_QUEUE_NAME], connection=redis_client)
+    queue = get_document_queue()
+    worker = Worker([queue], connection=queue.connection)
     worker.work()
 
 
