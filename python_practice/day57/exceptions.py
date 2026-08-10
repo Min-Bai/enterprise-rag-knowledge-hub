@@ -40,3 +40,6 @@ class TaskPermissionDeniedError(TaskServiceError):
 
 class DocumentNotFoundError(Exception):
     pass
+
+class DocumentRetryNotAllowedError(Exception):
+    pass

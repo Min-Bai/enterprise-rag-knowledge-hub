@@ -15,11 +15,15 @@ from ..services.documents import (
     delete_document_service,
     get_documents_service,
     get_ready_documents_service,
+    retry_document_service,
 )
 from ..services.document_queue import enqueue_document_processing
 from ..services.document_vectors import search_document_chunks
 
-from ..exceptions import DocumentNotFoundError
+from ..exceptions import (
+    DocumentNotFoundError,
+    DocumentRetryNotAllowedError,
+)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -84,6 +88,35 @@ def search_documents(
         for chunk in chunks
     ]
     return {"items": items}
+
+@router.post(
+    "/{document_id}/retry",
+    response_model=DocumentResponse,
+)
+def retry_document(
+    document_id: int,
+    current_user: UserORM = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        document = retry_document_service(
+            document_id=document_id,
+            user_id=current_user.id,
+            db=db,
+        )
+    except DocumentNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail="document not found",
+        )
+    except DocumentRetryNotAllowedError:
+        raise HTTPException(
+            status_code=409,
+            detail="only failed documents can be retried",
+        )
+
+    enqueue_document_processing(document.id)
+    return document
 
 @router.delete(
     "/{document_id}",

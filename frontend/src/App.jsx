@@ -19,6 +19,7 @@ import {
   answerDocument,
   uploadDocument,
   deleteDocument,
+  retryDocument,
 } from './api.js'
 import LoginForm from './LoginForm.jsx'
 import TaskList from './TaskList.jsx'
@@ -60,18 +61,18 @@ function App() {
   const [documentAnswerError, setDocumentAnswerError] = useState('')
   const [isAnsweringDocument, setIsAnsweringDocument] = useState(false)
   const [documentFile, setDocumentFile] = useState(null)
-const [documentUploadError, setDocumentUploadError] = useState('')
-const [isUploadingDocument, setIsUploadingDocument] = useState(false)
+  const [documentUploadError, setDocumentUploadError] = useState('')
+  const [isUploadingDocument, setIsUploadingDocument] = useState(false)
   const [deletingDocumentId, setDeletingDocumentId] = useState(null)
-
+  const [retryingDocumentId, setRetryingDocumentId] = useState(null)
   const readyDocuments = documents.filter(
     (document) => document.status === 'ready',
   )
 
   const hasPendingDocuments = documents.some(
-  (document) =>
-    document.status === 'uploaded' ||
-    document.status === 'processing',
+    (document) =>
+      document.status === 'uploaded' ||
+      document.status === 'processing',
   )
 
   useEffect(() => {
@@ -153,69 +154,69 @@ const [isUploadingDocument, setIsUploadingDocument] = useState(false)
   }, [assistantCooldown])
 
   useEffect(() => {
-  if (!accessToken) {
-    setDocuments([])
-    setSelectedDocumentId('')
-    return
-  }
-
-  async function loadDocuments() {
-    try {
-      const data = await getMyDocuments(accessToken)
-      setDocuments(data)
-
-      const firstReadyDocument = data.find(
-        (document) => document.status === 'ready',
-      )
-
-      if (firstReadyDocument) {
-        setSelectedDocumentId(String(firstReadyDocument.id))
-      }
-    } catch (error) {
-      if (error.status === 401) {
-        clearSession()
-        return
-      }
-
-      setDocumentAnswerError(error.message)
+    if (!accessToken) {
+      setDocuments([])
+      setSelectedDocumentId('')
+      return
     }
-  }
 
-  loadDocuments()
-}, [accessToken])
+    async function loadDocuments() {
+      try {
+        const data = await getMyDocuments(accessToken)
+        setDocuments(data)
 
-useEffect(() => {
-  if (!accessToken || !hasPendingDocuments) {
-    return undefined
-  }
-
-  const timerId = window.setInterval(async () => {
-    try {
-      const data = await getMyDocuments(accessToken)
-      setDocuments(data)
-
-      const firstReadyDocument = data.find(
-        (document) => document.status === 'ready',
-      )
-
-      if (firstReadyDocument) {
-        setSelectedDocumentId(
-          (currentDocumentId) =>
-            currentDocumentId || String(firstReadyDocument.id),
+        const firstReadyDocument = data.find(
+          (document) => document.status === 'ready',
         )
-      }
-    } catch (error) {
-      if (error.status === 401) {
-        clearSession()
-        return
-      }
 
-      setDocumentUploadError(error.message)
+        if (firstReadyDocument) {
+          setSelectedDocumentId(String(firstReadyDocument.id))
+        }
+      } catch (error) {
+        if (error.status === 401) {
+          clearSession()
+          return
+        }
+
+        setDocumentAnswerError(error.message)
+      }
     }
-  }, 3000)
 
-  return () => window.clearInterval(timerId)
-}, [accessToken, hasPendingDocuments])
+    loadDocuments()
+  }, [accessToken])
+
+  useEffect(() => {
+    if (!accessToken || !hasPendingDocuments) {
+      return undefined
+    }
+
+    const timerId = window.setInterval(async () => {
+      try {
+        const data = await getMyDocuments(accessToken)
+        setDocuments(data)
+
+        const firstReadyDocument = data.find(
+          (document) => document.status === 'ready',
+        )
+
+        if (firstReadyDocument) {
+          setSelectedDocumentId(
+            (currentDocumentId) =>
+              currentDocumentId || String(firstReadyDocument.id),
+          )
+        }
+      } catch (error) {
+        if (error.status === 401) {
+          clearSession()
+          return
+        }
+
+        setDocumentUploadError(error.message)
+      }
+    }, 3000)
+
+    return () => window.clearInterval(timerId)
+  }, [accessToken, hasPendingDocuments])
 
   async function handleLogin(username, password) {
     const data = await login(username, password)
@@ -458,102 +459,130 @@ useEffect(() => {
     }
   }
 
-async function handleDocumentUpload(event) {
-  event.preventDefault()
-  const form = event.currentTarget
+  async function handleDocumentUpload(event) {
+    event.preventDefault()
+    const form = event.currentTarget
 
-  if (!documentFile || isUploadingDocument) {
-    return
-  }
-
-  setIsUploadingDocument(true)
-  setDocumentUploadError('')
-
-  try {
-    const document = await uploadDocument(accessToken, documentFile)
-
-    setDocuments((currentDocuments) => [
-      document,
-      ...currentDocuments,
-    ])
-
-    setDocumentFile(null)
-    form.reset()
-  } catch (error) {
-    if (error.status === 401) {
-      clearSession()
+    if (!documentFile || isUploadingDocument) {
       return
     }
 
-    setDocumentUploadError(error.message)
-  } finally {
-    setIsUploadingDocument(false)
-  }
-}
+    setIsUploadingDocument(true)
+    setDocumentUploadError('')
 
-async function handleDeleteDocument(documentId) {
-  if (!window.confirm('Delete this document?')) {
-    return
-  }
+    try {
+      const document = await uploadDocument(accessToken, documentFile)
 
-  setDeletingDocumentId(documentId)
+      setDocuments((currentDocuments) => [
+        document,
+        ...currentDocuments,
+      ])
 
-  try {
-    await deleteDocument(accessToken, documentId)
+      setDocumentFile(null)
+      form.reset()
+    } catch (error) {
+      if (error.status === 401) {
+        clearSession()
+        return
+      }
 
-    setDocuments((currentDocuments) =>
-      currentDocuments.filter((document) => document.id !== documentId),
-    )
-
-    if (selectedDocumentId === String(documentId)) {
-      setSelectedDocumentId('')
-      setDocumentAnswer(null)
-      setDocumentAnswerError('')
+      setDocumentUploadError(error.message)
+    } finally {
+      setIsUploadingDocument(false)
     }
-  } catch (error) {
-    if (error.status === 401) {
-      clearSession()
+  }
+
+  async function handleDeleteDocument(documentId) {
+    if (!window.confirm('Delete this document?')) {
       return
     }
 
-    setDocumentAnswerError(error.message)
-  } finally {
-    setDeletingDocumentId(null)
+    setDeletingDocumentId(documentId)
+
+    try {
+      await deleteDocument(accessToken, documentId)
+
+      setDocuments((currentDocuments) =>
+        currentDocuments.filter((document) => document.id !== documentId),
+      )
+
+      if (selectedDocumentId === String(documentId)) {
+        setSelectedDocumentId('')
+        setDocumentAnswer(null)
+        setDocumentAnswerError('')
+      }
+    } catch (error) {
+      if (error.status === 401) {
+        clearSession()
+        return
+      }
+
+      setDocumentAnswerError(error.message)
+    } finally {
+      setDeletingDocumentId(null)
+    }
   }
-}
+
+  async function handleRetryDocument(documentId) {
+    if (retryingDocumentId !== null) {
+      return
+    }
+
+    setRetryingDocumentId(documentId)
+    setDocumentUploadError('')
+
+    try {
+      const document = await retryDocument(accessToken, documentId)
+
+      setDocuments((currentDocuments) =>
+        currentDocuments.map((currentDocument) =>
+          currentDocument.id === document.id ? document : currentDocument,
+        ),
+      )
+    } catch (error) {
+      if (error.status === 401) {
+        clearSession()
+        return
+      }
+
+      setDocumentUploadError(error.message)
+    } finally {
+      setRetryingDocumentId(null)
+    }
+  }
 
   async function handleDocumentQuestionSubmit(event) {
-  event.preventDefault()
+    event.preventDefault()
 
-  const question = documentQuestion.trim()
+    const question = documentQuestion.trim()
 
-  if (!selectedDocumentId || !question || isAnsweringDocument) {
-    return
-  }
-
-  setIsAnsweringDocument(true)
-  setDocumentAnswerError('')
-  setDocumentAnswer(null)
-
-  try {
-    const data = await answerDocument(
-      accessToken,
-      Number(selectedDocumentId),
-      question,
-    )
-
-    setDocumentAnswer(data)
-  } catch (error) {
-    if (error.status === 401) {
-      clearSession()
+    if (!selectedDocumentId || !question || isAnsweringDocument) {
       return
     }
 
-    setDocumentAnswerError(error.message)
-  } finally {
-    setIsAnsweringDocument(false)
+    setIsAnsweringDocument(true)
+    setDocumentAnswerError('')
+    setDocumentAnswer(null)
+
+    try {
+      const data = await answerDocument(
+        accessToken,
+        Number(selectedDocumentId),
+        question,
+      )
+
+      setDocumentAnswer(data)
+    } catch (error) {
+      if (error.status === 401) {
+        clearSession()
+        return
+      }
+
+      setDocumentAnswerError(error.message)
+    } finally {
+      setIsAnsweringDocument(false)
+    }
   }
-}
 
   return (
     <main className="app-shell">
@@ -699,129 +728,148 @@ async function handleDeleteDocument(documentId) {
             )}
           </section>
           <section className="document-answer-panel" aria-label="Document question">
-  <h2>Ask your document</h2>
-  <form
-  className="document-upload-form"
-  onSubmit={handleDocumentUpload}
->
-  <label htmlFor="document-file">Upload PDF</label>
+            <h2>Ask your document</h2>
+            <form
+              className="document-upload-form"
+              onSubmit={handleDocumentUpload}
+            >
+              <label htmlFor="document-file">Upload PDF</label>
 
-  <input
-    id="document-file"
-    type="file"
-    accept="application/pdf,.pdf"
-    onChange={(event) => {
-      setDocumentFile(event.target.files?.[0] ?? null)
-      setDocumentUploadError('')
-    }}
-  />
+              <input
+                id="document-file"
+                type="file"
+                accept="application/pdf,.pdf"
+                onChange={(event) => {
+                  setDocumentFile(event.target.files?.[0] ?? null)
+                  setDocumentUploadError('')
+                }}
+              />
 
-  <button
-    type="submit"
-    disabled={!documentFile || isUploadingDocument}
-  >
-    {isUploadingDocument ? 'Uploading...' : 'Upload document'}
-  </button>
-</form>
+              <button
+                type="submit"
+                disabled={!documentFile || isUploadingDocument}
+              >
+                {isUploadingDocument ? 'Uploading...' : 'Upload document'}
+              </button>
+            </form>
 
-{documentUploadError && (
-  <p className="assistant-error">{documentUploadError}</p>
-)}
+            {documentUploadError && (
+              <p className="assistant-error">{documentUploadError}</p>
+            )}
 
-{documents.length > 0 && (
-  <ul className="document-list" aria-label="Uploaded documents">
-    {documents.map((document) => (
-      <li key={document.id} className="document-list-item">
-        <div>
-          <strong>{document.filename}</strong>
-          <span className={`document-status ${document.status}`}>
-            {document.status}
-          </span>
-          {document.error_message && (
-            <p className="document-error">{document.error_message}</p>
-          )}
-        </div>
+            {documents.length > 0 && (
+              <ul className="document-list" aria-label="Uploaded documents">
+                {documents.map((document) => (
+                  <li key={document.id} className="document-list-item">
+                    <div>
+                      <strong>{document.filename}</strong>
+                      <span className={`document-status ${document.status}`}>
+                        {document.status}
+                      </span>
+                      {document.error_message && (
+                        <p className="document-error">{document.error_message}</p>
+                      )}
+                    </div>
 
-        <button
-          type="button"
-          className="delete-button"
-          disabled={deletingDocumentId !== null}
-          onClick={() => handleDeleteDocument(document.id)}
-        >
-          {deletingDocumentId === document.id ? 'Deleting...' : 'Delete'}
-        </button>
-      </li>
-    ))}
-  </ul>
-)}
+                    <div className="document-actions">
+                      {document.status === 'failed' && (
+                        <button
+                          type="button"
+                          className="retry-button"
+                          disabled={
+                            deletingDocumentId !== null ||
+                            retryingDocumentId !== null
+                          }
+                          onClick={() => handleRetryDocument(document.id)}
+                        >
+                          {retryingDocumentId === document.id ? 'Retrying...' : 'Retry'}
+                        </button>
+                      )}
 
-  {documents.length === 0 ? (
-  <p>No documents uploaded yet.</p>
-) : readyDocuments.length === 0 ? (
-  <p>No documents are ready for questions yet.</p>
-) : (
-    <form onSubmit={handleDocumentQuestionSubmit}>
-      <label htmlFor="document-select">Document</label>
-      <select
-        id="document-select"
-        value={selectedDocumentId}
-        onChange={(event) => {
-          setSelectedDocumentId(event.target.value)
-          setDocumentAnswer(null)
-          setDocumentAnswerError('')
-        }}
-      >
-        <option value="">Choose a ready document</option>
-        {
-          readyDocuments.map((document) => (
-            <option key={document.id} value={document.id}>
-              {document.filename}
-            </option>
-          ))}
-      </select>
+                      <button
+                        type="button"
+                        className="delete-button"
+                        disabled={
+                          deletingDocumentId !== null ||
+                          retryingDocumentId !== null
+                        }
+                        onClick={() => handleDeleteDocument(document.id)}
+                      >
+                        {deletingDocumentId === document.id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
 
-      <label htmlFor="document-question">Question</label>
-      <textarea
-        id="document-question"
-        value={documentQuestion}
-        maxLength={2000}
-        placeholder="Ask about the selected document"
-        onChange={(event) => setDocumentQuestion(event.target.value)}
-      />
+            {documents.length === 0 ? (
+              <p>No documents uploaded yet.</p>
+            ) : readyDocuments.length === 0 ? (
+              <p>No documents are ready for questions yet.</p>
+            ) : (
+              <form onSubmit={handleDocumentQuestionSubmit}>
+                <label htmlFor="document-select">Document</label>
+                <select
+                  id="document-select"
+                  value={selectedDocumentId}
+                  onChange={(event) => {
+                    setSelectedDocumentId(event.target.value)
+                    setDocumentAnswer(null)
+                    setDocumentAnswerError('')
+                  }}
+                >
+                  <option value="">Choose a ready document</option>
+                  {
+                    readyDocuments.map((document) => (
+                      <option key={document.id} value={document.id}>
+                        {document.filename}
+                      </option>
+                    ))}
+                </select>
 
-      <button
-        type="submit"
-        disabled={
-          isAnsweringDocument ||
-          !selectedDocumentId ||
-          !documentQuestion.trim()
-        }
-      >
-        {isAnsweringDocument ? 'Answering...' : 'Ask document'}
-      </button>
-    </form>
-  )}
+                <label htmlFor="document-question">Question</label>
+                <textarea
+                  id="document-question"
+                  value={documentQuestion}
+                  maxLength={2000}
+                  placeholder="Ask about the selected document"
+                  onChange={(event) => setDocumentQuestion(event.target.value)}
+                />
 
-  {documentAnswerError && (
-    <p className="assistant-error">{documentAnswerError}</p>
-  )}
+                <button
+                  type="submit"
+                  disabled={
+                    isAnsweringDocument ||
+                    !selectedDocumentId ||
+                    !documentQuestion.trim()
+                  }
+                >
+                  {isAnsweringDocument ? 'Answering...' : 'Ask document'}
+                </button>
+              </form>
+            )}
 
-  {documentAnswer && (
-    <div className="document-answer">
-      <p>{documentAnswer.answer}</p>
+            {documentAnswerError && (
+              <p className="assistant-error">{documentAnswerError}</p>
+            )}
 
-      {documentAnswer.sources.length > 0 && (
-        <ul className="knowledge-sources" aria-label="Document sources">
-          {documentAnswer.sources.map((source) => (
-            <li key={`${source.document_id}-${source.chunk_index}`}>
-              {source.filename} - chunk {source.chunk_index}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )}
-</section>
+            {documentAnswer && (
+              <div className="document-answer">
+                <p>{documentAnswer.answer}</p>
+
+                {documentAnswer.sources.length > 0 && (
+                  <ul className="knowledge-sources" aria-label="Document sources">
+                    {documentAnswer.sources.map((source) => (
+                      <li key={`${source.document_id}-${source.chunk_index}`}>
+                        {source.filename} - chunk {source.chunk_index}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </section>
           <TaskList
             title="未完成"
             listId="unfinished-title"
