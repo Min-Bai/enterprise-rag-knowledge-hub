@@ -263,3 +263,17 @@ export async function deleteDocument(accessToken, documentId) {
 
   return readJson(response, 'Failed to delete document')
 }
+
+export async function retryDocument(accessToken, documentId) {
+  const response = await fetch(
+    `${API_PREFIX}/documents/${documentId}/retry`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  )
+
+  return readJson(response, 'Failed to retry document')
+}
