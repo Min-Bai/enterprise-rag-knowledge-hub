@@ -39,34 +39,36 @@ def upgrade() -> None:
                 ["id"],
                 ondelete="SET NULL",
             )
-    else:
-        op.drop_constraint(
-            "fk_tasks_user_id_users",
-            "tasks",
-            type_="foreignkey",
-        )
-        op.create_foreign_key(
-            "fk_tasks_user_id_users",
-            "tasks",
-            "users",
-            ["user_id"],
-            ["id"],
-            ondelete="SET NULL",
-        )
-    with op.batch_alter_table(
-        "tasks",
-        naming_convention=NAMING_CONVENTION,
-        recreate="always",
-    ) as batch_op:
-        batch_op.drop_constraint("fk_tasks_user_id_users", type_="foreignkey")
-        batch_op.create_foreign_key(
-            "fk_tasks_user_id_users",
-            "users",
-            ["user_id"],
-            ["id"],
-            ondelete="SET NULL",
-        )
+        return
 
+    foreign_key = next(
+        (
+            constraint
+            for constraint in sa.inspect(
+                op.get_bind()
+            ).get_foreign_keys("tasks")
+            if constraint["constrained_columns"] == ["user_id"]
+            and constraint["referred_table"] == "users"
+        ),
+        None,
+    )
+
+    if foreign_key is None or foreign_key["name"] is None:
+        raise RuntimeError("tasks.user_id foreign key was not found")
+
+    op.drop_constraint(
+        foreign_key["name"],
+        "tasks",
+        type_="foreignkey",
+    )
+    op.create_foreign_key(
+        "fk_tasks_user_id_users",
+        "tasks",
+        "users",
+        ["user_id"],
+        ["id"],
+        ondelete="SET NULL",
+    )
 
 def downgrade() -> None:
     with op.batch_alter_table(
