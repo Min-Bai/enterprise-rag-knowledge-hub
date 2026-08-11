@@ -71,6 +71,14 @@ LOGIN_RATE_WINDOW_SECONDS = get_positive_int_env(
 AI_RATE_LIMIT = get_positive_int_env("AI_RATE_LIMIT", 10)
 AI_RATE_WINDOW_SECONDS = get_positive_int_env("AI_RATE_WINDOW_SECONDS", 60)
 
+DOCUMENT_UPLOAD_RATE_LIMIT = get_positive_int_env(
+    "DOCUMENT_UPLOAD_RATE_LIMIT",
+    10,
+)
+DOCUMENT_UPLOAD_RATE_WINDOW_SECONDS = get_positive_int_env(
+    "DOCUMENT_UPLOAD_RATE_WINDOW_SECONDS",
+    60 * 60,
+)
 
 def get_score_env(name: str, default: float) -> float:
     value = getenv(name, str(default))
