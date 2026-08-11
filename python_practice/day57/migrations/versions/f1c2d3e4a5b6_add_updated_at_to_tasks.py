@@ -28,8 +28,16 @@ def upgrade() -> None:
     )
     op.execute("UPDATE tasks SET updated_at = CURRENT_TIMESTAMP")
 
-    with op.batch_alter_table("tasks") as batch_op:
-        batch_op.alter_column("updated_at", nullable=False)
+    if op.get_bind().dialect.name == "sqlite":
+        with op.batch_alter_table("tasks") as batch_op:
+            batch_op.alter_column("updated_at", nullable=False)
+    else:
+        op.alter_column(
+            "tasks",
+            "updated_at",
+            existing_type=sa.DateTime(),
+            nullable=False,
+        )
 
 
 def downgrade() -> None:
