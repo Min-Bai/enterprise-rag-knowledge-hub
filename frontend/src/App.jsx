@@ -467,6 +467,15 @@ function App() {
       return
     }
 
+    if (!documentFile.name.toLowerCase().endsWith('.pdf')) {
+      setDocumentUploadError('Only PDF files are allowed.')
+      return
+    }
+
+    if (documentFile.size > 10 * 1024 * 1024) {
+      setDocumentUploadError('File size must not exceed 10 MB.')
+      return
+    }
     setIsUploadingDocument(true)
     setDocumentUploadError('')
 

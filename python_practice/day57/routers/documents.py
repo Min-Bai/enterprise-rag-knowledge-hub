@@ -19,6 +19,7 @@ from ..services.documents import (
 )
 from ..services.document_queue import enqueue_document_processing
 from ..services.document_vectors import search_document_chunks
+from ..rate_limit import enforce_document_upload_rate_limit
 
 from ..exceptions import (
     DocumentNotFoundError,
@@ -43,6 +44,8 @@ async def upload_document(
     db: Session = Depends(get_db),
 ):
     original_filename = file.filename or "document.pdf"
+    
+    enforce_document_upload_rate_limit(current_user.id)
 
     try:
         storage_path = await save_document_file(file)

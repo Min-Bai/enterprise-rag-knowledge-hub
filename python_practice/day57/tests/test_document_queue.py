@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from python_practice.day57.auth import get_current_user
@@ -24,6 +25,10 @@ def test_upload_document_enqueues_processing_job(monkeypatch):
     monkeypatch.setattr(
         "python_practice.day57.routers.documents.enqueue_document_processing",
         enqueue_mock,
+    )
+    monkeypatch.setattr(
+        "python_practice.day57.routers.documents.enforce_document_upload_rate_limit",
+        lambda user_id: None,
     )
 
     try:
@@ -57,3 +62,30 @@ def test_enqueue_document_processing_uses_document_queue(monkeypatch):
         result_ttl=0,
         failure_ttl=7 * 24 * 60 * 60,
     )
+
+def test_upload_document_rejects_rate_limited_user(monkeypatch):
+    app.dependency_overrides[get_current_user] = (
+        lambda: SimpleNamespace(id=1)
+    )
+
+    def reject_upload(_user_id):
+        raise HTTPException(
+            status_code=429,
+            detail="document upload rate limit exceeded",
+        )
+
+    monkeypatch.setattr(
+        "python_practice.day57.routers.documents.enforce_document_upload_rate_limit",
+        reject_upload,
+    )
+
+    try:
+        response = client.post(
+            "/documents",
+            files={"file": ("queued.pdf", b"%PDF-test", "application/pdf")},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 429
+    assert response.json()["detail"] == "document upload rate limit exceeded"

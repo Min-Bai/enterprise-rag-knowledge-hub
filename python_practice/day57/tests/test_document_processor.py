@@ -33,3 +33,16 @@ def test_mark_interrupted_documents_failed_rolls_back_on_error(monkeypatch):
 
     db.rollback.assert_called_once()
     db.close.assert_called_once()
+
+def test_process_document_skips_deleted_document(monkeypatch):
+    db = Mock()
+    db.get.return_value = None
+
+    monkeypatch.setattr(document_processor, "SessionLocal", lambda: db)
+
+    document_processor.process_document(123)
+
+    db.get.assert_called_once()
+    db.commit.assert_not_called()
+    db.rollback.assert_not_called()
+    db.close.assert_called_once()
