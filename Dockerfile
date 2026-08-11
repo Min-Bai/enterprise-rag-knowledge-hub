@@ -14,6 +14,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt
 
 COPY python_practice ./python_practice
+COPY scripts ./scripts
 
 EXPOSE 8000
 
