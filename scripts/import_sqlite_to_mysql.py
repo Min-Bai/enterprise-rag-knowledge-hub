@@ -4,6 +4,7 @@ from sqlalchemy import MetaData, create_engine, func, select
 
 from python_practice.day57.database import Base, engine as mysql_engine
 from python_practice.day57.models.document import DocumentORM
+from python_practice.day57.models.knowledge_base import KnowledgeBaseORM
 from python_practice.day57.models.task import TaskORM
 from python_practice.day57.models.user import UserORM
 
@@ -80,6 +81,47 @@ def copy_table(
     return len(rows)
 
 
+def create_default_knowledge_bases(source_connection, target_connection) -> dict[int, int]:
+    users = source_connection.execute(
+        select(Base.metadata.tables["users"])
+    ).mappings().all()
+    knowledge_base_ids: dict[int, int] = {}
+
+    for user in users:
+        result = target_connection.execute(
+            KnowledgeBaseORM.__table__.insert().values(
+                owner_user_id=user["id"],
+                name="Default knowledge base",
+            )
+        )
+        knowledge_base_ids[int(user["id"])] = int(result.inserted_primary_key[0])
+
+    return knowledge_base_ids
+
+
+def copy_documents_with_default_knowledge_bases(
+    source_connection,
+    target_connection,
+    source_tables,
+    knowledge_base_ids: dict[int, int],
+) -> int:
+    rows = source_connection.execute(
+        select(source_tables["documents"])
+    ).mappings().all()
+    if rows:
+        target_connection.execute(
+            Base.metadata.tables["documents"].insert(),
+            [
+                {
+                    **dict(row),
+                    "knowledge_base_id": knowledge_base_ids[int(row["user_id"])],
+                }
+                for row in rows
+            ],
+        )
+    return len(rows)
+
+
 def import_sqlite_data(source_url: str) -> dict[str, int]:
     if not source_url.startswith("sqlite"):
         raise ValueError("source database must use SQLite")
@@ -92,15 +134,24 @@ def import_sqlite_data(source_url: str) -> dict[str, int]:
 
         with source_engine.connect() as source_connection:
             with mysql_engine.begin() as target_connection:
-                counts = {
-                    table_name: copy_table(
+                counts = {}
+                for table_name in ("users", "tasks"):
+                    counts[table_name] = copy_table(
                         source_connection,
                         target_connection,
                         source_tables,
                         table_name,
                     )
-                    for table_name in TABLE_NAMES
-                }
+                knowledge_base_ids = create_default_knowledge_bases(
+                    source_connection,
+                    target_connection,
+                )
+                counts["documents"] = copy_documents_with_default_knowledge_bases(
+                    source_connection,
+                    target_connection,
+                    source_tables,
+                    knowledge_base_ids,
+                )
     finally:
         source_engine.dispose()
 
