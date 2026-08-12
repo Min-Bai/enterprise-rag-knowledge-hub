@@ -61,7 +61,11 @@ def upgrade() -> None:
         )
 
     with op.batch_alter_table("documents") as batch_op:
-        batch_op.alter_column("knowledge_base_id", nullable=False)
+        batch_op.alter_column(
+            "knowledge_base_id",
+            existing_type=sa.Integer(),
+            nullable=False,
+        )
         batch_op.create_foreign_key(
             "fk_documents_knowledge_base_id_knowledge_bases",
             "knowledge_bases",
