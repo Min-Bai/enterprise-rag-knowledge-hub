@@ -10,6 +10,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models.document import DocumentORM
+from .knowledge_bases import (
+    KnowledgeBaseNotFoundError,
+    get_default_knowledge_base_service,
+    get_knowledge_base_service,
+)
 
 
 def create_document_service(
@@ -17,9 +22,20 @@ def create_document_service(
     user_id: int,
     filename: str,
     storage_path: str,
+    knowledge_base_id: int | None = None,
 ) -> DocumentORM:
+    if knowledge_base_id is None:
+        knowledge_base = get_default_knowledge_base_service(db, user_id)
+    else:
+        knowledge_base = get_knowledge_base_service(
+            db,
+            knowledge_base_id,
+            user_id,
+        )
+
     document = DocumentORM(
         user_id=user_id,
+        knowledge_base_id=knowledge_base.id,
         filename=filename,
         storage_path=storage_path,
     )
@@ -30,17 +46,25 @@ def create_document_service(
     return document
 
 
-def get_documents_service(db: Session, user_id: int) -> list[DocumentORM]:
+def get_documents_service(
+    db: Session,
+    user_id: int,
+    knowledge_base_id: int | None = None,
+) -> list[DocumentORM]:
     statement = (
         select(DocumentORM)
         .where(DocumentORM.user_id == user_id)
         .order_by(DocumentORM.created_at.desc())
     )
+    if knowledge_base_id is not None:
+        get_knowledge_base_service(db, knowledge_base_id, user_id)
+        statement = statement.where(DocumentORM.knowledge_base_id == knowledge_base_id)
     return list(db.scalars(statement).all())
 
 def get_ready_documents_service(
     db: Session,
     user_id: int,
+    knowledge_base_id: int | None = None,
 ) -> list[DocumentORM]:
     statement = (
         select(DocumentORM)
@@ -50,6 +74,9 @@ def get_ready_documents_service(
         )
         .order_by(DocumentORM.created_at.desc())
     )
+    if knowledge_base_id is not None:
+        get_knowledge_base_service(db, knowledge_base_id, user_id)
+        statement = statement.where(DocumentORM.knowledge_base_id == knowledge_base_id)
     return list(db.scalars(statement).all())
 
 def retry_document_service(

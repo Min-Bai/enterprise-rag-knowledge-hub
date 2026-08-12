@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class DocumentResponse(BaseModel):
     id: int
+    knowledge_base_id: int
     filename: str
     status: str
     error_message: str | None

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -25,21 +25,31 @@ from ..exceptions import (
     DocumentNotFoundError,
     DocumentRetryNotAllowedError,
 )
+from ..services.knowledge_bases import KnowledgeBaseNotFoundError
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 
 @router.get("", response_model=list[DocumentResponse])
 def get_documents(
+    knowledge_base_id: int | None = Query(default=None, ge=1),
     current_user: UserORM = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return get_documents_service(db=db, user_id=current_user.id)
+    try:
+        return get_documents_service(
+            db=db,
+            user_id=current_user.id,
+            knowledge_base_id=knowledge_base_id,
+        )
+    except KnowledgeBaseNotFoundError:
+        raise HTTPException(status_code=404, detail="knowledge base not found")
 
 
 @router.post("", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     file: UploadFile = File(...),
+    knowledge_base_id: int | None = Form(default=None),
     current_user: UserORM = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -52,12 +62,19 @@ async def upload_document(
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
 
-    document = create_document_service(
-        db=db,
-        user_id=current_user.id,
-        filename=original_filename,
-        storage_path=storage_path,
-    )
+    try:
+        document = create_document_service(
+            db=db,
+            user_id=current_user.id,
+            knowledge_base_id=knowledge_base_id,
+            filename=original_filename,
+            storage_path=storage_path,
+        )
+    except KnowledgeBaseNotFoundError:
+        from pathlib import Path
+
+        Path(storage_path).unlink(missing_ok=True)
+        raise HTTPException(status_code=404, detail="knowledge base not found")
 
     enqueue_document_processing(document.id)
     return document
@@ -65,13 +82,18 @@ async def upload_document(
 @router.post("/search", response_model=DocumentSearchResponse)
 def search_documents(
     request: DocumentSearchRequest,
+    knowledge_base_id: int | None = Query(default=None, ge=1),
     current_user: UserORM = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    documents = get_ready_documents_service(
-        db=db,
-        user_id=current_user.id,
-    )
+    try:
+        documents = get_ready_documents_service(
+            db=db,
+            user_id=current_user.id,
+            knowledge_base_id=knowledge_base_id,
+        )
+    except KnowledgeBaseNotFoundError:
+        raise HTTPException(status_code=404, detail="knowledge base not found")
     filename_by_id = {
         document.id: document.filename
         for document in documents
