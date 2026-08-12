@@ -2,11 +2,11 @@ from argparse import ArgumentParser
 
 from sqlalchemy import MetaData, create_engine, func, select
 
-from python_practice.day57.database import Base, engine as mysql_engine
-from python_practice.day57.models.document import DocumentORM
-from python_practice.day57.models.knowledge_base import KnowledgeBaseORM
-from python_practice.day57.models.task import TaskORM
-from python_practice.day57.models.user import UserORM
+from backend.app.database import Base, engine as mysql_engine
+from backend.app.models.document import DocumentORM
+from backend.app.models.knowledge_base import KnowledgeBaseORM
+from backend.app.models.task import TaskORM
+from backend.app.models.user import UserORM
 
 
 DEFAULT_SOURCE_URL = "sqlite:////app/data/tasks.db"

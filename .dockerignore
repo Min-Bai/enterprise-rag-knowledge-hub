@@ -3,6 +3,6 @@
 **/.pytest_cache/
 **/*.pyc
 **/*.db
-python_practice/data/
+backend/app/data/
 .pytest-rq-temp/
 .pytest-tmp/

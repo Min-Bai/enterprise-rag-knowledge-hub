@@ -20,9 +20,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     grep -v '^torch==' requirements.txt > /tmp/requirements-no-torch.txt && \
     pip install -r /tmp/requirements-no-torch.txt
 
-COPY python_practice ./python_practice
+COPY backend ./backend
 COPY scripts ./scripts
 
 EXPOSE 8000
 
-CMD ["uvicorn", "python_practice.day57.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -8,7 +8,7 @@ services:
         max-size: "10m"
         max-file: "3"
     env_file:
-      - python_practice/day57/.env
+      - backend/app/.env
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
@@ -34,7 +34,7 @@ services:
         max-size: "10m"
         max-file: "3"
     env_file:
-      - python_practice/day57/.env
+      - backend/app/.env
     ports:
       - "8000:8000"
     environment:
@@ -43,7 +43,7 @@ services:
       QDRANT_URL: http://qdrant:6333
     volumes:
       - todo-api-data:/app/data
-      - todo-document-data:/app/python_practice/data
+      - todo-document-data:/app/backend/app/data
       - todo-model-cache:/app/model-cache
     depends_on:
       mysql:
@@ -53,8 +53,8 @@ services:
       qdrant:
         condition: service_started
     command: >
-      sh -c "alembic -c python_practice/day57/alembic.ini upgrade head &&
-      uvicorn python_practice.day57.main:app --host 0.0.0.0 --port 8000"
+      sh -c "alembic -c backend/app/alembic.ini upgrade head &&
+      uvicorn backend.app.main:app --host 0.0.0.0 --port 8000"
     healthcheck:
       test:
         - CMD
@@ -76,14 +76,14 @@ services:
         max-size: "10m"
         max-file: "3"
     env_file:
-      - python_practice/day57/.env
+      - backend/app/.env
     environment:
       HF_HOME: /app/model-cache
       HF_ENDPOINT: https://hf-mirror.com
       QDRANT_URL: http://qdrant:6333
     volumes:
       - todo-api-data:/app/data
-      - todo-document-data:/app/python_practice/data
+      - todo-document-data:/app/backend/app/data
       - todo-model-cache:/app/model-cache
     depends_on:
       mysql:
@@ -92,7 +92,7 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
-    command: python -m python_practice.day57.worker
+    command: python -m backend.app.worker
 
   redis:
     image: docker.m.daocloud.io/library/redis:7-alpine
