@@ -54,6 +54,18 @@ class RetrievedKnowledge:
     score: float | None
 
 
+class AiHistoryStoreError(Exception):
+    pass
+
+
+@dataclass(frozen=True)
+class RetrievedKnowledge:
+    source: str
+    section: str | None
+    text: str
+    score: float | None
+
+
 KNOWLEDGE_DIR = Path(__file__).resolve().parents[1] / "knowledge"
 logger = logging.getLogger(__name__)
 ASSISTANT_HISTORY_TTL_SECONDS = 24 * 60 * 60

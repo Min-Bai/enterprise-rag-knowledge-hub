@@ -1053,6 +1053,41 @@ function App() {
               </div>
             )}
           </section>
+          <section className="knowledge-panel" aria-label="Project knowledge assistant">
+            <h2>Project knowledge</h2>
+            <form onSubmit={handleProjectQuestionSubmit}>
+              <textarea
+                value={projectQuestion}
+                maxLength={500}
+                placeholder="Ask about this project's API or deployment"
+                onChange={(event) => setProjectQuestion(event.target.value)}
+              />
+              <button
+                type="submit"
+                disabled={isAnsweringProjectQuestion || !projectQuestion.trim()}
+              >
+                {isAnsweringProjectQuestion ? 'Searching...' : 'Ask'}
+              </button>
+            </form>
+            {projectQuestionError && (
+              <p className="assistant-error">{projectQuestionError}</p>
+            )}
+            {projectAnswer && (
+              <div className="knowledge-answer">
+                <p>{projectAnswer.answer}</p>
+                {projectAnswer.sources.length > 0 && (
+                  <ul className="knowledge-sources" aria-label="Answer sources">
+                    {projectAnswer.sources.map((source) => (
+                      <li key={source}>{source}</li>
+                    ))}
+                  </ul>
+                )}
+                {projectAnswer.retrieval_mode === 'keyword_fallback' && (
+                  <p className="knowledge-mode">Keyword retrieval fallback</p>
+                )}
+              </div>
+            )}
+          </section>
           <TaskList
             title="未完成"
             listId="unfinished-title"
