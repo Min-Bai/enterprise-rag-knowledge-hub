@@ -17,6 +17,7 @@ def test_import_sqlite_data_copies_records_once(monkeypatch, tmp_path):
     users = Base.metadata.tables["users"]
     tasks = Base.metadata.tables["tasks"]
     documents = Base.metadata.tables["documents"]
+    knowledge_bases = Base.metadata.tables["knowledge_bases"]
     now = datetime.now(UTC)
 
     with source_engine.begin() as connection:
@@ -50,6 +51,7 @@ def test_import_sqlite_data_copies_records_once(monkeypatch, tmp_path):
             [{
                 "id": 1,
                 "user_id": 1,
+                "knowledge_base_id": 1,
                 "filename": "resume.pdf",
                 "storage_path": "/app/python_practice/data/resume.pdf",
                 "status": "ready",
@@ -77,6 +79,9 @@ def test_import_sqlite_data_copies_records_once(monkeypatch, tmp_path):
         ) == 1
         assert connection.scalar(
             select(func.count()).select_from(documents)
+        ) == 1
+        assert connection.scalar(
+            select(func.count()).select_from(knowledge_bases)
         ) == 1
 
     with pytest.raises(RuntimeError, match="target MySQL database is not empty"):
