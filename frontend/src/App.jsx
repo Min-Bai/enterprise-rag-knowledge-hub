@@ -597,7 +597,7 @@ function App() {
     <main className="app-shell">
       <header className="app-header">
         <div>
-          <h1>我的任务</h1>
+          <h1>企业知识库问答系统</h1>
           <p className={apiStatus.isError ? 'api-status error' : 'api-status'}>
             {apiStatus.message}
           </p>

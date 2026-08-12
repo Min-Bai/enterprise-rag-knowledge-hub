@@ -1,7 +1,7 @@
-# Todo API
+# Enterprise RAG Knowledge Hub
 
-Full-stack task and private-document assistant built with FastAPI, React,
-MySQL, Redis, RQ, Qdrant, and Docker Compose.
+企业 RAG 知识库问答系统，基于 FastAPI、React、MySQL、Redis、RQ、Qdrant
+和 Docker Compose 构建，支持私有文档处理、向量检索和带来源引用的问答。
 
 ## Architecture
 
