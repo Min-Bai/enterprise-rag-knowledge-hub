@@ -234,6 +234,22 @@ export async function getKnowledgeBases(accessToken) {
   return readJson(response, 'Failed to load knowledge bases')
 }
 
+export async function answerKnowledgeBase(accessToken, knowledgeBaseId, question) {
+  const response = await fetch(`${API_PREFIX}/ai/knowledge-base-answer`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      knowledge_base_id: knowledgeBaseId,
+      question,
+    }),
+  })
+
+  return readJson(response, 'Knowledge base answer request failed')
+}
+
 export async function createKnowledgeBase(accessToken, name, description) {
   const response = await fetch(`${API_PREFIX}/knowledge-bases`, {
     method: 'POST',

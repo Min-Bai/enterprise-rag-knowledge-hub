@@ -16,7 +16,7 @@ import {
   suggestTaskPlan,
   updateTaskTitle,
   getMyDocuments,
-  answerDocument,
+  answerKnowledgeBase,
   uploadDocument,
   deleteDocument,
   retryDocument,
@@ -678,7 +678,7 @@ function App() {
 
     const question = documentQuestion.trim()
 
-    if (!selectedDocumentId || !question || isAnsweringDocument) {
+    if (!selectedKnowledgeBaseId || !question || isAnsweringDocument) {
       return
     }
 
@@ -687,9 +687,9 @@ function App() {
     setDocumentAnswer(null)
 
     try {
-      const data = await answerDocument(
+      const data = await answerKnowledgeBase(
         accessToken,
-        Number(selectedDocumentId),
+        Number(selectedKnowledgeBaseId),
         question,
       )
 
@@ -992,25 +992,6 @@ function App() {
               <p>No documents are ready for questions yet.</p>
             ) : (
               <form onSubmit={handleDocumentQuestionSubmit}>
-                <label htmlFor="document-select">Document</label>
-                <select
-                  id="document-select"
-                  value={selectedDocumentId}
-                  onChange={(event) => {
-                    setSelectedDocumentId(event.target.value)
-                    setDocumentAnswer(null)
-                    setDocumentAnswerError('')
-                  }}
-                >
-                  <option value="">Choose a ready document</option>
-                  {
-                    readyDocuments.map((document) => (
-                      <option key={document.id} value={document.id}>
-                        {document.filename}
-                      </option>
-                    ))}
-                </select>
-
                 <label htmlFor="document-question">Question</label>
                 <textarea
                   id="document-question"
@@ -1024,11 +1005,11 @@ function App() {
                   type="submit"
                   disabled={
                     isAnsweringDocument ||
-                    !selectedDocumentId ||
+                    !selectedKnowledgeBaseId ||
                     !documentQuestion.trim()
                   }
                 >
-                  {isAnsweringDocument ? 'Answering...' : 'Ask document'}
+                  {isAnsweringDocument ? 'Answering...' : 'Ask knowledge base'}
                 </button>
               </form>
             )}

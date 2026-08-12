@@ -112,6 +112,11 @@ class DocumentAnswerRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
 
 
+class KnowledgeBaseAnswerRequest(BaseModel):
+    knowledge_base_id: int = Field(gt=0)
+    question: str = Field(min_length=1, max_length=2000)
+
+
 class SourceItem(BaseModel):
     document_id: int
     filename: str

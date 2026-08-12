@@ -17,6 +17,7 @@ from ..schemas.ai import (
     TaskTitleRewriteResponse,
     DocumentAnswerRequest,
     DocumentAnswerResponse,
+    KnowledgeBaseAnswerRequest,
 )
 from ..services.ai import (
     AiHistoryStoreError,
@@ -25,6 +26,7 @@ from ..services.ai import (
     DocumentNotFoundError,
     DocumentNotReadyError,
     answer_document_service,
+    answer_knowledge_base_service,
     answer_project_question_service,
     answer_assistant_service,
     clear_assistant_history,
@@ -32,6 +34,7 @@ from ..services.ai import (
     rewrite_task_title_service,
     suggest_task_plan_service,
 )
+from ..services.knowledge_bases import KnowledgeBaseNotFoundError
 
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -151,3 +154,27 @@ def answer_document(
             status_code=502,
             detail="AI provider request failed",
         )
+
+
+@router.post(
+    "/knowledge-base-answer",
+    response_model=DocumentAnswerResponse,
+)
+def answer_knowledge_base(
+    request: KnowledgeBaseAnswerRequest,
+    db: Session = Depends(get_db),
+    current_user: UserORM = Depends(get_current_user),
+):
+    enforce_ai_rate_limit(current_user.id)
+    try:
+        return answer_knowledge_base_service(
+            request=request,
+            current_user=current_user,
+            db=db,
+        )
+    except KnowledgeBaseNotFoundError:
+        raise HTTPException(status_code=404, detail="knowledge base not found")
+    except AiNotConfiguredError:
+        raise HTTPException(status_code=503, detail="AI service is not configured")
+    except AiProviderError:
+        raise HTTPException(status_code=502, detail="AI provider request failed")
