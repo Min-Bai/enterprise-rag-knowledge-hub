@@ -18,6 +18,7 @@ from .users import (
     get_users_service,
     update_user_service,
 )
+from .documents import create_document_service, get_documents_service
 from ..exceptions import (
     DuplicateTitleError,
     DuplicateUsernameError,
@@ -52,4 +53,6 @@ __all__ = [
     "delete_user_service",
     "get_user_service",
     "update_user_service",
+    "create_document_service",
+    "get_documents_service",
 ]

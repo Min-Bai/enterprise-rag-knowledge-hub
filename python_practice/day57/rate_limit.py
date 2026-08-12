@@ -7,6 +7,8 @@ from redis.exceptions import RedisError
 from .config import (
     AI_RATE_LIMIT,
     AI_RATE_WINDOW_SECONDS,
+    DOCUMENT_UPLOAD_RATE_LIMIT,
+    DOCUMENT_UPLOAD_RATE_WINDOW_SECONDS,
     LOGIN_RATE_LIMIT,
     LOGIN_RATE_WINDOW_SECONDS,
 )
@@ -96,5 +98,32 @@ def enforce_ai_rate_limit(user_id: int) -> None:
         raise HTTPException(
             status_code=429,
             detail="AI request limit exceeded",
+            headers={"Retry-After": str(limiter.retry_after(str(user_id)))},
+        )
+
+def enforce_document_upload_rate_limit(user_id: int) -> None:
+    if redis_client is None:
+        return
+
+    limiter = LoginRateLimiter(
+        client=redis_client,
+        limit=DOCUMENT_UPLOAD_RATE_LIMIT,
+        window_seconds=DOCUMENT_UPLOAD_RATE_WINDOW_SECONDS,
+        key_prefix="rate_limit:document-upload",
+    )
+
+    try:
+        allowed = limiter.is_allowed(str(user_id))
+    except RedisError:
+        logger.exception("document upload rate limit check failed")
+        raise HTTPException(
+            status_code=503,
+            detail="rate limit service unavailable",
+        )
+
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="document upload rate limit exceeded",
             headers={"Retry-After": str(limiter.retry_after(str(user_id)))},
         )

@@ -28,3 +28,11 @@ class UserORM(Base):
         server_default="0",
         nullable=False,
     )
+    documents: Mapped[list["DocumentORM"]] = relationship(
+    back_populates="user",
+    passive_deletes=True,
+)
+    knowledge_bases: Mapped[list["KnowledgeBaseORM"]] = relationship(
+        back_populates="owner",
+        passive_deletes=True,
+    )

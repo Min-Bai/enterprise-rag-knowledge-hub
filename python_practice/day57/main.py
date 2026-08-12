@@ -1,8 +1,10 @@
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
+from .redis_client import redis_client
+from .services.vector_store import get_qdrant_client
 
 import logging
 from time import perf_counter
@@ -13,6 +15,8 @@ from .routers.tasks import router as task_router
 from .routers.users import router as user_router
 from .routers.auth import router as auth_router
 from .routers.ai import router as ai_router
+from .routers.documents import router as document_router
+from .routers.knowledge_bases import router as knowledge_base_router
 
 app = FastAPI(title="Todo Project Structure API")
 
@@ -39,11 +43,27 @@ def read_root():
     }
 
 
-def database_ready_response(db: Session):
-    db.execute(text("SELECT 1"))
+def readiness_response(db: Session):
+    try:
+        db.execute(text("SELECT 1"))
+
+        if redis_client is None:
+            raise RuntimeError("Redis is not configured")
+
+        redis_client.ping()
+        get_qdrant_client().get_collections()
+    except Exception:
+        logger.exception("readiness check failed")
+        raise HTTPException(
+            status_code=503,
+            detail="dependencies unavailable",
+        )
+
     return {
         "status": "ok",
         "database": "ok",
+        "redis": "ok",
+        "qdrant": "ok",
     }
 
 
@@ -54,17 +74,19 @@ def liveness_check():
 
 @app.get("/health/ready")
 def readiness_check(db: Session = Depends(get_db)):
-    return database_ready_response(db)
+    return readiness_response(db)
 
 
 @app.get("/health")
 def health_check(db: Session = Depends(get_db)):
-    return database_ready_response(db)
+    return readiness_response(db)
 
 app.include_router(task_router)
 app.include_router(user_router)
 app.include_router(auth_router)
 app.include_router(ai_router)
+app.include_router(document_router)
+app.include_router(knowledge_base_router)
 
 @app.middleware("http")
 async def log_request(request: Request, call_next):

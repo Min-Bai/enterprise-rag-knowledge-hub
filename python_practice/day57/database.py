@@ -10,7 +10,9 @@ database_url = DATABASE_URL or f"sqlite:///{DB_FILE}"
 
 engine_options = {"echo": SQL_ECHO}
 
-if database_url.startswith("sqlite"):
+is_sqlite = database_url.startswith("sqlite")
+
+if is_sqlite:
     engine_options["connect_args"] = {"check_same_thread": False}
 
 engine = create_engine(
@@ -19,11 +21,12 @@ engine = create_engine(
 )
 
 
-@event.listens_for(engine, "connect")
-def enable_sqlite_foreign_keys(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
+if is_sqlite:
+    @event.listens_for(engine, "connect")
+    def enable_sqlite_foreign_keys(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)

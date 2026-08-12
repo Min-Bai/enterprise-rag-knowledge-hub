@@ -1,4 +1,29 @@
 services:
+  mysql:
+    image: docker.m.daocloud.io/library/mysql:8.4
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - python_practice/day57/.env
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - todo-mysql-data:/var/lib/mysql
+    ports:
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - MYSQL_PWD=$$MYSQL_PASSWORD mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER --silent
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
   api:
     build: .
     image: todo-api:2
@@ -18,8 +43,11 @@ services:
       QDRANT_URL: http://qdrant:6333
     volumes:
       - todo-api-data:/app/data
+      - todo-document-data:/app/python_practice/data
       - todo-model-cache:/app/model-cache
     depends_on:
+      mysql:
+        condition: service_healthy
       redis:
         condition: service_healthy
       qdrant:
@@ -37,6 +65,34 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+      
+  worker:
+    build: .
+    image: todo-api:2
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - python_practice/day57/.env
+    environment:
+      HF_HOME: /app/model-cache
+      HF_ENDPOINT: https://hf-mirror.com
+      QDRANT_URL: http://qdrant:6333
+    volumes:
+      - todo-api-data:/app/data
+      - todo-document-data:/app/python_practice/data
+      - todo-model-cache:/app/model-cache
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    command: python -m python_practice.day57.worker
 
   redis:
     image: docker.m.daocloud.io/library/redis:7-alpine
@@ -88,3 +144,5 @@ volumes:
   todo-redis-data:
   todo-qdrant-data:
   todo-model-cache:
+  todo-document-data:
+  todo-mysql-data:

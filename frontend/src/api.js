@@ -1,16 +1,34 @@
 const API_PREFIX = '/api'
 
 async function readJson(response, fallbackMessage) {
-  const data = await response.json()
+  const contentType = response.headers.get('Content-Type') || ''
+  const isJson = contentType.includes('application/json')
+  const data = isJson ? await response.json() : null
 
   if (!response.ok) {
-    const error = new Error(data.detail || fallbackMessage)
+    let message = fallbackMessage
+
+    if (data?.detail) {
+      message = data.detail
+    } else if (response.status === 413) {
+      message = 'File size must not exceed 10 MB'
+    } else if (!isJson) {
+      message = `${fallbackMessage} (HTTP ${response.status})`
+    }
+
+    const error = new Error(message)
     error.status = response.status
+
     const retryAfter = Number(response.headers.get('Retry-After'))
     if (Number.isFinite(retryAfter) && retryAfter > 0) {
       error.retryAfter = retryAfter
     }
+
     throw error
+  }
+
+  if (data === null) {
+    throw new Error(`${fallbackMessage} (invalid server response)`)
   }
 
   return data
@@ -188,4 +206,116 @@ export async function getAssistantHistory(accessToken) {
   })
 
   return readJson(response, 'Could not load AI conversation')
+}
+
+export async function answerDocument(accessToken, documentId, question) {
+  const response = await fetch(`${API_PREFIX}/ai/document-answer`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      document_id: documentId,
+      question,
+    }),
+  })
+
+  return readJson(response, 'Document answer request failed')
+}
+
+export async function getKnowledgeBases(accessToken) {
+  const response = await fetch(`${API_PREFIX}/knowledge-bases`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  return readJson(response, 'Failed to load knowledge bases')
+}
+
+export async function createKnowledgeBase(accessToken, name, description) {
+  const response = await fetch(`${API_PREFIX}/knowledge-bases`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name, description: description || null }),
+  })
+
+  return readJson(response, 'Failed to create knowledge base')
+}
+
+export async function deleteKnowledgeBase(accessToken, knowledgeBaseId) {
+  const response = await fetch(`${API_PREFIX}/knowledge-bases/${knowledgeBaseId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  if (response.status === 204) {
+    return
+  }
+
+  return readJson(response, 'Failed to delete knowledge base')
+}
+
+export async function uploadDocument(accessToken, file, knowledgeBaseId) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('knowledge_base_id', knowledgeBaseId)
+
+  const response = await fetch(`${API_PREFIX}/documents`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: formData,
+  })
+
+  return readJson(response, 'Failed to upload document')
+}
+
+export async function getMyDocuments(accessToken, knowledgeBaseId) {
+  const response = await fetch(
+    `${API_PREFIX}/documents?knowledge_base_id=${knowledgeBaseId}`,
+    {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    },
+  )
+
+  return readJson(response, 'Failed to load documents')
+}
+
+export async function deleteDocument(accessToken, documentId) {
+  const response = await fetch(`${API_PREFIX}/documents/${documentId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  if (response.status === 204) {
+    return
+  }
+
+  return readJson(response, 'Failed to delete document')
+}
+
+export async function retryDocument(accessToken, documentId) {
+  const response = await fetch(
+    `${API_PREFIX}/documents/${documentId}/retry`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  )
+
+  return readJson(response, 'Failed to retry document')
 }
