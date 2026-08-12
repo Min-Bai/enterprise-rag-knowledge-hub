@@ -224,9 +224,48 @@ export async function answerDocument(accessToken, documentId, question) {
   return readJson(response, 'Document answer request failed')
 }
 
-export async function uploadDocument(accessToken, file) {
+export async function getKnowledgeBases(accessToken) {
+  const response = await fetch(`${API_PREFIX}/knowledge-bases`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  return readJson(response, 'Failed to load knowledge bases')
+}
+
+export async function createKnowledgeBase(accessToken, name, description) {
+  const response = await fetch(`${API_PREFIX}/knowledge-bases`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name, description: description || null }),
+  })
+
+  return readJson(response, 'Failed to create knowledge base')
+}
+
+export async function deleteKnowledgeBase(accessToken, knowledgeBaseId) {
+  const response = await fetch(`${API_PREFIX}/knowledge-bases/${knowledgeBaseId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  if (response.status === 204) {
+    return
+  }
+
+  return readJson(response, 'Failed to delete knowledge base')
+}
+
+export async function uploadDocument(accessToken, file, knowledgeBaseId) {
   const formData = new FormData()
   formData.append('file', file)
+  formData.append('knowledge_base_id', knowledgeBaseId)
 
   const response = await fetch(`${API_PREFIX}/documents`, {
     method: 'POST',
@@ -239,12 +278,15 @@ export async function uploadDocument(accessToken, file) {
   return readJson(response, 'Failed to upload document')
 }
 
-export async function getMyDocuments(accessToken) {
-  const response = await fetch(`${API_PREFIX}/documents`, {
+export async function getMyDocuments(accessToken, knowledgeBaseId) {
+  const response = await fetch(
+    `${API_PREFIX}/documents?knowledge_base_id=${knowledgeBaseId}`,
+    {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
-  })
+    },
+  )
 
   return readJson(response, 'Failed to load documents')
 }
