@@ -11,6 +11,7 @@ ENV PIP_DEFAULT_TIMEOUT=120
 
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1+cpu && \
     pip install -r requirements.txt
 
 COPY python_practice ./python_practice
