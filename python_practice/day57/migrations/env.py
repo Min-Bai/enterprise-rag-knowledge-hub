@@ -11,6 +11,7 @@ from python_practice.day57.database import Base, engine
 from python_practice.day57.models.task import TaskORM
 from python_practice.day57.models.user import UserORM
 from python_practice.day57.models.document import DocumentORM
+from python_practice.day57.models.knowledge_base import KnowledgeBaseORM
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

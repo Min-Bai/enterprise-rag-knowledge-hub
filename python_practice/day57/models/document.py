@@ -14,6 +14,11 @@ class DocumentORM(Base):
             ForeignKey("users.id", ondelete="CASCADE"),
             index=True,
         )
+    knowledge_base_id: Mapped[int] = mapped_column(
+        ForeignKey("knowledge_bases.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
     filename: Mapped[str] = mapped_column(String(50), nullable=False)
     storage_path: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="uploaded", server_default="uploaded")
@@ -24,3 +29,6 @@ class DocumentORM(Base):
         nullable=False,
     )
     user: Mapped["UserORM"] = relationship(back_populates="documents")
+    knowledge_base: Mapped["KnowledgeBaseORM"] = relationship(
+        back_populates="documents",
+    )

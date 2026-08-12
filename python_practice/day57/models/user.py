@@ -32,3 +32,7 @@ class UserORM(Base):
     back_populates="user",
     passive_deletes=True,
 )
+    knowledge_bases: Mapped[list["KnowledgeBaseORM"]] = relationship(
+        back_populates="owner",
+        passive_deletes=True,
+    )

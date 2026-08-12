@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from ..models.user import UserORM
 from ..models.task import TaskORM
+from .knowledge_bases import get_default_knowledge_base_service
 from ..schemas.user import (
     PasswordChange,
     UserCreate,
@@ -105,6 +106,7 @@ def create_user_service(user: UserCreate, db: Session):
             user_id=user_orm.id,
         )
         db.add(task_orm)
+        get_default_knowledge_base_service(db, user_orm.id)
 
         db.commit()
     except IntegrityError:
