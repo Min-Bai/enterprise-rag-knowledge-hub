@@ -10,3 +10,4 @@ frontend/dist/
 python_practice/data/
 .pytest-rq-temp/
 .pytest-tmp/
+docker/wheels/*.whl
