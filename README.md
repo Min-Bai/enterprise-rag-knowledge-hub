@@ -41,8 +41,8 @@ and stores vectors in Qdrant. Failed documents can be retried.
 
 ## Configuration
 
-Copy `python_practice/day57/.env.example` to
-`python_practice/day57/.env`, then set real secrets and passwords.
+Copy `backend/app/.env.example` to
+`backend/app/.env`, then set real secrets and passwords.
 
 Required production database settings:
 
@@ -76,7 +76,7 @@ The frontend is served on port `8080`; the API is served on port `8000`.
 ## Tests
 
 ```bash
-python -m pytest python_practice/day57/tests -q
+python -m pytest backend/app/tests -q
 ```
 
 Tests use isolated SQLite databases. Development and production application
@@ -88,7 +88,7 @@ Create a MySQL backup from the production host:
 
 ```bash
 set -a
-source python_practice/day57/.env
+source backend/app/.env
 set +a
 
 sudo docker compose exec -T -e MYSQL_PWD="$MYSQL_PASSWORD" mysql \

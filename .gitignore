@@ -7,7 +7,7 @@
 **/.venv/
 frontend/node_modules/
 frontend/dist/
-python_practice/data/
+backend/app/data/
 .pytest-rq-temp/
 .pytest-tmp/
 docker/wheels/*.whl
