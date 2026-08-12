@@ -67,6 +67,7 @@ def test_retry_rejects_document_that_is_not_failed():
 def test_retry_route_requeues_failed_document(monkeypatch):
     document = SimpleNamespace(
         id=8,
+        knowledge_base_id=1,
         filename="test.pdf",
         status="uploaded",
         error_message=None,
