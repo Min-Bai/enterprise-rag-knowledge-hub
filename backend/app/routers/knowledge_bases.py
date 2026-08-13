@@ -11,6 +11,7 @@ from ..schemas.knowledge_base import (
     KnowledgeBaseMemberCreate,
     KnowledgeBaseMemberResponse,
     AuditLogResponse,
+    FeedbackSummaryResponse,
 )
 from ..services.knowledge_bases import (
     KnowledgeBaseNotFoundError,
@@ -22,6 +23,7 @@ from ..services.knowledge_bases import (
     update_knowledge_base_service,
 )
 from ..services.audit_logs import get_knowledge_base_audit_logs, write_audit_log
+from ..services.feedback_analytics import get_knowledge_base_feedback_summary
 from ..services.knowledge_base_members import (
     KnowledgeBaseAccessDeniedError,
     KnowledgeBaseMemberNotFoundError,
@@ -148,6 +150,18 @@ def get_audit_logs(knowledge_base_id: int, current_user: UserORM = Depends(get_c
         knowledge_base = get_knowledge_base_service(db, knowledge_base_id, current_user.id)
         require_knowledge_base_role(knowledge_base=knowledge_base, user_id=current_user.id, db=db, allowed_roles={"owner"})
         return get_knowledge_base_audit_logs(knowledge_base_id=knowledge_base.id, db=db)
+    except KnowledgeBaseNotFoundError:
+        raise HTTPException(status_code=404, detail="knowledge base not found")
+    except KnowledgeBaseAccessDeniedError:
+        raise HTTPException(status_code=403, detail="knowledge base owner access required")
+
+
+@router.get("/{knowledge_base_id}/feedback-summary", response_model=FeedbackSummaryResponse)
+def get_feedback_summary(knowledge_base_id: int, current_user: UserORM = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        knowledge_base = get_knowledge_base_service(db, knowledge_base_id, current_user.id)
+        require_knowledge_base_role(knowledge_base=knowledge_base, user_id=current_user.id, db=db, allowed_roles={"owner"})
+        return get_knowledge_base_feedback_summary(knowledge_base_id=knowledge_base.id, db=db)
     except KnowledgeBaseNotFoundError:
         raise HTTPException(status_code=404, detail="knowledge base not found")
     except KnowledgeBaseAccessDeniedError:

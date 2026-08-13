@@ -120,6 +120,10 @@ export async function getKnowledgeBaseAuditLogs(accessToken, knowledgeBaseId) {
   return readJson(await fetch(`${API_PREFIX}/knowledge-bases/${knowledgeBaseId}/audit-logs`, { headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to load audit logs')
 }
 
+export async function getKnowledgeBaseFeedbackSummary(accessToken, knowledgeBaseId) {
+  return readJson(await fetch(`${API_PREFIX}/knowledge-bases/${knowledgeBaseId}/feedback-summary`, { headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to load feedback quality')
+}
+
 export async function submitAnswerFeedback(accessToken, messageId, feedback, comment) {
   return readJson(await fetch(`${API_PREFIX}/ai/answer-messages/${messageId}/feedback`, { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ feedback, comment: comment || null }) }), 'Failed to save answer feedback')
 }

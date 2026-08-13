@@ -93,3 +93,18 @@ def test_audit_logs_require_knowledge_base_owner(monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+def test_feedback_summary_requires_knowledge_base_owner(monkeypatch):
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    monkeypatch.setattr("backend.app.routers.knowledge_bases.get_knowledge_base_service", lambda *_args, **_kwargs: SimpleNamespace(id=1))
+    monkeypatch.setattr("backend.app.routers.knowledge_bases.require_knowledge_base_role", lambda **_kwargs: "owner")
+    monkeypatch.setattr("backend.app.routers.knowledge_bases.get_knowledge_base_feedback_summary", lambda **_kwargs: {"total_feedback": 0, "helpful_count": 0, "unhelpful_count": 0, "helpful_rate": None, "recent_unhelpful": []})
+
+    try:
+        response = client.get("/knowledge-bases/1/feedback-summary")
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 200
+    assert response.json()["total_feedback"] == 0

@@ -69,3 +69,11 @@ class AuditLogResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class FeedbackSummaryResponse(BaseModel):
+    total_feedback: int
+    helpful_count: int
+    unhelpful_count: int
+    helpful_rate: float | None
+    recent_unhelpful: list[dict[str, object]]
