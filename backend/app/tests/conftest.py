@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from backend.app.database import Base, get_db
 from backend.app.main import app
 from backend.app.models.user import UserORM
+from backend.app.rate_limit import enforce_login_rate_limit
 
 
 TEST_DB_FILE = Path(__file__).resolve().parents[1] / "test_enterprise_rag.db"
@@ -41,6 +42,7 @@ def override_get_db():
 
 
 app.dependency_overrides[get_db] = override_get_db
+app.dependency_overrides[enforce_login_rate_limit] = lambda: None
 
 
 @pytest.fixture(scope="session", autouse=True)
