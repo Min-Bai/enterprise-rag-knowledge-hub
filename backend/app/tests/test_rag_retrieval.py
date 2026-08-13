@@ -9,7 +9,7 @@ def test_retrieve_project_context_returns_authentication_chunk():
     results = retrieve_project_context("How does JWT login work?")
 
     assert results
-    assert results[0][0] == "todo_api_overview.md"
+    assert results[0][0] == "enterprise_rag_overview.md"
     assert "POST /auth/login" in results[0][1]
 
 

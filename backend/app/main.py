@@ -18,7 +18,7 @@ from .routers.ai import router as ai_router
 from .routers.documents import router as document_router
 from .routers.knowledge_bases import router as knowledge_base_router
 
-app = FastAPI(title="Todo Project Structure API")
+app = FastAPI(title="Enterprise RAG Knowledge Hub API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,12 +33,12 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
-logger = logging.getLogger("todo_api")
+logger = logging.getLogger("enterprise_rag")
 
 @app.get("/")
 def read_root():
     return {
-        "message": "Todo API is running",
+        "message": "Enterprise RAG Knowledge Hub API is running",
         "docs": "/docs",
     }
 

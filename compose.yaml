@@ -26,7 +26,7 @@ services:
       start_period: 30s
   api:
     build: .
-    image: todo-api:2
+    image: enterprise-rag-api:1
     restart: unless-stopped
     logging:
       driver: local
@@ -68,7 +68,7 @@ services:
       
   worker:
     build: .
-    image: todo-api:2
+    image: enterprise-rag-api:1
     restart: unless-stopped
     logging:
       driver: local
@@ -125,7 +125,7 @@ services:
   frontend:
     build:
       context: ./frontend
-    image: todo-frontend:1
+    image: enterprise-rag-web:1
     restart: unless-stopped
     logging:
       driver: local
