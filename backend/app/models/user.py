@@ -18,10 +18,6 @@ class UserORM(Base):
     server_default="user",
     nullable=False,
 )
-    tasks: Mapped[list["TaskORM"]] = relationship(
-        back_populates="user",
-        passive_deletes=True,
-    )
     token_version: Mapped[int] = mapped_column(
         Integer,
         default=0,

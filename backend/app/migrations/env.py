@@ -8,7 +8,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.append(str(PROJECT_ROOT))
 
 from backend.app.database import Base, engine
-from backend.app.models.task import TaskORM
 from backend.app.models.user import UserORM
 from backend.app.models.document import DocumentORM
 from backend.app.models.knowledge_base import KnowledgeBaseORM

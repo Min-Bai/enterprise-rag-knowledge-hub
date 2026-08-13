@@ -9,7 +9,7 @@ function LoginForm({ onLogin }) {
   async function handleSubmit(event) {
     event.preventDefault()
     setIsSubmitting(true)
-    setMessage('正在登录...')
+    setMessage('')
 
     try {
       await onLogin(username, password)
@@ -22,9 +22,9 @@ function LoginForm({ onLogin }) {
 
   return (
     <section className="login-section" aria-labelledby="login-title">
-      <h2 id="login-title">登录</h2>
+      <h2 id="login-title">Sign in</h2>
       <form className="login-form" onSubmit={handleSubmit}>
-        <label htmlFor="username">用户名</label>
+        <label htmlFor="username">Username</label>
         <input
           id="username"
           value={username}
@@ -32,7 +32,7 @@ function LoginForm({ onLogin }) {
           onChange={(event) => setUsername(event.target.value)}
           required
         />
-        <label htmlFor="password">密码</label>
+        <label htmlFor="password">Password</label>
         <input
           id="password"
           type="password"
@@ -42,10 +42,10 @@ function LoginForm({ onLogin }) {
           required
         />
         <button type="submit" disabled={isSubmitting}>
-          登录
+          {isSubmitting ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
-      <p className="login-message" role="alert">{message}</p>
+      {message && <p className="login-message" role="alert">{message}</p>}
     </section>
   )
 }

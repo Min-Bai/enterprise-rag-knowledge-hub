@@ -9,7 +9,7 @@ from backend.app.main import app
 from backend.app.models.user import UserORM
 
 
-TEST_DB_FILE = Path(__file__).resolve().parents[1] / "test_tasks.db"
+TEST_DB_FILE = Path(__file__).resolve().parents[1] / "test_enterprise_rag.db"
 TEST_DATABASE_URL = f"sqlite:///{TEST_DB_FILE}"
 
 test_engine = create_engine(

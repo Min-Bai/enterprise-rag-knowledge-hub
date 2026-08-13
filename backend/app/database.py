@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 
-DB_FILE = Path(__file__).parent / "tasks.db"
+DB_FILE = Path(__file__).parent / "enterprise_rag.db"
 database_url = DATABASE_URL or f"sqlite:///{DB_FILE}"
 
 engine_options = {"echo": SQL_ECHO}

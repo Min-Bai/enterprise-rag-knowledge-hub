@@ -20,16 +20,6 @@ Document-answer endpoints retrieve relevant chunks from Qdrant, apply a minimum
 similarity threshold, and use the matched context to generate answers. Responses
 include source chunks so the user can inspect the grounding evidence.
 
-## Supporting Task Workspace
-
-The application retains authenticated task endpoints from the original learning
-project. Tasks are user-scoped and are not part of the knowledge-base retrieval
-index. `GET /tasks/me` returns the current user's tasks, and `POST /tasks`
-creates a task for the authenticated user.
-
-查询当前用户任务使用 `GET /tasks/me`，当前用户由 JWT 身份令牌确定，客户端不需要传递
-`user_id`。
-
 ## Operations
 
 MySQL stores relational application data. Redis provides RQ queues and rate

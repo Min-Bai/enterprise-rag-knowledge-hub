@@ -211,21 +211,12 @@ def test_deactivate_missing_user_returns_404():
     assert response.json()["detail"] == "user not found"
 
 
-def test_delete_user_sets_task_user_id_to_null():
+def test_delete_user():
     username = f"user_{uuid4().hex[:8]}"
 
     user_response = client.post("/users", json={"username": username, "password": "secret123"})
     assert user_response.status_code == 200
     user = user_response.json()
-
-    title = f"delete user task {uuid4().hex[:8]}"
-    task_response = client.post(
-        "/tasks",
-        json={"title": title},
-        headers=auth_headers(user["id"]),
-    )
-    assert task_response.status_code == 200
-    task = task_response.json()
 
     delete_response = client.delete(
         f"/users/{user['id']}",
@@ -233,15 +224,6 @@ def test_delete_user_sets_task_user_id_to_null():
     )
     assert delete_response.status_code == 200
     assert delete_response.json()["message"] == "delete success"
-
-    get_task_response = client.get(
-        f"/tasks/{task['id']}",
-        headers=auth_headers(1),
-    )
-    assert get_task_response.status_code == 200
-    assert get_task_response.json()["title"] == title
-    assert get_task_response.json()["user_id"] is None
-
 
 def test_delete_missing_user_returns_404():
     response = client.delete("/users/999999", headers=auth_headers(1))
@@ -373,76 +355,13 @@ def test_get_users_filter_by_is_active_true():
     assert username in usernames
     assert all(user["is_active"] is True for user in data)
 
-def test_get_user_tasks():
+def test_get_user_detail():
     user_response = client.post(
         "/users",
         json={"username": f"user_{uuid4().hex[:8]}", "password": "secret123"},
     )
     assert user_response.status_code == 200
     user = user_response.json()
-
-    title = f"user nested task {uuid4().hex[:8]}"
-
-    task_response = client.post(
-        "/tasks",
-        json={"title": title, "done": False},
-        headers=auth_headers(user["id"]),
-    )
-    assert task_response.status_code == 200
-
-    response = client.get(f"/users/{user['id']}/tasks")
-
-    assert response.status_code == 200
-
-    data = response.json()
-    titles = [task["title"] for task in data["items"]]
-
-    assert title in titles
-    assert all(task["user_id"] == user["id"] for task in data["items"])
-
-
-def test_get_missing_user_tasks_returns_404():
-    response = client.get("/users/999999/tasks")
-
-    assert response.status_code == 404
-    assert response.json()["detail"] == "user not found"
-
-def test_new_user_has_default_task():
-    user_response = client.post(
-        "/users",
-        json={"username": f"user_{uuid4().hex[:8]}", "password": "secret123"},
-    )
-    assert user_response.status_code == 200
-    user = user_response.json()
-
-    response = client.get(f"/users/{user['id']}/tasks")
-
-    assert response.status_code == 200
-
-    data = response.json()
-    assert data["total"] == 1
-    assert data["count"] == 1
-    assert data["items"][0]["title"]
-    assert data["items"][0]["done"] is False
-    assert data["items"][0]["priority"] == 1
-    assert data["items"][0]["user_id"] == user["id"]
-
-def test_get_user_detail_with_tasks():
-    user_response = client.post(
-        "/users",
-        json={"username": f"user_{uuid4().hex[:8]}", "password": "secret123"},
-    )
-    assert user_response.status_code == 200
-    user = user_response.json()
-
-    title = f"detail task {uuid4().hex[:8]}"
-
-    task_response = client.post(
-        "/tasks",
-        json={"title": title, "done": False},
-        headers=auth_headers(user["id"]),
-    )
-    assert task_response.status_code == 200
 
     response = client.get(f"/users/{user['id']}/detail")
 
@@ -452,33 +371,19 @@ def test_get_user_detail_with_tasks():
     assert data["id"] == user["id"]
     assert data["username"] == user["username"]
 
-    titles = [task["title"] for task in data["tasks"]]
-    assert title in titles
-
-
 def test_get_missing_user_detail_returns_404():
     response = client.get("/users/999999/detail")
 
     assert response.status_code == 404
     assert response.json()["detail"] == "user not found"
 
-def test_duplicate_user_does_not_create_extra_default_task():
+def test_duplicate_user_returns_400_without_duplicate_side_effects():
     username = f"user_{uuid4().hex[:8]}"
 
     first_response = client.post("/users", json={"username": username, "password": "secret123"})
     assert first_response.status_code == 200
-    user = first_response.json()
-
-    tasks_response = client.get(f"/users/{user['id']}/tasks")
-    assert tasks_response.status_code == 200
-    assert tasks_response.json()["count"] == 1
-
     second_response = client.post("/users", json={"username": username, "password": "secret123"})
     assert second_response.status_code == 400
-
-    tasks_response = client.get(f"/users/{user['id']}/tasks")
-    assert tasks_response.status_code == 200
-    assert tasks_response.json()["count"] == 1
 
 def test_create_user_requires_password():
     response = client.post(

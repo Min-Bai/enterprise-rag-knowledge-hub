@@ -15,7 +15,7 @@ Nginx /api proxy
     v
 FastAPI API ---- MySQL
     |               |
-    |               +-- users, knowledge_bases, documents, tasks
+    |               +-- users, knowledge_bases, documents
     |
     +-- Redis / RQ queue --> RQ worker --> Qdrant
 ```

@@ -3,9 +3,9 @@ from argparse import ArgumentParser
 from sqlalchemy import MetaData, create_engine, func, select
 
 from backend.app.database import Base, engine as mysql_engine
+from backend.app.legacy_task_table import legacy_tasks
 from backend.app.models.document import DocumentORM
 from backend.app.models.knowledge_base import KnowledgeBaseORM
-from backend.app.models.task import TaskORM
 from backend.app.models.user import UserORM
 
 
@@ -49,9 +49,7 @@ def ensure_mysql_is_empty():
             table_name
             for table_name in TABLE_NAMES
             if connection.scalar(
-                select(func.count()).select_from(
-                    Base.metadata.tables[table_name]
-                )
+                select(func.count()).select_from(target_table(table_name))
             )
         ]
 
@@ -74,11 +72,17 @@ def copy_table(
 
     if rows:
         target_connection.execute(
-            Base.metadata.tables[table_name].insert(),
+            target_table(table_name).insert(),
             [dict(row) for row in rows],
         )
 
     return len(rows)
+
+
+def target_table(table_name: str):
+    if table_name == "tasks":
+        return legacy_tasks
+    return Base.metadata.tables[table_name]
 
 
 def create_default_knowledge_bases(source_connection, target_connection) -> dict[int, int]:

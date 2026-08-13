@@ -11,7 +11,6 @@ from time import perf_counter
 from uuid import uuid4
 from .config import CORS_ORIGINS, LOG_LEVEL
 from .database import get_db
-from .routers.tasks import router as task_router
 from .routers.users import router as user_router
 from .routers.auth import router as auth_router
 from .routers.ai import router as ai_router
@@ -81,7 +80,6 @@ def readiness_check(db: Session = Depends(get_db)):
 def health_check(db: Session = Depends(get_db)):
     return readiness_response(db)
 
-app.include_router(task_router)
 app.include_router(user_router)
 app.include_router(auth_router)
 app.include_router(ai_router)
