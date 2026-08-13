@@ -48,11 +48,11 @@ and passwords. Do not commit `.env`.
 Required production database settings:
 
 ```env
-MYSQL_DATABASE=todo_app
-MYSQL_USER=todo_app
+MYSQL_DATABASE=enterprise_rag
+MYSQL_USER=enterprise_rag
 MYSQL_PASSWORD=replace-with-a-private-password
 MYSQL_ROOT_PASSWORD=replace-with-a-different-private-password
-DATABASE_URL=mysql+pymysql://todo_app:replace-with-a-private-password@mysql:3306/todo_app?charset=utf8mb4
+DATABASE_URL=mysql+pymysql://enterprise_rag:replace-with-a-private-password@mysql:3306/enterprise_rag?charset=utf8mb4
 ```
 
 ## Run With Docker Compose
@@ -93,5 +93,31 @@ set +a
 sudo docker compose exec -T -e MYSQL_PWD="$MYSQL_PASSWORD" mysql \
   mysqldump --no-tablespaces --single-transaction \
   -u"$MYSQL_USER" "$MYSQL_DATABASE" \
-  > ~/backups/enterprise-rag/todo_app-mysql-$(date +%F).sql
+  > ~/backups/enterprise-rag/enterprise_rag-mysql-$(date +%F).sql
 ```
+
+## Production Resource Migration
+
+The repository includes `scripts/migrate_production_resources.sh` for the
+one-time migration from the former Todo deployment. It creates new
+`enterprise-rag-*` Docker volumes and an `enterprise_rag` MySQL database,
+copies MySQL, document, Qdrant, and model-cache data, and retains the old
+resources for rollback. Redis starts with an empty queue intentionally.
+
+Run the script only on the production VM after this release is merged and the
+automatic deploy workflow is disabled. Do not update the old `~/todo-api`
+checkout before migration: it is needed to access the old Compose resources.
+Clone the current repository to a temporary directory and run the migration
+script from there:
+
+```bash
+git clone https://github.com/Min-Bai/enterprise-rag-knowledge-hub.git \
+  ~/enterprise-rag-migration
+
+cd ~/enterprise-rag-migration
+bash scripts/migrate_production_resources.sh
+```
+
+After migration, update the Windows runner SSH configuration so the same VM is
+available through the `enterprise-rag-vm` host alias. The deployment workflows
+use that alias and `~/deploy-enterprise-rag.sh`.
