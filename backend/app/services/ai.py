@@ -2,6 +2,7 @@ import logging
 import json
 from collections.abc import Iterator
 from dataclasses import dataclass
+from time import perf_counter
 
 import requests
 from sqlalchemy import select
@@ -66,6 +67,18 @@ def get_model_message(response: requests.Response) -> dict[str, object]:
     return message
 
 
+def log_retrieval_outcome(*, scope: str, scope_id: int, hits: list[dict[str, object]]) -> None:
+    highest_score = max((float(hit["score"]) for hit in hits), default=0.0)
+    logger.info(
+        "event=rag_retrieval_completed scope=%s scope_id=%s hit_count=%s highest_score=%.4f abstained=%s",
+        scope,
+        scope_id,
+        len(hits),
+        highest_score,
+        not hits,
+    )
+
+
 def prepare_document_answer(
     *,
     request: DocumentAnswerRequest,
@@ -82,6 +95,7 @@ def prepare_document_answer(
         db=db,
     )
     hits = [hit for hit in search_document_chunks(question=request.question, user_id=document.user_id, document_ids=[document.id], limit=3) if float(hit['score']) >= RAG_MIN_SCORE]
+    log_retrieval_outcome(scope="document", scope_id=document.id, hits=hits)
     if not hits:
         return PreparedDocumentAnswer(conversation=conversation, hits=[], sources=[])
     if not DEEPSEEK_API_KEY:
@@ -130,6 +144,11 @@ def prepare_knowledge_base_answer(
         )
         if float(hit["score"]) >= RAG_MIN_SCORE
     ]
+    log_retrieval_outcome(
+        scope="knowledge_base",
+        scope_id=request.knowledge_base_id,
+        hits=hits,
+    )
     if not hits:
         return PreparedDocumentAnswer(conversation=conversation, hits=[], sources=[])
     if not DEEPSEEK_API_KEY:
@@ -195,6 +214,7 @@ def answer_document_service(*, request: DocumentAnswerRequest, current_user: Use
             conversation_id=prepared.conversation.id,
         )
     try:
+        provider_started_at = perf_counter()
         response = requests.post(
             f'{DEEPSEEK_BASE_URL}/chat/completions',
             headers={'Authorization': f'Bearer {DEEPSEEK_API_KEY}'},
@@ -212,6 +232,10 @@ def answer_document_service(*, request: DocumentAnswerRequest, current_user: Use
     except (KeyError, IndexError, ValueError, requests.RequestException) as error:
         logger.exception('document answer request failed')
         raise AiProviderError from error
+    logger.info(
+        "event=rag_provider_completed provider=deepseek stream=false duration_ms=%.1f",
+        (perf_counter() - provider_started_at) * 1000,
+    )
     if not answer:
         raise AiProviderError
     save_conversation_turn(
@@ -256,6 +280,7 @@ def stream_document_answer_service(
 
     answer_parts: list[str] = []
     try:
+        provider_started_at = perf_counter()
         with requests.post(
             f'{DEEPSEEK_BASE_URL}/chat/completions',
             headers={'Authorization': f'Bearer {DEEPSEEK_API_KEY}'},
@@ -289,6 +314,11 @@ def stream_document_answer_service(
         logger.exception('document answer stream failed')
         yield sse_event('error', {'detail': 'AI provider request failed'})
         return
+
+    logger.info(
+        "event=rag_provider_completed provider=deepseek stream=true duration_ms=%.1f",
+        (perf_counter() - provider_started_at) * 1000,
+    )
 
     answer = ''.join(answer_parts).strip()
     if not answer:

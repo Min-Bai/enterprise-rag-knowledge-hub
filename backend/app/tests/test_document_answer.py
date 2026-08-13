@@ -84,6 +84,28 @@ def test_no_relevant_chunks_does_not_call_deepseek(monkeypatch):
     deepseek_mock.assert_not_called()
 
 
+def test_document_answer_logs_retrieval_without_question_or_document_content(monkeypatch, caplog):
+    request, current_user, db = make_dependencies()
+    caplog.set_level("INFO")
+    monkeypatch.setattr(
+        "backend.app.services.ai.search_document_chunks",
+        Mock(return_value=[]),
+    )
+
+    answer_document_service(request=request, current_user=current_user, db=db)
+
+    log = next(
+        record.message
+        for record in caplog.records
+        if "event=rag_retrieval_completed" in record.message
+    )
+    assert "scope=document" in log
+    assert "scope_id=8" in log
+    assert "hit_count=0" in log
+    assert "abstained=True" in log
+    assert request.question not in log
+
+
 def test_success_returns_answer_and_sources(monkeypatch):
     request, current_user, db = make_dependencies()
     model_response = Mock()
