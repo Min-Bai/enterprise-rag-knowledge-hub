@@ -165,6 +165,32 @@ echo "Importing MySQL backup into enterprise_rag"
 sudo docker compose exec -T -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql \
   mysql -uroot "$MYSQL_DATABASE" < "$dump_file"
 
+echo "Updating migrated document storage paths"
+sudo docker compose exec -T -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql \
+  mysql -uroot "$MYSQL_DATABASE" -e "
+    UPDATE documents
+    SET storage_path = REPLACE(
+      storage_path,
+      '/app/python_practice/day57/data/',
+      '/app/backend/app/data/'
+    )
+    WHERE storage_path LIKE '/app/python_practice/day57/data/%';
+    UPDATE documents
+    SET storage_path = REPLACE(
+      storage_path,
+      '/app/python_practice/data/',
+      '/app/backend/app/data/'
+    )
+    WHERE storage_path LIKE '/app/python_practice/data/%';
+    UPDATE documents
+    SET storage_path = REPLACE(
+      storage_path,
+      '/app/backend/data/',
+      '/app/backend/app/data/'
+    )
+    WHERE storage_path LIKE '/app/backend/data/%';
+  "
+
 sudo install -m 755 "$target_dir/scripts/deploy_enterprise_rag.sh" \
   "$HOME/deploy-enterprise-rag.sh"
 

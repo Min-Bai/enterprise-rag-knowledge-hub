@@ -7,6 +7,14 @@ from fastapi import UploadFile
 from backend.app.services import document_storage
 
 
+def test_document_directory_matches_application_data_volume():
+    assert document_storage.DOCUMENT_DIRECTORY == (
+        Path(document_storage.__file__).resolve().parents[1]
+        / "data"
+        / "documents"
+    )
+
+
 @pytest.mark.anyio
 async def test_save_document_file_saves_valid_pdf(monkeypatch, tmp_path):
     monkeypatch.setattr(document_storage, "DOCUMENT_DIRECTORY", tmp_path)

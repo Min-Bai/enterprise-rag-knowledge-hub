@@ -5,7 +5,7 @@ from fastapi import UploadFile
 
 
 MAX_DOCUMENT_SIZE = 10 * 1024 * 1024
-DOCUMENT_DIRECTORY = Path(__file__).resolve().parents[2] / "data" / "documents"
+DOCUMENT_DIRECTORY = Path(__file__).resolve().parents[1] / "data" / "documents"
 
 
 async def save_document_file(file: UploadFile) -> str:
