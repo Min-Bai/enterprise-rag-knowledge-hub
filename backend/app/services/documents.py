@@ -61,6 +61,22 @@ def get_documents_service(
         statement = statement.where(DocumentORM.knowledge_base_id == knowledge_base_id)
     return list(db.scalars(statement).all())
 
+
+def get_document_service(
+    document_id: int,
+    user_id: int,
+    db: Session,
+) -> DocumentORM:
+    document = db.scalar(
+        select(DocumentORM).where(
+            DocumentORM.id == document_id,
+            DocumentORM.user_id == user_id,
+        )
+    )
+    if document is None:
+        raise DocumentNotFoundError
+    return document
+
 def get_ready_documents_service(
     db: Session,
     user_id: int,

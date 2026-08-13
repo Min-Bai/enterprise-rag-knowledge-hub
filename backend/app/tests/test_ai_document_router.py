@@ -21,7 +21,12 @@ def test_document_answer_route_returns_answer(monkeypatch):
         lambda **kwargs: DocumentAnswerResponse(
             answer="This is the answer.",
             sources=[],
+            conversation_id=4,
         ),
+    )
+    monkeypatch.setattr(
+        "backend.app.routers.ai.enforce_ai_rate_limit",
+        lambda user_id: None,
     )
 
     try:
@@ -37,6 +42,34 @@ def test_document_answer_route_returns_answer(monkeypatch):
 
     assert response.status_code == 200
     assert response.json()["answer"] == "This is the answer."
+    assert response.json()["conversation_id"] == 4
+
+
+def test_document_conversations_are_scoped_to_current_user(monkeypatch):
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    document = SimpleNamespace(id=8)
+    get_document = []
+    get_conversations = []
+
+    monkeypatch.setattr(
+        "backend.app.routers.ai.get_document_service",
+        lambda **kwargs: get_document.append(kwargs) or document,
+    )
+    monkeypatch.setattr(
+        "backend.app.routers.ai.get_document_conversations_service",
+        lambda **kwargs: get_conversations.append(kwargs) or [],
+    )
+
+    try:
+        response = client.get("/ai/documents/8/conversations")
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 200
+    assert get_document[0]["user_id"] == 1
+    assert get_conversations[0]["user_id"] == 1
+    assert get_conversations[0]["document_id"] == 8
+    assert "db" in get_conversations[0]
 
 def test_document_answer_rejects_empty_question(monkeypatch):
     service_mock = []

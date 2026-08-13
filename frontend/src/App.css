@@ -122,6 +122,30 @@ textarea {
   font-size: 14px;
 }
 
+.conversation-controls {
+  display: grid;
+  gap: 8px;
+}
+
+.conversation-history {
+  border-top: 1px solid #d5ddda;
+  margin-top: 16px;
+  padding-top: 12px;
+}
+
+.conversation-message {
+  margin: 8px 0;
+  white-space: pre-wrap;
+}
+
+.conversation-message.user strong {
+  color: #2364aa;
+}
+
+.conversation-message.assistant strong {
+  color: #0f766e;
+}
+
 .document-answer-panel button,
 .login-form button {
   background: #2364aa;

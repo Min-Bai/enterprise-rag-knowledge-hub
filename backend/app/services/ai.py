@@ -11,6 +11,12 @@ from ..models.user import UserORM
 from ..schemas.ai import DocumentAnswerRequest, DocumentAnswerResponse, SourceItem
 from .document_vectors import search_document_chunks
 from .rag_prompt import build_document_answer_messages
+from .conversations import (
+    ConversationNotFoundError,
+    get_conversation_history,
+    get_or_create_conversation_service,
+    save_conversation_turn,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +55,27 @@ def answer_document_service(*, request: DocumentAnswerRequest, current_user: Use
         raise DocumentNotFoundError
     if document.status != 'ready':
         raise DocumentNotReadyError
+    conversation = get_or_create_conversation_service(
+        conversation_id=request.conversation_id,
+        user_id=current_user.id,
+        document_id=document.id,
+        db=db,
+    )
     hits = [hit for hit in search_document_chunks(question=request.question, user_id=current_user.id, document_ids=[document.id], limit=3) if float(hit['score']) >= RAG_MIN_SCORE]
     if not hits:
-        return DocumentAnswerResponse(answer='No sufficiently relevant document content was found.', sources=[])
+        answer = 'No sufficiently relevant document content was found.'
+        save_conversation_turn(
+            conversation=conversation,
+            question=request.question,
+            answer=answer,
+            sources=[],
+            db=db,
+        )
+        return DocumentAnswerResponse(
+            answer=answer,
+            sources=[],
+            conversation_id=conversation.id,
+        )
     if not DEEPSEEK_API_KEY:
         raise AiNotConfiguredError
     context = '\n\n'.join(str(hit['text']) for hit in hits)
@@ -64,6 +88,10 @@ def answer_document_service(*, request: DocumentAnswerRequest, current_user: Use
                 'messages': build_document_answer_messages(
                     context=context,
                     question=request.question,
+                    history=get_conversation_history(
+                        conversation_id=conversation.id,
+                        db=db,
+                    ),
                 ),
                 'stream': False, 'max_tokens': 500, 'temperature': 0.1,
             }, timeout=30,
@@ -75,15 +103,24 @@ def answer_document_service(*, request: DocumentAnswerRequest, current_user: Use
         raise AiProviderError from error
     if not answer:
         raise AiProviderError
+    sources = [
+        SourceItem(
+            document_id=document.id,
+            filename=document.filename,
+            page=hit.get('page'),
+            chunk_index=int(hit['chunk_index']),
+        )
+        for hit in hits
+    ]
+    save_conversation_turn(
+        conversation=conversation,
+        question=request.question,
+        answer=answer,
+        sources=[source.model_dump() for source in sources],
+        db=db,
+    )
     return DocumentAnswerResponse(
         answer=answer,
-        sources=[
-            SourceItem(
-                document_id=document.id,
-                filename=document.filename,
-                page=hit.get('page'),
-                chunk_index=int(hit['chunk_index']),
-            )
-            for hit in hits
-        ],
+        sources=sources,
+        conversation_id=conversation.id,
     )

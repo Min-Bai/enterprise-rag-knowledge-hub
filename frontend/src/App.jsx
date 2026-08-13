@@ -6,6 +6,7 @@ import {
   deleteDocument,
   deleteKnowledgeBase,
   getApiHealth,
+  getDocumentConversations,
   getKnowledgeBases,
   getMyDocuments,
   login,
@@ -34,6 +35,8 @@ function App() {
   const [selectedDocumentId, setSelectedDocumentId] = useState('')
   const [documentQuestion, setDocumentQuestion] = useState('')
   const [documentAnswer, setDocumentAnswer] = useState(null)
+  const [conversations, setConversations] = useState([])
+  const [selectedConversationId, setSelectedConversationId] = useState('')
   const [documentAnswerError, setDocumentAnswerError] = useState('')
   const [isAnsweringDocument, setIsAnsweringDocument] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -103,6 +106,20 @@ function App() {
     return () => window.clearInterval(timer)
   }, [accessToken, selectedKnowledgeBaseId, hasPendingDocuments])
 
+  useEffect(() => {
+    if (!accessToken || !selectedDocumentId) {
+      setConversations([])
+      setSelectedConversationId('')
+      return
+    }
+    getDocumentConversations(accessToken, selectedDocumentId)
+      .then((data) => setConversations(data))
+      .catch((error) => {
+        if (error.status === 401) clearSession()
+        else setDocumentAnswerError(error.message)
+      })
+  }, [accessToken, selectedDocumentId])
+
   async function handleLogin(username, password) {
     const data = await login(username, password)
     sessionStorage.setItem('access_token', data.access_token)
@@ -171,7 +188,21 @@ function App() {
     event.preventDefault()
     setIsAnsweringDocument(true)
     setDocumentAnswerError('')
-    try { setDocumentAnswer(await answerDocument(accessToken, Number(selectedDocumentId), documentQuestion.trim())) }
+    try {
+      const result = await answerDocument(accessToken, Number(selectedDocumentId), documentQuestion.trim(), selectedConversationId)
+      setDocumentAnswer(result)
+      setSelectedConversationId(String(result.conversation_id))
+      setConversations((current) => {
+        const existing = current.find((item) => item.id === result.conversation_id)
+        const turn = [
+          { id: `user-${Date.now()}`, role: 'user', content: documentQuestion.trim(), sources: null },
+          { id: `assistant-${Date.now()}`, role: 'assistant', content: result.answer, sources: result.sources },
+        ]
+        return existing
+          ? current.map((item) => item.id === result.conversation_id ? { ...item, messages: [...item.messages, ...turn] } : item)
+          : [{ id: result.conversation_id, messages: turn }, ...current]
+      })
+    }
     catch (error) { setDocumentAnswerError(error.message) } finally { setIsAnsweringDocument(false) }
   }
 
@@ -185,7 +216,7 @@ function App() {
       <h2>Documents</h2><form className="document-upload-form" onSubmit={handleUpload}><label htmlFor="document-file">Upload PDF</label><input id="document-file" type="file" accept="application/pdf,.pdf" onChange={(event) => { setDocumentFile(event.target.files?.[0] ?? null); setDocumentUploadError('') }} /><button type="submit" disabled={!documentFile || !selectedKnowledgeBaseId || isUploadingDocument}>{isUploadingDocument ? 'Uploading...' : 'Upload document'}</button></form>
       {documentUploadError && <p className="form-error">{documentUploadError}</p>}
       {documents.length > 0 && <ul className="document-list" aria-label="Uploaded documents">{documents.map((document) => <li key={document.id} className="document-list-item"><div><strong>{document.filename}</strong><span className={`document-status ${document.status}`}>{document.status}</span>{document.error_message && <p className="document-error">{document.error_message}</p>}</div><div className="document-actions">{document.status === 'failed' && <button type="button" className="retry-button" disabled={retryingDocumentId !== null} onClick={() => handleRetryDocument(document.id)}>{retryingDocumentId === document.id ? 'Retrying...' : 'Retry'}</button>}<button type="button" className="delete-button" disabled={deletingDocumentId !== null} onClick={() => handleDeleteDocument(document.id)}>{deletingDocumentId === document.id ? 'Deleting...' : 'Delete'}</button></div></li>)}</ul>}
-      {documents.length === 0 ? <p>No documents uploaded yet.</p> : readyDocuments.length === 0 ? <p>No documents are ready for questions yet.</p> : <form onSubmit={handleQuestion}><label htmlFor="document-select">Document</label><select id="document-select" value={selectedDocumentId} onChange={(event) => { setSelectedDocumentId(event.target.value); setDocumentAnswer(null) }}><option value="">Choose a ready document</option>{readyDocuments.map((document) => <option key={document.id} value={document.id}>{document.filename}</option>)}</select><label htmlFor="document-question">Question</label><textarea id="document-question" value={documentQuestion} maxLength={2000} placeholder="Ask about the selected document" onChange={(event) => setDocumentQuestion(event.target.value)} /><button type="submit" disabled={isAnsweringDocument || !selectedDocumentId || !documentQuestion.trim()}>{isAnsweringDocument ? 'Answering...' : 'Ask document'}</button></form>}
+      {documents.length === 0 ? <p>No documents uploaded yet.</p> : readyDocuments.length === 0 ? <p>No documents are ready for questions yet.</p> : <><form onSubmit={handleQuestion}><label htmlFor="document-select">Document</label><select id="document-select" value={selectedDocumentId} onChange={(event) => { setSelectedDocumentId(event.target.value); setDocumentAnswer(null) }}><option value="">Choose a ready document</option>{readyDocuments.map((document) => <option key={document.id} value={document.id}>{document.filename}</option>)}</select><div className="conversation-controls"><label htmlFor="conversation-select">Conversation</label><select id="conversation-select" value={selectedConversationId} onChange={(event) => { setSelectedConversationId(event.target.value); setDocumentAnswer(null) }}><option value="">New conversation</option>{conversations.map((conversation) => <option key={conversation.id} value={conversation.id}>Conversation {conversation.id}</option>)}</select></div><label htmlFor="document-question">Question</label><textarea id="document-question" value={documentQuestion} maxLength={2000} placeholder="Ask about the selected document" onChange={(event) => setDocumentQuestion(event.target.value)} /><button type="submit" disabled={isAnsweringDocument || !selectedDocumentId || !documentQuestion.trim()}>{isAnsweringDocument ? 'Answering...' : 'Ask document'}</button></form>{selectedConversationId && conversations.find((item) => String(item.id) === selectedConversationId)?.messages.length > 0 && <div className="conversation-history">{conversations.find((item) => String(item.id) === selectedConversationId).messages.map((message) => <p key={message.id} className={`conversation-message ${message.role}`}><strong>{message.role === 'user' ? 'You' : 'Assistant'}:</strong> {message.content}</p>)}</div>}</>}
       {documentAnswerError && <p className="form-error">{documentAnswerError}</p>}{documentAnswer && <div className="document-answer"><p>{documentAnswer.answer}</p>{documentAnswer.sources.length > 0 && <ul className="knowledge-sources" aria-label="Document sources">{documentAnswer.sources.map((source) => <li key={`${source.document_id}-${source.chunk_index}`}>{source.filename}{source.page ? ` - page ${source.page}` : ''} - chunk {source.chunk_index}</li>)}</ul>}</div>}
     </section>}
   </main>

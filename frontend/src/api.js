@@ -28,9 +28,15 @@ export async function logout(accessToken) {
   if (!response.ok) return readJson(response, 'Logout failed')
 }
 
-export async function answerDocument(accessToken, documentId, question) {
-  const response = await fetch(`${API_PREFIX}/ai/document-answer`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ document_id: documentId, question }) })
+export async function answerDocument(accessToken, documentId, question, conversationId) {
+  const body = { document_id: documentId, question }
+  if (conversationId) body.conversation_id = Number(conversationId)
+  const response = await fetch(`${API_PREFIX}/ai/document-answer`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   return readJson(response, 'Document answer request failed')
+}
+
+export async function getDocumentConversations(accessToken, documentId) {
+  return readJson(await fetch(`${API_PREFIX}/ai/documents/${documentId}/conversations`, { headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to load conversation history')
 }
 
 export async function getKnowledgeBases(accessToken) {

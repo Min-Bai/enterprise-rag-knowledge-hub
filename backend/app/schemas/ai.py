@@ -1,9 +1,12 @@
-from pydantic import BaseModel, Field
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DocumentAnswerRequest(BaseModel):
     document_id: int = Field(gt=0)
     question: str = Field(min_length=1, max_length=2000)
+    conversation_id: int | None = Field(default=None, gt=0)
 
 
 class SourceItem(BaseModel):
@@ -16,3 +19,24 @@ class SourceItem(BaseModel):
 class DocumentAnswerResponse(BaseModel):
     answer: str
     sources: list[SourceItem]
+    conversation_id: int
+
+
+class ConversationMessageResponse(BaseModel):
+    id: int
+    role: str
+    content: str
+    sources: list[SourceItem] | None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ConversationResponse(BaseModel):
+    id: int
+    document_id: int
+    created_at: datetime
+    updated_at: datetime
+    messages: list[ConversationMessageResponse]
+
+    model_config = ConfigDict(from_attributes=True)

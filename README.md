@@ -5,7 +5,8 @@ Redis, RQ, Qdrant, and Docker Compose. It supports private-document
 processing, LangChain recursive text splitting, vector retrieval, and
 source-grounded RAG answers with PDF page citations. LangChain prompt templates
 isolate retrieved reference material from model instructions before requests
-reach DeepSeek.
+reach DeepSeek. Document conversations retain a user-scoped, document-scoped
+history for follow-up questions.
 
 ## Architecture
 
@@ -31,6 +32,8 @@ upload -> uploaded -> Redis queue -> processing -> ready / failed
 
 The worker validates documents, extracts text, splits chunks, creates
 embeddings, and stores vectors in Qdrant. Failed documents can be retried.
+Each question is saved with its answer and citations; a follow-up uses only the
+latest history from the same user's selected document.
 
 ## Services
 

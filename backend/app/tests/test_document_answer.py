@@ -31,6 +31,22 @@ def make_dependencies():
     return request, current_user, db
 
 
+@pytest.fixture(autouse=True)
+def mock_conversations(monkeypatch):
+    monkeypatch.setattr(
+        "backend.app.services.ai.get_or_create_conversation_service",
+        Mock(return_value=SimpleNamespace(id=4)),
+    )
+    monkeypatch.setattr(
+        "backend.app.services.ai.get_conversation_history",
+        Mock(return_value=[]),
+    )
+    monkeypatch.setattr(
+        "backend.app.services.ai.save_conversation_turn",
+        Mock(),
+    )
+
+
 def test_no_relevant_chunks_does_not_call_deepseek(monkeypatch):
     request, current_user, db = make_dependencies()
     search_mock = Mock(return_value=[])
@@ -52,6 +68,7 @@ def test_no_relevant_chunks_does_not_call_deepseek(monkeypatch):
     )
 
     assert result.sources == []
+    assert result.conversation_id == 4
     assert result.answer == "No sufficiently relevant document content was found."
     search_mock.assert_called_once()
     deepseek_mock.assert_not_called()
@@ -98,6 +115,7 @@ def test_success_returns_answer_and_sources(monkeypatch):
     )
 
     assert result.answer == "This document explains testing."
+    assert result.conversation_id == 4
     assert result.sources[0].document_id == 8
     assert result.sources[0].filename == "test.pdf"
     assert result.sources[0].page == 3
