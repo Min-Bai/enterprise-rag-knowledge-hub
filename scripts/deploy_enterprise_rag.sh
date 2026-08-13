@@ -3,6 +3,9 @@ set -euo pipefail
 
 target_commit="${1:-}"
 project_dir="$HOME/enterprise-rag-knowledge-hub"
+torch_base_image="enterprise-rag-python:torch-2.5.1-cpu"
+torch_wheel_dir="$HOME/.cache/enterprise-rag/pip-wheels"
+torch_wheel="$torch_wheel_dir/torch-2.5.1+cpu-cp312-cp312-linux_x86_64.whl"
 
 cd "$project_dir"
 git fetch origin main
@@ -19,7 +22,20 @@ commit="$(git rev-parse --short HEAD)"
 message="$(git log -1 --pretty=%s)"
 echo "Deploying commit $commit: $message"
 
-sudo docker compose up -d --build api worker frontend
+if ! sudo docker image inspect "$torch_base_image" >/dev/null 2>&1; then
+  if [[ ! -f "$torch_wheel" ]]; then
+    echo "Missing server torch cache: $torch_wheel" >&2
+    exit 1
+  fi
+
+  sudo docker build \
+    --tag "$torch_base_image" \
+    --file "$project_dir/Dockerfile.torch-cache" \
+    "$torch_wheel_dir"
+fi
+
+sudo env BASE_IMAGE="$torch_base_image" \
+  docker compose up -d --build api worker frontend
 
 for attempt in {1..12}; do
   if curl -fsS http://localhost:8000/health; then
