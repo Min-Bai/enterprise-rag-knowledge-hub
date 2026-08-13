@@ -56,7 +56,7 @@ def update_knowledge_base(
     payload: KnowledgeBaseUpdate,
     current_user: UserORM = Depends(get_current_user),
     db: Session = Depends(get_db),
-): 
+):
     try:
         knowledge_base = get_knowledge_base_service(db, knowledge_base_id, current_user.id)
         require_knowledge_base_role(knowledge_base=knowledge_base, user_id=current_user.id, db=db, allowed_roles={"owner"})
@@ -77,7 +77,7 @@ def delete_knowledge_base(
     knowledge_base_id: int,
     current_user: UserORM = Depends(get_current_user),
     db: Session = Depends(get_db),
-): 
+):
     try:
         knowledge_base = get_knowledge_base_service(db, knowledge_base_id, current_user.id)
         require_knowledge_base_role(knowledge_base=knowledge_base, user_id=current_user.id, db=db, allowed_roles={"owner"})
