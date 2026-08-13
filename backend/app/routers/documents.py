@@ -23,6 +23,7 @@ from ..services.document_vectors import search_document_chunks
 from ..rate_limit import enforce_document_upload_rate_limit
 
 from ..exceptions import (
+    DuplicateDocumentError,
     DocumentNotFoundError,
     DocumentReindexNotAllowedError,
     DocumentRetryNotAllowedError,
@@ -64,7 +65,7 @@ async def upload_document(
     enforce_document_upload_rate_limit(current_user.id)
 
     try:
-        storage_path = await save_document_file(file)
+        storage_path, content_sha256 = await save_document_file(file)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
 
@@ -75,6 +76,7 @@ async def upload_document(
             knowledge_base_id=knowledge_base_id,
             filename=original_filename,
             storage_path=storage_path,
+            content_sha256=content_sha256,
         )
     except KnowledgeBaseNotFoundError:
         from pathlib import Path
@@ -86,6 +88,11 @@ async def upload_document(
 
         Path(storage_path).unlink(missing_ok=True)
         raise HTTPException(status_code=403, detail="knowledge base editor access required")
+    except DuplicateDocumentError:
+        from pathlib import Path
+
+        Path(storage_path).unlink(missing_ok=True)
+        raise HTTPException(status_code=409, detail="an identical document already exists in this knowledge base")
 
     enqueue_document_processing(document.id)
     write_audit_log(actor_user_id=current_user.id, action="document.uploaded", target_type="document", target_id=document.id, knowledge_base_id=document.knowledge_base_id, details={"filename": document.filename}, db=db)

@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
@@ -8,6 +8,7 @@ from ..database import Base
 
 class DocumentORM(Base):
     __tablename__ = "documents"
+    __table_args__ = (UniqueConstraint("knowledge_base_id", "content_sha256", name="uq_documents_knowledge_base_content_sha256"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(
@@ -21,6 +22,7 @@ class DocumentORM(Base):
     )
     filename: Mapped[str] = mapped_column(String(50), nullable=False)
     storage_path: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="uploaded", server_default="uploaded")
     error_message: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

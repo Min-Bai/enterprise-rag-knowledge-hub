@@ -36,6 +36,9 @@ embeddings, and stores vectors in Qdrant. Failed documents can be retried.
 Editors can reindex a ready document after changing document-processing or
 embedding settings; reindexing clears that document's old vectors and queues a
 fresh processing job.
+The upload flow fingerprints PDF content and rejects an identical file within
+the same knowledge base, preventing duplicate vectors and duplicate retrieval
+results.
 Each question is saved with its answer and citations; a follow-up uses only the
 latest history from the same user's selected document.
 

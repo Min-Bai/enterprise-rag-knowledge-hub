@@ -13,7 +13,7 @@ client = TestClient(app)
 
 def test_upload_document_enqueues_processing_job(monkeypatch):
     async def save_file(_file):
-        return "/app/data/documents/queued.pdf"
+        return "/app/data/documents/queued.pdf", "a" * 64
 
     enqueue_mock = Mock()
 

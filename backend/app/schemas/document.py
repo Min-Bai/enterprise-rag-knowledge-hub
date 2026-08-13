@@ -7,6 +7,7 @@ class DocumentResponse(BaseModel):
     knowledge_base_id: int
     filename: str
     status: str
+    content_sha256: str | None = None
     error_message: str | None
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)

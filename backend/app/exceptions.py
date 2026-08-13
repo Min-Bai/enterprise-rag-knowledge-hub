@@ -29,3 +29,7 @@ class DocumentRetryNotAllowedError(Exception):
 
 class DocumentReindexNotAllowedError(Exception):
     pass
+
+
+class DuplicateDocumentError(Exception):
+    pass

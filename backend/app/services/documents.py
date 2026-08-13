@@ -3,6 +3,7 @@ from pathlib import Path
 from ..exceptions import (
     DocumentNotFoundError,
     DocumentReindexNotAllowedError,
+    DuplicateDocumentError,
     DocumentRetryNotAllowedError,
 )
 from .document_vectors import delete_document_vectors
@@ -24,6 +25,7 @@ def create_document_service(
     user_id: int,
     filename: str,
     storage_path: str,
+    content_sha256: str | None = None,
     knowledge_base_id: int | None = None,
 ) -> DocumentORM:
     if knowledge_base_id is None:
@@ -40,12 +42,18 @@ def create_document_service(
         db=db,
         allowed_roles={"owner", "editor"},
     )
+    if content_sha256 is not None and db.scalar(select(DocumentORM.id).where(
+        DocumentORM.knowledge_base_id == knowledge_base.id,
+        DocumentORM.content_sha256 == content_sha256,
+    )) is not None:
+        raise DuplicateDocumentError
 
     document = DocumentORM(
         user_id=user_id,
         knowledge_base_id=knowledge_base.id,
         filename=filename,
         storage_path=storage_path,
+        content_sha256=content_sha256,
     )
 
     db.add(document)
