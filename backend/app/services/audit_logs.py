@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models.audit_log import AuditLogORM
+from ..models.user import UserORM
 
 
 def write_audit_log(
@@ -19,10 +20,24 @@ def write_audit_log(
     db.commit()
 
 
-def get_knowledge_base_audit_logs(*, knowledge_base_id: int, db: Session, limit: int = 100) -> list[AuditLogORM]:
-    return list(db.scalars(
-        select(AuditLogORM)
+def get_knowledge_base_audit_logs(*, knowledge_base_id: int, db: Session, limit: int = 100) -> list[dict[str, object]]:
+    rows = db.execute(
+        select(AuditLogORM, UserORM.username)
+        .join(UserORM, UserORM.id == AuditLogORM.actor_user_id)
         .where(AuditLogORM.knowledge_base_id == knowledge_base_id)
         .order_by(AuditLogORM.id.desc())
         .limit(limit)
-    ).all())
+    ).all()
+    return [
+        {
+            "id": event.id,
+            "actor_user_id": event.actor_user_id,
+            "actor_username": username,
+            "action": event.action,
+            "target_type": event.target_type,
+            "target_id": event.target_id,
+            "details": event.details,
+            "created_at": event.created_at,
+        }
+        for event, username in rows
+    ]

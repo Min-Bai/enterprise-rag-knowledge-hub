@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from backend.app.services.audit_logs import write_audit_log
+from backend.app.services.audit_logs import get_knowledge_base_audit_logs
 
 
 def test_write_audit_log_persists_structured_event():
@@ -22,3 +23,30 @@ def test_write_audit_log_persists_structured_event():
     assert event.action == "document.uploaded"
     assert event.details == {"filename": "handbook.pdf"}
     db.commit.assert_called_once()
+
+
+def test_get_audit_logs_includes_actor_username():
+    event = SimpleNamespace(
+        id=4,
+        actor_user_id=1,
+        action="document.uploaded",
+        target_type="document",
+        target_id=8,
+        details={"filename": "handbook.pdf"},
+        created_at="2026-08-13T10:00:00Z",
+    )
+    db = Mock()
+    db.execute.return_value.all.return_value = [(event, "alice")]
+
+    result = get_knowledge_base_audit_logs(knowledge_base_id=3, db=db)
+
+    assert result == [{
+        "id": 4,
+        "actor_user_id": 1,
+        "actor_username": "alice",
+        "action": "document.uploaded",
+        "target_type": "document",
+        "target_id": 8,
+        "details": {"filename": "handbook.pdf"},
+        "created_at": "2026-08-13T10:00:00Z",
+    }]

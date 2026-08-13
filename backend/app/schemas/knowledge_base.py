@@ -62,6 +62,7 @@ class KnowledgeBaseMemberResponse(BaseModel):
 class AuditLogResponse(BaseModel):
     id: int
     actor_user_id: int
+    actor_username: str
     action: str
     target_type: str
     target_id: int | None
