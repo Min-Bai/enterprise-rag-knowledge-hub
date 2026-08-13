@@ -14,8 +14,9 @@ import pytest
 from backend.app.exceptions import (
     DocumentNotFoundError,
     DocumentRetryNotAllowedError,
+    DocumentReindexNotAllowedError,
 )
-from backend.app.services.documents import retry_document_service
+from backend.app.services.documents import reindex_document_service, retry_document_service
 
 
 def test_retry_failed_document_clears_vectors_and_resets_status(monkeypatch):
@@ -70,6 +71,33 @@ def test_retry_rejects_document_that_is_not_failed(monkeypatch):
 
     with pytest.raises(DocumentRetryNotAllowedError):
         retry_document_service(document_id=8, user_id=1, db=db)
+
+
+def test_reindex_ready_document_clears_vectors_and_requeues(monkeypatch):
+    document = SimpleNamespace(id=8, user_id=1, knowledge_base_id=1, status="ready", error_message="old")
+    db = Mock()
+    delete_vectors = Mock()
+    monkeypatch.setattr("backend.app.services.documents.get_document_service", lambda **_kwargs: document)
+    monkeypatch.setattr("backend.app.services.documents.get_knowledge_base_service", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr("backend.app.services.documents.require_knowledge_base_role", lambda **_kwargs: "editor")
+    monkeypatch.setattr("backend.app.services.documents.delete_document_vectors", delete_vectors)
+
+    result = reindex_document_service(document_id=8, user_id=1, db=db)
+
+    assert result is document
+    assert document.status == "uploaded"
+    assert document.error_message is None
+    delete_vectors.assert_called_once_with(document_id=8, user_id=1)
+
+
+def test_reindex_rejects_non_ready_document(monkeypatch):
+    document = SimpleNamespace(knowledge_base_id=1, status="processing")
+    monkeypatch.setattr("backend.app.services.documents.get_document_service", lambda **_kwargs: document)
+    monkeypatch.setattr("backend.app.services.documents.get_knowledge_base_service", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr("backend.app.services.documents.require_knowledge_base_role", lambda **_kwargs: "editor")
+
+    with pytest.raises(DocumentReindexNotAllowedError):
+        reindex_document_service(document_id=8, user_id=1, db=Mock())
 
 def test_retry_route_requeues_failed_document(monkeypatch):
     document = SimpleNamespace(
@@ -126,3 +154,20 @@ def test_retry_route_rejects_non_failed_document(monkeypatch):
 
     assert response.status_code == 409
     assert response.json()["detail"] == "only failed documents can be retried"
+
+
+def test_reindex_route_requeues_ready_document(monkeypatch):
+    document = SimpleNamespace(id=8, knowledge_base_id=1, filename="test.pdf", status="uploaded", error_message=None, created_at=datetime.now())
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    monkeypatch.setattr("backend.app.routers.documents.reindex_document_service", Mock(return_value=document))
+    enqueue = Mock()
+    monkeypatch.setattr("backend.app.routers.documents.enqueue_document_processing", enqueue)
+    monkeypatch.setattr("backend.app.routers.documents.write_audit_log", Mock())
+
+    try:
+        response = client.post("/documents/8/reindex")
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 200
+    enqueue.assert_called_once_with(8)

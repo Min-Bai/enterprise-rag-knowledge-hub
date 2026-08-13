@@ -15,6 +15,7 @@ from ..services.documents import (
     delete_document_service,
     get_documents_service,
     get_ready_documents_service,
+    reindex_document_service,
     retry_document_service,
 )
 from ..services.document_queue import enqueue_document_processing
@@ -23,6 +24,7 @@ from ..rate_limit import enforce_document_upload_rate_limit
 
 from ..exceptions import (
     DocumentNotFoundError,
+    DocumentReindexNotAllowedError,
     DocumentRetryNotAllowedError,
 )
 from ..services.knowledge_bases import KnowledgeBaseNotFoundError
@@ -125,6 +127,28 @@ def search_documents(
         for chunk in chunks
     ]
     return {"items": items}
+
+@router.post(
+    "/{document_id}/reindex",
+    response_model=DocumentResponse,
+)
+def reindex_document(
+    document_id: int,
+    current_user: UserORM = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        document = reindex_document_service(document_id=document_id, user_id=current_user.id, db=db)
+    except DocumentNotFoundError:
+        raise HTTPException(status_code=404, detail="document not found")
+    except DocumentReindexNotAllowedError:
+        raise HTTPException(status_code=409, detail="only ready documents can be reindexed")
+    except KnowledgeBaseAccessDeniedError:
+        raise HTTPException(status_code=403, detail="knowledge base editor access required")
+    enqueue_document_processing(document.id)
+    write_audit_log(actor_user_id=current_user.id, action="document.reindexed", target_type="document", target_id=document.id, knowledge_base_id=document.knowledge_base_id, details=None, db=db)
+    return document
+
 
 @router.post(
     "/{document_id}/retry",

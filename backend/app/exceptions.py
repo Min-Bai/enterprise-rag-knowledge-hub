@@ -25,3 +25,7 @@ class DocumentNotFoundError(Exception):
 
 class DocumentRetryNotAllowedError(Exception):
     pass
+
+
+class DocumentReindexNotAllowedError(Exception):
+    pass

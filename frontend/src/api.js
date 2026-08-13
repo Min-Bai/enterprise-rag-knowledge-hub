@@ -147,3 +147,7 @@ export async function deleteDocument(accessToken, documentId) {
 export async function retryDocument(accessToken, documentId) {
   return readJson(await fetch(`${API_PREFIX}/documents/${documentId}/retry`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to retry document')
 }
+
+export async function reindexDocument(accessToken, documentId) {
+  return readJson(await fetch(`${API_PREFIX}/documents/${documentId}/reindex`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to reindex document')
+}

@@ -33,6 +33,9 @@ upload -> uploaded -> Redis queue -> processing -> ready / failed
 
 The worker validates documents, extracts text, splits chunks, creates
 embeddings, and stores vectors in Qdrant. Failed documents can be retried.
+Editors can reindex a ready document after changing document-processing or
+embedding settings; reindexing clears that document's old vectors and queues a
+fresh processing job.
 Each question is saved with its answer and citations; a follow-up uses only the
 latest history from the same user's selected document.
 
