@@ -1,7 +1,8 @@
 # Enterprise RAG Knowledge Hub
 
-企业 RAG 知识库问答系统，基于 FastAPI、React、MySQL、Redis、RQ、Qdrant
-和 Docker Compose 构建，支持私有文档处理、向量检索和带来源引用的问答。
+Enterprise knowledge-base question answering with FastAPI, React, MySQL,
+Redis, RQ, Qdrant, and Docker Compose. It supports private-document
+processing, vector retrieval, and source-grounded RAG answers.
 
 ## Architecture
 
@@ -14,7 +15,7 @@ Nginx /api proxy
     v
 FastAPI API ---- MySQL
     |               |
-    |               +-- users, tasks, documents
+    |               +-- users, knowledge_bases, documents, tasks
     |
     +-- Redis / RQ queue --> RQ worker --> Qdrant
 ```
@@ -25,8 +26,8 @@ Document processing flow:
 upload -> uploaded -> Redis queue -> processing -> ready / failed
 ```
 
-The worker validates PDFs, extracts text, splits chunks, creates embeddings,
-and stores vectors in Qdrant. Failed documents can be retried.
+The worker validates documents, extracts text, splits chunks, creates
+embeddings, and stores vectors in Qdrant. Failed documents can be retried.
 
 ## Services
 
@@ -41,8 +42,8 @@ and stores vectors in Qdrant. Failed documents can be retried.
 
 ## Configuration
 
-Copy `backend/app/.env.example` to
-`backend/app/.env`, then set real secrets and passwords.
+Copy `backend/app/.env.example` to `backend/app/.env`, then set real secrets
+and passwords. Do not commit `.env`.
 
 Required production database settings:
 
@@ -53,8 +54,6 @@ MYSQL_PASSWORD=replace-with-a-private-password
 MYSQL_ROOT_PASSWORD=replace-with-a-different-private-password
 DATABASE_URL=mysql+pymysql://todo_app:replace-with-a-private-password@mysql:3306/todo_app?charset=utf8mb4
 ```
-
-Do not commit `.env`.
 
 ## Run With Docker Compose
 
