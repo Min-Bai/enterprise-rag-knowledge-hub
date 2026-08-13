@@ -80,6 +80,15 @@ function App() {
     setAccessToken(null)
   }
 
+  async function refreshAuditLogs(knowledgeBaseId = selectedKnowledgeBaseId) {
+    if (!accessToken || !knowledgeBaseId) return
+    try {
+      setAuditLogs(await getKnowledgeBaseAuditLogs(accessToken, knowledgeBaseId))
+    } catch (error) {
+      if (error.status === 401) clearSession()
+    }
+  }
+
   useEffect(() => {
     getApiHealth()
       .then((data) => setApiStatus({ message: `API connected. Database: ${data.database}`, isError: false }))
@@ -214,6 +223,7 @@ function App() {
       const knowledgeBase = await createKnowledgeBase(accessToken, knowledgeBaseName.trim(), knowledgeBaseDescription.trim())
       setKnowledgeBases((current) => [...current, knowledgeBase])
       setSelectedKnowledgeBaseId(String(knowledgeBase.id))
+      await refreshAuditLogs(knowledgeBase.id)
       setKnowledgeBaseName('')
       setKnowledgeBaseDescription('')
     } catch (error) { setKnowledgeBaseError(error.message) } finally { setIsCreatingKnowledgeBase(false) }
@@ -249,6 +259,7 @@ function App() {
       const updated = await updateKnowledgeBase(accessToken, Number(selectedKnowledgeBaseId), editKnowledgeBaseName.trim(), editKnowledgeBaseDescription.trim())
       setKnowledgeBases((current) => current.map((item) => item.id === updated.id ? updated : item))
       setEditingKnowledgeBase(false)
+      await refreshAuditLogs(updated.id)
     } catch (error) { setKnowledgeBaseError(error.message) } finally { setIsEditingKnowledgeBase(false) }
   }
 
@@ -259,6 +270,7 @@ function App() {
       await addKnowledgeBaseMember(accessToken, Number(selectedKnowledgeBaseId), memberUsername.trim(), memberRole)
       setKnowledgeBaseMembers(await getKnowledgeBaseMembers(accessToken, selectedKnowledgeBaseId))
       setMemberUsername('')
+      await refreshAuditLogs()
     } catch (error) { setKnowledgeBaseError(error.message) }
   }
 
@@ -266,6 +278,7 @@ function App() {
     try {
       await removeKnowledgeBaseMember(accessToken, Number(selectedKnowledgeBaseId), userId)
       setKnowledgeBaseMembers(await getKnowledgeBaseMembers(accessToken, selectedKnowledgeBaseId))
+      await refreshAuditLogs()
     } catch (error) { setKnowledgeBaseError(error.message) }
   }
 
@@ -278,6 +291,7 @@ function App() {
       const tags = documentTags.split(',').map((tag) => tag.trim()).filter(Boolean)
       const document = await uploadDocument(accessToken, documentFile, Number(selectedKnowledgeBaseId), tags)
       setDocuments((current) => [document, ...current])
+      await refreshAuditLogs(document.knowledge_base_id)
       setDocumentFile(null)
       setDocumentTags('')
       event.currentTarget.reset()
@@ -287,7 +301,7 @@ function App() {
   async function handleDeleteDocument(documentId) {
     if (!window.confirm('Delete this document?')) return
     setDeletingDocumentId(documentId)
-    try { await deleteDocument(accessToken, documentId); setDocuments((current) => current.filter((item) => item.id !== documentId)) }
+    try { await deleteDocument(accessToken, documentId); setDocuments((current) => current.filter((item) => item.id !== documentId)); await refreshAuditLogs() }
     catch (error) { setDocumentUploadError(error.message) } finally { setDeletingDocumentId(null) }
   }
 
@@ -296,6 +310,7 @@ function App() {
     try {
       const document = await retryDocument(accessToken, documentId)
       setDocuments((current) => current.map((item) => item.id === documentId ? document : item))
+      await refreshAuditLogs(document.knowledge_base_id)
     } catch (error) { setDocumentUploadError(error.message) } finally { setRetryingDocumentId(null) }
   }
 
@@ -339,6 +354,7 @@ function App() {
     try {
       const document = await reindexDocument(accessToken, documentId)
       setDocuments((current) => current.map((item) => item.id === documentId ? document : item))
+      await refreshAuditLogs(document.knowledge_base_id)
     } catch (error) { setDocumentUploadError(error.message) } finally { setReindexingDocumentId(null) }
   }
 
@@ -350,6 +366,7 @@ function App() {
       const tags = value.split(',').map((tag) => tag.trim()).filter(Boolean)
       const updated = await updateDocumentTags(accessToken, document.id, tags)
       setDocuments((current) => current.map((item) => item.id === document.id ? updated : item))
+      await refreshAuditLogs(updated.knowledge_base_id)
     } catch (error) { setDocumentUploadError(error.message) }
   }
 
