@@ -46,6 +46,7 @@ def process_document(document_id: int) -> None:
             document_id=document.id,
             user_id=document.user_id,
             knowledge_base_id=document.knowledge_base_id,
+            tags=document.tags,
             chunks=chunks,
         )
 

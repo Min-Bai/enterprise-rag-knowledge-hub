@@ -18,6 +18,7 @@ from .knowledge_bases import (
     get_knowledge_base_service,
 )
 from .knowledge_base_members import require_knowledge_base_role
+from .document_tags import normalize_document_tags
 
 
 def create_document_service(
@@ -27,6 +28,7 @@ def create_document_service(
     storage_path: str,
     content_sha256: str | None = None,
     knowledge_base_id: int | None = None,
+    tags: list[str] | None = None,
 ) -> DocumentORM:
     if knowledge_base_id is None:
         knowledge_base = get_default_knowledge_base_service(db, user_id)
@@ -54,6 +56,7 @@ def create_document_service(
         filename=filename,
         storage_path=storage_path,
         content_sha256=content_sha256,
+        tags=normalize_document_tags(tags),
     )
 
     db.add(document)

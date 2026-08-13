@@ -2,7 +2,7 @@ from datetime import datetime
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class DocumentAnswerRequest(BaseModel):
@@ -28,6 +28,14 @@ class KnowledgeBaseAnswerRequest(BaseModel):
     knowledge_base_id: int = Field(gt=0)
     question: str = Field(min_length=1, max_length=2000)
     conversation_id: int | None = Field(default=None, gt=0)
+    tags: list[str] = Field(default_factory=list, max_length=10)
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, value: list[str]) -> list[str]:
+        from ..services.document_tags import normalize_document_tags
+
+        return normalize_document_tags(value)
 
 
 class ConversationMessageResponse(BaseModel):

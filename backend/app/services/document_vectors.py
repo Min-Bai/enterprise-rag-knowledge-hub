@@ -28,6 +28,7 @@ def index_document_chunks(
     document_id: int,
     user_id: int | None,
     knowledge_base_id: int,
+    tags: list[str] | None,
     chunks: list[DocumentChunk],
 ) -> None:
     if not chunks:
@@ -66,6 +67,7 @@ def index_document_chunks(
                 "document_id": document_id,
                 "user_id": user_id,
                 "knowledge_base_id": knowledge_base_id,
+                "tags": tags or [],
                 "chunk_index": index,
                 "page": chunk.page,
                 "text": chunk.text,
@@ -114,6 +116,7 @@ def search_document_chunks(
     document_ids: list[int],
     limit: int = 3,
     knowledge_base_id: int | None = None,
+    tags: list[str] | None = None,
 ) -> list[dict[str, object]]:
     if not document_ids:
         return []
@@ -131,6 +134,8 @@ def search_document_chunks(
     ]
     if user_id is not None:
         conditions.insert(0, models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id)))
+    if tags:
+        conditions.append(models.FieldCondition(key="tags", match=models.MatchAny(any=tags)))
     response = get_qdrant_client().query_points(
         collection_name=DOCUMENT_COLLECTION_NAME,
         query=vector,

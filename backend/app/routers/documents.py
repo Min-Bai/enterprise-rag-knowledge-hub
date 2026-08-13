@@ -31,6 +31,7 @@ from ..exceptions import (
 from ..services.knowledge_bases import KnowledgeBaseNotFoundError
 from ..services.knowledge_base_members import KnowledgeBaseAccessDeniedError
 from ..services.audit_logs import write_audit_log
+from ..services.document_tags import parse_document_tags
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -57,6 +58,7 @@ def get_documents(
 async def upload_document(
     file: UploadFile = File(...),
     knowledge_base_id: int | None = Form(default=None),
+    tags: str | None = Form(default=None),
     current_user: UserORM = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -65,6 +67,7 @@ async def upload_document(
     enforce_document_upload_rate_limit(current_user.id)
 
     try:
+        document_tags = parse_document_tags(tags)
         storage_path, content_sha256 = await save_document_file(file)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
@@ -77,6 +80,7 @@ async def upload_document(
             filename=original_filename,
             storage_path=storage_path,
             content_sha256=content_sha256,
+            tags=document_tags,
         )
     except KnowledgeBaseNotFoundError:
         from pathlib import Path
@@ -124,6 +128,7 @@ def search_documents(
         question=request.question,
         user_id=None if knowledge_base_id is not None else current_user.id,
         document_ids=list(filename_by_id),
+        tags=request.tags,
     )
 
     items = [

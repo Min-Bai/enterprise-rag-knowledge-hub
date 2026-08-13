@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
@@ -23,6 +23,7 @@ class DocumentORM(Base):
     filename: Mapped[str] = mapped_column(String(50), nullable=False)
     storage_path: Mapped[str] = mapped_column(String(255), nullable=False)
     content_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    tags: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list, server_default="[]")
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="uploaded", server_default="uploaded")
     error_message: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

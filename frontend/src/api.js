@@ -41,9 +41,10 @@ export async function streamDocumentAnswer(accessToken, documentId, question, co
   return streamAnswer(`${API_PREFIX}/ai/document-answer/stream`, accessToken, body, handlers)
 }
 
-export async function streamKnowledgeBaseAnswer(accessToken, knowledgeBaseId, question, conversationId, handlers) {
+export async function streamKnowledgeBaseAnswer(accessToken, knowledgeBaseId, question, conversationId, tags, handlers) {
   const body = { knowledge_base_id: knowledgeBaseId, question }
   if (conversationId) body.conversation_id = Number(conversationId)
+  if (tags?.length) body.tags = tags
   return streamAnswer(`${API_PREFIX}/ai/knowledge-base-answer/stream`, accessToken, body, handlers)
 }
 
@@ -128,10 +129,11 @@ export async function submitAnswerFeedback(accessToken, messageId, feedback, com
   return readJson(await fetch(`${API_PREFIX}/ai/answer-messages/${messageId}/feedback`, { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ feedback, comment: comment || null }) }), 'Failed to save answer feedback')
 }
 
-export async function uploadDocument(accessToken, file, knowledgeBaseId) {
+export async function uploadDocument(accessToken, file, knowledgeBaseId, tags) {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('knowledge_base_id', knowledgeBaseId)
+  if (tags?.length) formData.append('tags', tags.join(','))
   return readJson(await fetch(`${API_PREFIX}/documents`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: formData }), 'Failed to upload document')
 }
 

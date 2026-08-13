@@ -126,6 +126,7 @@ def prepare_knowledge_base_answer(
             document_ids=list(filenames),
             limit=5,
             knowledge_base_id=request.knowledge_base_id,
+            tags=request.tags,
         )
         if float(hit["score"]) >= RAG_MIN_SCORE
     ]
