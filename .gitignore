@@ -10,3 +10,4 @@ frontend/dist/
 backend/app/data/
 .pytest-rq-temp/
 .pytest-tmp/
+.pytest-tmp-*/

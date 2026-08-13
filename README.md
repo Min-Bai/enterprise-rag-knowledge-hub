@@ -103,6 +103,23 @@ python -m pytest backend/app/tests -q
 Tests use isolated SQLite databases. Development and production application
 data use MySQL.
 
+## Retrieval Evaluation
+
+Use a small, versioned set of representative questions to measure retrieval
+quality before changing chunking, embeddings, or the relevance threshold. Copy
+`backend/app/evaluations/retrieval_cases.example.json`, replace the example IDs
+with documents from a non-production evaluation knowledge base, and label the
+expected document page or exact chunk for every question.
+
+Run the evaluation where Qdrant and the embedding model are available:
+
+```bash
+python scripts/evaluate_retrieval.py path/to/retrieval_cases.json --k 3
+```
+
+The report contains `recall_at_k`, `mrr_at_k`, and failed case names. The tool
+only reads vectors; it does not modify documents, Qdrant, or MySQL.
+
 ## Backups
 
 Create a MySQL backup from the production host:
