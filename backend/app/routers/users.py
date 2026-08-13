@@ -30,8 +30,6 @@ from ..exceptions import (
     UserNotFoundError,
     IncorrectPasswordError,
 )
-from ..schemas.task import TaskListResponse
-from ..services.tasks import get_tasks_service
 from ..auth import get_current_user, require_admin
 from ..models.user import UserORM
 
@@ -120,18 +118,6 @@ def get_users(
     db: Session = Depends(get_db),
 ):
     return get_users_service(db=db, is_active=is_active)
-
-@router.get("/{user_id}/tasks", response_model=TaskListResponse)
-def get_user_tasks(
-    user_id: int,
-    db: Session = Depends(get_db),
-):
-    try:
-        get_user_service(user_id=user_id, db=db)
-    except UserNotFoundError:
-        raise HTTPException(status_code=404, detail="user not found")
-
-    return get_tasks_service(db=db, user_id=user_id)
 
 @router.get("/{user_id}/detail", response_model=UserDetailResponse)
 def get_user_detail(user_id: int, db: Session = Depends(get_db)):

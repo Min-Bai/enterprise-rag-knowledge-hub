@@ -5,6 +5,7 @@ from sqlalchemy import create_engine, func, select
 
 from scripts import import_sqlite_to_mysql as importer
 from backend.app.database import Base
+from backend.app.legacy_task_table import legacy_metadata, legacy_tasks
 
 
 def test_import_sqlite_data_copies_records_once(monkeypatch, tmp_path):
@@ -13,9 +14,11 @@ def test_import_sqlite_data_copies_records_once(monkeypatch, tmp_path):
 
     Base.metadata.create_all(source_engine)
     Base.metadata.create_all(target_engine)
+    legacy_metadata.create_all(source_engine)
+    legacy_metadata.create_all(target_engine)
 
     users = Base.metadata.tables["users"]
-    tasks = Base.metadata.tables["tasks"]
+    tasks = legacy_tasks
     documents = Base.metadata.tables["documents"]
     knowledge_bases = Base.metadata.tables["knowledge_bases"]
     now = datetime.now(UTC)

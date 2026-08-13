@@ -6,8 +6,8 @@ import requests
 
 from backend.app.schemas.ai import DocumentAnswerRequest
 from backend.app.services.ai import (
-    AiProviderError,
     AiNotConfiguredError,
+    AiProviderError,
     DocumentNotFoundError,
     DocumentNotReadyError,
     answer_document_service,
@@ -52,7 +52,7 @@ def test_no_relevant_chunks_does_not_call_deepseek(monkeypatch):
     )
 
     assert result.sources == []
-    assert "未找到" in result.answer
+    assert result.answer == "No sufficiently relevant document content was found."
     search_mock.assert_called_once()
     deepseek_mock.assert_not_called()
 
@@ -88,10 +88,7 @@ def test_success_returns_answer_and_sources(monkeypatch):
         "backend.app.services.ai.requests.post",
         deepseek_mock,
     )
-    monkeypatch.setattr(
-        "backend.app.services.ai.DEEPSEEK_API_KEY",
-        "test-key",
-    )
+    monkeypatch.setattr("backend.app.services.ai.DEEPSEEK_API_KEY", "test-key")
 
     result = answer_document_service(
         request=request,
@@ -128,10 +125,7 @@ def test_deepseek_error_raises_provider_error(monkeypatch):
         "backend.app.services.ai.requests.post",
         Mock(return_value=response),
     )
-    monkeypatch.setattr(
-        "backend.app.services.ai.DEEPSEEK_API_KEY",
-        "test-key",
-    )
+    monkeypatch.setattr("backend.app.services.ai.DEEPSEEK_API_KEY", "test-key")
 
     with pytest.raises(AiProviderError):
         answer_document_service(
@@ -147,10 +141,8 @@ def test_other_user_document_is_not_revealed(monkeypatch):
         question="What is this document about?",
     )
     current_user = SimpleNamespace(id=1)
-
     db = Mock()
     db.scalar.return_value = None
-
     search_mock = Mock()
     monkeypatch.setattr(
         "backend.app.services.ai.search_document_chunks",
@@ -168,26 +160,20 @@ def test_other_user_document_is_not_revealed(monkeypatch):
 
 
 @pytest.mark.parametrize("status", ["processing", "failed"])
-def test_non_ready_document_cannot_be_answered(
-    status,
-    monkeypatch,
-):
+def test_non_ready_document_cannot_be_answered(status, monkeypatch):
     request = DocumentAnswerRequest(
         document_id=8,
         question="What is this document about?",
     )
     current_user = SimpleNamespace(id=1)
-
     document = SimpleNamespace(
         id=8,
         user_id=1,
         filename="test.pdf",
         status=status,
     )
-
     db = Mock()
     db.scalar.return_value = document
-
     search_mock = Mock()
     monkeypatch.setattr(
         "backend.app.services.ai.search_document_chunks",
@@ -206,7 +192,6 @@ def test_non_ready_document_cannot_be_answered(
 
 def test_missing_deepseek_key_raises_not_configured_error(monkeypatch):
     request, current_user, db = make_dependencies()
-
     monkeypatch.setattr(
         "backend.app.services.ai.search_document_chunks",
         Mock(
@@ -220,11 +205,7 @@ def test_missing_deepseek_key_raises_not_configured_error(monkeypatch):
             ]
         ),
     )
-
-    monkeypatch.setattr(
-        "backend.app.services.ai.DEEPSEEK_API_KEY",
-        None,
-    )
+    monkeypatch.setattr("backend.app.services.ai.DEEPSEEK_API_KEY", None)
 
     with pytest.raises(AiNotConfiguredError):
         answer_document_service(

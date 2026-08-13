@@ -1,6 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .task import TaskResponse
 from typing import Literal
 
 class StrictRequestSchema(BaseModel):
@@ -49,7 +48,6 @@ class UserDetailResponse(BaseModel):
     username: str
     email: str | None = None
     is_active: bool
-    tasks: list[TaskResponse]
     role: str
 
 
