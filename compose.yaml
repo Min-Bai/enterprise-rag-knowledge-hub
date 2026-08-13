@@ -27,7 +27,10 @@ services:
       retries: 10
       start_period: 30s
   api:
-    build: .
+    build:
+      context: .
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-docker.m.daocloud.io/library/python:3.12-slim}
     image: enterprise-rag-api:1
     restart: unless-stopped
     logging:
@@ -69,7 +72,10 @@ services:
       start_period: 15s
       
   worker:
-    build: .
+    build:
+      context: .
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-docker.m.daocloud.io/library/python:3.12-slim}
     image: enterprise-rag-api:1
     restart: unless-stopped
     logging:
