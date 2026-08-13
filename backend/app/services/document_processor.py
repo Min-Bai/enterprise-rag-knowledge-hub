@@ -45,6 +45,7 @@ def process_document(document_id: int) -> None:
         index_document_chunks(
             document_id=document.id,
             user_id=document.user_id,
+            knowledge_base_id=document.knowledge_base_id,
             chunks=chunks,
         )
 

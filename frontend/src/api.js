@@ -103,6 +103,19 @@ export async function deleteKnowledgeBase(accessToken, knowledgeBaseId) {
   if (response.status !== 204) await readJson(response, 'Failed to delete knowledge base')
 }
 
+export async function getKnowledgeBaseMembers(accessToken, knowledgeBaseId) {
+  return readJson(await fetch(`${API_PREFIX}/knowledge-bases/${knowledgeBaseId}/members`, { headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to load knowledge base members')
+}
+
+export async function addKnowledgeBaseMember(accessToken, knowledgeBaseId, username, role) {
+  return readJson(await fetch(`${API_PREFIX}/knowledge-bases/${knowledgeBaseId}/members`, { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ username, role }) }), 'Failed to share knowledge base')
+}
+
+export async function removeKnowledgeBaseMember(accessToken, knowledgeBaseId, userId) {
+  const response = await fetch(`${API_PREFIX}/knowledge-bases/${knowledgeBaseId}/members/${userId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } })
+  if (response.status !== 204) await readJson(response, 'Failed to remove knowledge base member')
+}
+
 export async function uploadDocument(accessToken, file, knowledgeBaseId) {
   const formData = new FormData()
   formData.append('file', file)

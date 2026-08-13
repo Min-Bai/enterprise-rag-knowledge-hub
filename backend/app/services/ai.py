@@ -21,7 +21,7 @@ from .conversations import (
     get_or_create_knowledge_base_conversation_service,
     save_conversation_turn,
 )
-from .documents import get_ready_documents_service
+from .documents import get_document_service, get_ready_documents_service
 from .knowledge_bases import get_knowledge_base_service
 
 logger = logging.getLogger(__name__)
@@ -72,9 +72,7 @@ def prepare_document_answer(
     current_user: UserORM,
     db: Session,
 ) -> PreparedDocumentAnswer:
-    document = db.scalar(select(DocumentORM).where(DocumentORM.id == request.document_id, DocumentORM.user_id == current_user.id))
-    if document is None:
-        raise DocumentNotFoundError
+    document = get_document_service(document_id=request.document_id, user_id=current_user.id, db=db)
     if document.status != 'ready':
         raise DocumentNotReadyError
     conversation = get_or_create_conversation_service(
@@ -83,7 +81,7 @@ def prepare_document_answer(
         document_id=document.id,
         db=db,
     )
-    hits = [hit for hit in search_document_chunks(question=request.question, user_id=current_user.id, document_ids=[document.id], limit=3) if float(hit['score']) >= RAG_MIN_SCORE]
+    hits = [hit for hit in search_document_chunks(question=request.question, user_id=document.user_id, document_ids=[document.id], limit=3) if float(hit['score']) >= RAG_MIN_SCORE]
     if not hits:
         return PreparedDocumentAnswer(conversation=conversation, hits=[], sources=[])
     if not DEEPSEEK_API_KEY:
@@ -124,9 +122,10 @@ def prepare_knowledge_base_answer(
         hit
         for hit in search_document_chunks(
             question=request.question,
-            user_id=current_user.id,
+            user_id=None,
             document_ids=list(filenames),
             limit=5,
+            knowledge_base_id=request.knowledge_base_id,
         )
         if float(hit["score"]) >= RAG_MIN_SCORE
     ]

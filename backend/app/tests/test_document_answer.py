@@ -49,6 +49,12 @@ def mock_conversations(monkeypatch):
         "backend.app.services.ai.save_conversation_turn",
         Mock(),
     )
+    monkeypatch.setattr(
+        "backend.app.services.ai.get_document_service",
+        lambda **kwargs: kwargs["db"].scalar.return_value
+        if kwargs["db"].scalar.return_value is not None
+        else (_ for _ in ()).throw(DocumentNotFoundError),
+    )
 
 
 def test_no_relevant_chunks_does_not_call_deepseek(monkeypatch):
@@ -315,8 +321,8 @@ def test_knowledge_base_answer_retrieves_only_ready_documents(monkeypatch):
     current_user = SimpleNamespace(id=1)
     db = Mock()
     documents = [
-        SimpleNamespace(id=8, filename="handbook.pdf"),
-        SimpleNamespace(id=9, filename="benefits.pdf"),
+        SimpleNamespace(id=8, user_id=1, filename="handbook.pdf"),
+        SimpleNamespace(id=9, user_id=1, filename="benefits.pdf"),
     ]
     search_mock = Mock(return_value=[
         {"document_id": 9, "chunk_index": 3, "page": 2, "text": "Benefits", "score": 0.91},

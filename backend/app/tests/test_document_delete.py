@@ -26,6 +26,7 @@ def test_delete_document_removes_vectors_file_and_database_record(
     document = SimpleNamespace(
         id=8,
         user_id=1,
+        knowledge_base_id=1,
         storage_path=str(storage_path),
     )
     db = Mock()
@@ -35,6 +36,18 @@ def test_delete_document_removes_vectors_file_and_database_record(
     monkeypatch.setattr(
         "backend.app.services.documents.delete_document_vectors",
         delete_vectors_mock,
+    )
+    monkeypatch.setattr(
+        "backend.app.services.documents.get_document_service",
+        lambda **_kwargs: document,
+    )
+    monkeypatch.setattr(
+        "backend.app.services.documents.get_knowledge_base_service",
+        lambda *_args, **_kwargs: object(),
+    )
+    monkeypatch.setattr(
+        "backend.app.services.documents.require_knowledge_base_role",
+        lambda **_kwargs: "owner",
     )
 
     delete_document_service(

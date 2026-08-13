@@ -69,6 +69,8 @@ def test_delete_knowledge_base_with_documents_returns_409(monkeypatch):
         "backend.app.routers.knowledge_bases.delete_knowledge_base_service",
         raise_not_empty,
     )
+    monkeypatch.setattr("backend.app.routers.knowledge_bases.get_knowledge_base_service", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr("backend.app.routers.knowledge_bases.require_knowledge_base_role", lambda **_kwargs: "owner")
     try:
         response = client.delete("/knowledge-bases/1")
     finally:

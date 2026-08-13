@@ -15,6 +15,7 @@ from .knowledge_bases import (
     get_default_knowledge_base_service,
     get_knowledge_base_service,
 )
+from .knowledge_base_members import require_knowledge_base_role
 
 
 def create_document_service(
@@ -32,6 +33,12 @@ def create_document_service(
             knowledge_base_id,
             user_id,
         )
+    require_knowledge_base_role(
+        knowledge_base=knowledge_base,
+        user_id=user_id,
+        db=db,
+        allowed_roles={"owner", "editor"},
+    )
 
     document = DocumentORM(
         user_id=user_id,
@@ -51,14 +58,13 @@ def get_documents_service(
     user_id: int,
     knowledge_base_id: int | None = None,
 ) -> list[DocumentORM]:
-    statement = (
-        select(DocumentORM)
-        .where(DocumentORM.user_id == user_id)
-        .order_by(DocumentORM.created_at.desc())
-    )
     if knowledge_base_id is not None:
-        get_knowledge_base_service(db, knowledge_base_id, user_id)
-        statement = statement.where(DocumentORM.knowledge_base_id == knowledge_base_id)
+        knowledge_base = get_knowledge_base_service(db, knowledge_base_id, user_id)
+        require_knowledge_base_role(knowledge_base=knowledge_base, user_id=user_id, db=db, allowed_roles={"owner", "editor", "viewer"})
+        statement = select(DocumentORM).where(DocumentORM.knowledge_base_id == knowledge_base_id)
+    else:
+        statement = select(DocumentORM).where(DocumentORM.user_id == user_id)
+    statement = statement.order_by(DocumentORM.created_at.desc())
     return list(db.scalars(statement).all())
 
 
@@ -67,14 +73,14 @@ def get_document_service(
     user_id: int,
     db: Session,
 ) -> DocumentORM:
-    document = db.scalar(
-        select(DocumentORM).where(
-            DocumentORM.id == document_id,
-            DocumentORM.user_id == user_id,
-        )
-    )
+    document = db.scalar(select(DocumentORM).where(DocumentORM.id == document_id))
     if document is None:
         raise DocumentNotFoundError
+    try:
+        knowledge_base = get_knowledge_base_service(db, document.knowledge_base_id, user_id)
+    except KnowledgeBaseNotFoundError as error:
+        raise DocumentNotFoundError from error
+    require_knowledge_base_role(knowledge_base=knowledge_base, user_id=user_id, db=db, allowed_roles={"owner", "editor", "viewer"})
     return document
 
 def get_ready_documents_service(
@@ -82,17 +88,13 @@ def get_ready_documents_service(
     user_id: int,
     knowledge_base_id: int | None = None,
 ) -> list[DocumentORM]:
-    statement = (
-        select(DocumentORM)
-        .where(
-            DocumentORM.user_id == user_id,
-            DocumentORM.status == "ready",
-        )
-        .order_by(DocumentORM.created_at.desc())
-    )
     if knowledge_base_id is not None:
-        get_knowledge_base_service(db, knowledge_base_id, user_id)
-        statement = statement.where(DocumentORM.knowledge_base_id == knowledge_base_id)
+        knowledge_base = get_knowledge_base_service(db, knowledge_base_id, user_id)
+        require_knowledge_base_role(knowledge_base=knowledge_base, user_id=user_id, db=db, allowed_roles={"owner", "editor", "viewer"})
+        statement = select(DocumentORM).where(DocumentORM.knowledge_base_id == knowledge_base_id)
+    else:
+        statement = select(DocumentORM).where(DocumentORM.user_id == user_id)
+    statement = statement.where(DocumentORM.status == "ready").order_by(DocumentORM.created_at.desc())
     return list(db.scalars(statement).all())
 
 def retry_document_service(
@@ -100,21 +102,16 @@ def retry_document_service(
     user_id: int,
     db: Session,
 ) -> DocumentORM:
-    statement = select(DocumentORM).where(
-        DocumentORM.id == document_id,
-        DocumentORM.user_id == user_id,
-    )
-    document = db.scalar(statement)
-
-    if document is None:
-        raise DocumentNotFoundError
+    document = get_document_service(document_id=document_id, user_id=user_id, db=db)
+    knowledge_base = get_knowledge_base_service(db, document.knowledge_base_id, user_id)
+    require_knowledge_base_role(knowledge_base=knowledge_base, user_id=user_id, db=db, allowed_roles={"owner", "editor"})
 
     if document.status != "failed":
         raise DocumentRetryNotAllowedError
 
     delete_document_vectors(
         document_id=document.id,
-        user_id=user_id,
+        user_id=document.user_id,
     )
 
     document.status = "uploaded"
@@ -128,18 +125,13 @@ def delete_document_service(
     user_id: int,
     db: Session,
 ) -> None:
-    statement = select(DocumentORM).where(
-        DocumentORM.id == document_id,
-        DocumentORM.user_id == user_id,
-    )
-    document = db.scalar(statement)
-
-    if document is None:
-        raise DocumentNotFoundError
+    document = get_document_service(document_id=document_id, user_id=user_id, db=db)
+    knowledge_base = get_knowledge_base_service(db, document.knowledge_base_id, user_id)
+    require_knowledge_base_role(knowledge_base=knowledge_base, user_id=user_id, db=db, allowed_roles={"owner", "editor"})
 
     delete_document_vectors(
         document_id=document.id,
-        user_id=user_id,
+        user_id=document.user_id,
     )
 
     Path(document.storage_path).unlink(missing_ok=True)

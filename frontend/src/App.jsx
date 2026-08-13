@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import {
+  addKnowledgeBaseMember,
   createKnowledgeBase,
   deleteDocument,
   deleteKnowledgeBase,
   getApiHealth,
   getDocumentConversations,
   getKnowledgeBaseConversations,
+  getKnowledgeBaseMembers,
   getKnowledgeBases,
   getMyDocuments,
   login,
   logout,
+  removeKnowledgeBaseMember,
   retryDocument,
   streamDocumentAnswer,
   streamKnowledgeBaseAnswer,
@@ -26,6 +29,9 @@ function App() {
   const [knowledgeBaseName, setKnowledgeBaseName] = useState('')
   const [knowledgeBaseDescription, setKnowledgeBaseDescription] = useState('')
   const [knowledgeBaseError, setKnowledgeBaseError] = useState('')
+  const [knowledgeBaseMembers, setKnowledgeBaseMembers] = useState([])
+  const [memberUsername, setMemberUsername] = useState('')
+  const [memberRole, setMemberRole] = useState('viewer')
   const [isCreatingKnowledgeBase, setIsCreatingKnowledgeBase] = useState(false)
   const [deletingKnowledgeBaseId, setDeletingKnowledgeBaseId] = useState(null)
   const [documents, setDocuments] = useState([])
@@ -97,6 +103,20 @@ function App() {
   }, [accessToken, selectedKnowledgeBaseId])
 
   useEffect(() => {
+    if (!accessToken || !selectedKnowledgeBaseId) {
+      setKnowledgeBaseMembers([])
+      return
+    }
+    getKnowledgeBaseMembers(accessToken, selectedKnowledgeBaseId)
+      .then(setKnowledgeBaseMembers)
+      .catch((error) => {
+        if (error.status === 401) clearSession()
+        else if (error.status !== 403) setKnowledgeBaseError(error.message)
+        else setKnowledgeBaseMembers([])
+      })
+  }, [accessToken, selectedKnowledgeBaseId])
+
+  useEffect(() => {
     if (!accessToken || !selectedKnowledgeBaseId || !hasPendingDocuments) return undefined
     const timer = window.setInterval(async () => {
       try {
@@ -159,6 +179,23 @@ function App() {
       setKnowledgeBases(remaining)
       setSelectedKnowledgeBaseId(remaining[0] ? String(remaining[0].id) : '')
     } catch (error) { setKnowledgeBaseError(error.message) } finally { setDeletingKnowledgeBaseId(null) }
+  }
+
+  async function handleAddMember(event) {
+    event.preventDefault()
+    setKnowledgeBaseError('')
+    try {
+      await addKnowledgeBaseMember(accessToken, Number(selectedKnowledgeBaseId), memberUsername.trim(), memberRole)
+      setKnowledgeBaseMembers(await getKnowledgeBaseMembers(accessToken, selectedKnowledgeBaseId))
+      setMemberUsername('')
+    } catch (error) { setKnowledgeBaseError(error.message) }
+  }
+
+  async function handleRemoveMember(userId) {
+    try {
+      await removeKnowledgeBaseMember(accessToken, Number(selectedKnowledgeBaseId), userId)
+      setKnowledgeBaseMembers(await getKnowledgeBaseMembers(accessToken, selectedKnowledgeBaseId))
+    } catch (error) { setKnowledgeBaseError(error.message) }
   }
 
   async function handleUpload(event) {
@@ -225,6 +262,7 @@ function App() {
       <div className="knowledge-base-header"><div><h2>Knowledge bases</h2><p>Organize private documents and ask grounded questions.</p></div>{selectedKnowledgeBaseId && <button type="button" className="delete-button" disabled={deletingKnowledgeBaseId !== null} onClick={handleDeleteKnowledgeBase}>Delete knowledge base</button>}</div>
       <label htmlFor="knowledge-base-select">Current knowledge base</label><select id="knowledge-base-select" value={selectedKnowledgeBaseId} onChange={(event) => { setSelectedKnowledgeBaseId(event.target.value); setDocumentAnswer(null) }}><option value="">Choose a knowledge base</option>{knowledgeBases.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
       <form className="knowledge-base-form" onSubmit={handleCreateKnowledgeBase}><label htmlFor="knowledge-base-name">New knowledge base</label><input id="knowledge-base-name" value={knowledgeBaseName} maxLength={100} placeholder="For example: Employee handbook" onChange={(event) => setKnowledgeBaseName(event.target.value)} /><label htmlFor="knowledge-base-description">Description</label><textarea id="knowledge-base-description" value={knowledgeBaseDescription} maxLength={2000} placeholder="Optional description" onChange={(event) => setKnowledgeBaseDescription(event.target.value)} /><button type="submit" disabled={!knowledgeBaseName.trim() || isCreatingKnowledgeBase}>{isCreatingKnowledgeBase ? 'Creating...' : 'Create knowledge base'}</button></form>
+      {knowledgeBaseMembers.length > 0 && <section className="knowledge-base-members"><h2>Members</h2><form className="knowledge-base-form" onSubmit={handleAddMember}><label htmlFor="member-username">Username</label><input id="member-username" value={memberUsername} maxLength={50} onChange={(event) => setMemberUsername(event.target.value)} /><label htmlFor="member-role">Role</label><select id="member-role" value={memberRole} onChange={(event) => setMemberRole(event.target.value)}><option value="viewer">Viewer</option><option value="editor">Editor</option></select><button type="submit" disabled={!memberUsername.trim()}>Add member</button></form><ul className="document-list">{knowledgeBaseMembers.map((member) => <li key={member.user_id} className="document-list-item"><span>{member.username} ({member.role})</span>{member.role !== 'owner' && <button type="button" className="delete-button" onClick={() => handleRemoveMember(member.user_id)}>Remove</button>}</li>)}</ul></section>}
       {knowledgeBaseError && <p className="form-error">{knowledgeBaseError}</p>}
       <h2>Documents</h2><form className="document-upload-form" onSubmit={handleUpload}><label htmlFor="document-file">Upload PDF</label><input id="document-file" type="file" accept="application/pdf,.pdf" onChange={(event) => { setDocumentFile(event.target.files?.[0] ?? null); setDocumentUploadError('') }} /><button type="submit" disabled={!documentFile || !selectedKnowledgeBaseId || isUploadingDocument}>{isUploadingDocument ? 'Uploading...' : 'Upload document'}</button></form>
       {documentUploadError && <p className="form-error">{documentUploadError}</p>}

@@ -36,6 +36,11 @@ embeddings, and stores vectors in Qdrant. Failed documents can be retried.
 Each question is saved with its answer and citations; a follow-up uses only the
 latest history from the same user's selected document.
 
+Knowledge bases are private by default. An owner can share a knowledge base by
+username: editors can upload, retry, and delete documents; viewers can only
+read, search, and ask questions. The API enforces these roles for every
+knowledge-base, document, and retrieval request.
+
 ## Services
 
 | Service | Responsibility |

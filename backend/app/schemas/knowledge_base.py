@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -42,3 +44,16 @@ class KnowledgeBaseResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class KnowledgeBaseMemberCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    username: str = Field(min_length=1, max_length=50)
+    role: Literal["editor", "viewer"]
+
+
+class KnowledgeBaseMemberResponse(BaseModel):
+    user_id: int
+    username: str
+    role: Literal["owner", "editor", "viewer"]

@@ -22,6 +22,7 @@ def test_retry_failed_document_clears_vectors_and_resets_status(monkeypatch):
     document = SimpleNamespace(
         id=8,
         user_id=1,
+        knowledge_base_id=1,
         status="failed",
         error_message="processing interrupted",
     )
@@ -33,6 +34,9 @@ def test_retry_failed_document_clears_vectors_and_resets_status(monkeypatch):
         "backend.app.services.documents.delete_document_vectors",
         delete_vectors,
     )
+    monkeypatch.setattr("backend.app.services.documents.get_document_service", lambda **_kwargs: document)
+    monkeypatch.setattr("backend.app.services.documents.get_knowledge_base_service", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr("backend.app.services.documents.require_knowledge_base_role", lambda **_kwargs: "owner")
 
     result = retry_document_service(
         document_id=8,
@@ -56,10 +60,13 @@ def test_retry_rejects_missing_document():
         retry_document_service(document_id=8, user_id=1, db=db)
 
 
-def test_retry_rejects_document_that_is_not_failed():
-    document = SimpleNamespace(status="ready")
+def test_retry_rejects_document_that_is_not_failed(monkeypatch):
+    document = SimpleNamespace(status="ready", knowledge_base_id=1)
     db = Mock()
     db.scalar.return_value = document
+    monkeypatch.setattr("backend.app.services.documents.get_document_service", lambda **_kwargs: document)
+    monkeypatch.setattr("backend.app.services.documents.get_knowledge_base_service", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr("backend.app.services.documents.require_knowledge_base_role", lambda **_kwargs: "owner")
 
     with pytest.raises(DocumentRetryNotAllowedError):
         retry_document_service(document_id=8, user_id=1, db=db)

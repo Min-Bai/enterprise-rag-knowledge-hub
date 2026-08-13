@@ -26,6 +26,7 @@ from ..exceptions import (
     DocumentRetryNotAllowedError,
 )
 from ..services.knowledge_bases import KnowledgeBaseNotFoundError
+from ..services.knowledge_base_members import KnowledgeBaseAccessDeniedError
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -44,6 +45,8 @@ def get_documents(
         )
     except KnowledgeBaseNotFoundError:
         raise HTTPException(status_code=404, detail="knowledge base not found")
+    except KnowledgeBaseAccessDeniedError:
+        raise HTTPException(status_code=403, detail="knowledge base access denied")
 
 
 @router.post("", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
@@ -75,6 +78,11 @@ async def upload_document(
 
         Path(storage_path).unlink(missing_ok=True)
         raise HTTPException(status_code=404, detail="knowledge base not found")
+    except KnowledgeBaseAccessDeniedError:
+        from pathlib import Path
+
+        Path(storage_path).unlink(missing_ok=True)
+        raise HTTPException(status_code=403, detail="knowledge base editor access required")
 
     enqueue_document_processing(document.id)
     return document
@@ -94,6 +102,8 @@ def search_documents(
         )
     except KnowledgeBaseNotFoundError:
         raise HTTPException(status_code=404, detail="knowledge base not found")
+    except KnowledgeBaseAccessDeniedError:
+        raise HTTPException(status_code=403, detail="knowledge base access denied")
     filename_by_id = {
         document.id: document.filename
         for document in documents
@@ -101,7 +111,7 @@ def search_documents(
 
     chunks = search_document_chunks(
         question=request.question,
-        user_id=current_user.id,
+        user_id=None if knowledge_base_id is not None else current_user.id,
         document_ids=list(filename_by_id),
     )
 
@@ -139,6 +149,8 @@ def retry_document(
             status_code=409,
             detail="only failed documents can be retried",
         )
+    except KnowledgeBaseAccessDeniedError:
+        raise HTTPException(status_code=403, detail="knowledge base editor access required")
 
     enqueue_document_processing(document.id)
     return document
@@ -163,3 +175,5 @@ def delete_document(
             status_code=404,
             detail="document not found",
         )
+    except KnowledgeBaseAccessDeniedError:
+        raise HTTPException(status_code=403, detail="knowledge base editor access required")
