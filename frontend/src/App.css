@@ -282,6 +282,18 @@ textarea {
   padding-left: 20px;
 }
 
+.knowledge-sources li {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin: 6px 0;
+}
+
+.knowledge-sources button {
+  flex-shrink: 0;
+}
+
 @media (max-width: 480px) {
   .app-shell {
     margin: 24px auto;
