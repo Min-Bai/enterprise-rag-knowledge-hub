@@ -53,6 +53,24 @@ def get_or_create_conversation_service(
     return conversation
 
 
+def get_or_create_knowledge_base_conversation_service(
+    *, conversation_id: int | None, user_id: int, knowledge_base_id: int, db: Session
+) -> ConversationORM:
+    if conversation_id is not None:
+        conversation = db.scalar(select(ConversationORM).where(
+            ConversationORM.id == conversation_id,
+            ConversationORM.user_id == user_id,
+            ConversationORM.knowledge_base_id == knowledge_base_id,
+        ))
+        if conversation is None:
+            raise ConversationNotFoundError
+        return conversation
+    conversation = ConversationORM(user_id=user_id, knowledge_base_id=knowledge_base_id)
+    db.add(conversation)
+    db.flush()
+    return conversation
+
+
 def get_conversation_history(
     *,
     conversation_id: int,
@@ -108,6 +126,20 @@ def get_document_conversations_service(
         .where(
             ConversationORM.user_id == user_id,
             ConversationORM.document_id == document_id,
+        )
+        .options(selectinload(ConversationORM.messages))
+        .order_by(ConversationORM.updated_at.desc())
+    ).all()
+
+
+def get_knowledge_base_conversations_service(
+    *, user_id: int, knowledge_base_id: int, db: Session
+) -> list[ConversationORM]:
+    return db.scalars(
+        select(ConversationORM)
+        .where(
+            ConversationORM.user_id == user_id,
+            ConversationORM.knowledge_base_id == knowledge_base_id,
         )
         .options(selectinload(ConversationORM.messages))
         .order_by(ConversationORM.updated_at.desc())

@@ -11,15 +11,18 @@ from ..config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL, RAG_MI
 from ..exceptions import DocumentNotFoundError
 from ..models.document import DocumentORM
 from ..models.user import UserORM
-from ..schemas.ai import DocumentAnswerRequest, DocumentAnswerResponse, SourceItem
+from ..schemas.ai import DocumentAnswerRequest, DocumentAnswerResponse, KnowledgeBaseAnswerRequest, SourceItem
 from .document_vectors import search_document_chunks
 from .rag_prompt import build_document_answer_messages
 from .conversations import (
     ConversationNotFoundError,
     get_conversation_history,
     get_or_create_conversation_service,
+    get_or_create_knowledge_base_conversation_service,
     save_conversation_turn,
 )
+from .documents import get_ready_documents_service
+from .knowledge_bases import get_knowledge_base_service
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +101,51 @@ def prepare_document_answer(
         conversation=conversation,
         hits=hits,
         sources=sources,
+    )
+
+
+def prepare_knowledge_base_answer(
+    *, request: KnowledgeBaseAnswerRequest, current_user: UserORM, db: Session
+) -> PreparedDocumentAnswer:
+    get_knowledge_base_service(db, request.knowledge_base_id, current_user.id)
+    documents = get_ready_documents_service(
+        db=db,
+        user_id=current_user.id,
+        knowledge_base_id=request.knowledge_base_id,
+    )
+    conversation = get_or_create_knowledge_base_conversation_service(
+        conversation_id=request.conversation_id,
+        user_id=current_user.id,
+        knowledge_base_id=request.knowledge_base_id,
+        db=db,
+    )
+    filenames = {document.id: document.filename for document in documents}
+    hits = [
+        hit
+        for hit in search_document_chunks(
+            question=request.question,
+            user_id=current_user.id,
+            document_ids=list(filenames),
+            limit=5,
+        )
+        if float(hit["score"]) >= RAG_MIN_SCORE
+    ]
+    if not hits:
+        return PreparedDocumentAnswer(conversation=conversation, hits=[], sources=[])
+    if not DEEPSEEK_API_KEY:
+        raise AiNotConfiguredError
+    return PreparedDocumentAnswer(
+        conversation=conversation,
+        hits=hits,
+        sources=[
+            SourceItem(
+                document_id=int(hit["document_id"]),
+                filename=filenames[int(hit["document_id"])],
+                page=hit.get("page"),
+                chunk_index=int(hit["chunk_index"]),
+            )
+            for hit in hits
+        ],
     )
 
 

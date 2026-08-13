@@ -38,7 +38,17 @@ export async function answerDocument(accessToken, documentId, question, conversa
 export async function streamDocumentAnswer(accessToken, documentId, question, conversationId, handlers) {
   const body = { document_id: documentId, question }
   if (conversationId) body.conversation_id = Number(conversationId)
-  const response = await fetch(`${API_PREFIX}/ai/document-answer/stream`, {
+  return streamAnswer(`${API_PREFIX}/ai/document-answer/stream`, accessToken, body, handlers)
+}
+
+export async function streamKnowledgeBaseAnswer(accessToken, knowledgeBaseId, question, conversationId, handlers) {
+  const body = { knowledge_base_id: knowledgeBaseId, question }
+  if (conversationId) body.conversation_id = Number(conversationId)
+  return streamAnswer(`${API_PREFIX}/ai/knowledge-base-answer/stream`, accessToken, body, handlers)
+}
+
+async function streamAnswer(url, accessToken, body, handlers) {
+  const response = await fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -50,7 +60,6 @@ export async function streamDocumentAnswer(accessToken, documentId, question, co
   const decoder = new TextDecoder()
   let buffer = ''
   let completed = false
-
   function handleFrame(frame) {
     const event = frame.match(/^event: (.+)$/m)?.[1]
     const payload = frame.match(/^data: (.+)$/m)?.[1]
@@ -61,7 +70,6 @@ export async function streamDocumentAnswer(accessToken, documentId, question, co
     if (event === 'error') throw new Error(data.detail || 'Document answer stream failed')
     if (event === 'done') completed = true
   }
-
   while (true) {
     const { done, value } = await reader.read()
     buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
@@ -76,6 +84,10 @@ export async function streamDocumentAnswer(accessToken, documentId, question, co
 
 export async function getDocumentConversations(accessToken, documentId) {
   return readJson(await fetch(`${API_PREFIX}/ai/documents/${documentId}/conversations`, { headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to load conversation history')
+}
+
+export async function getKnowledgeBaseConversations(accessToken, knowledgeBaseId) {
+  return readJson(await fetch(`${API_PREFIX}/ai/knowledge-bases/${knowledgeBaseId}/conversations`, { headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to load conversation history')
 }
 
 export async function getKnowledgeBases(accessToken) {

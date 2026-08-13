@@ -5,6 +5,7 @@ import pytest
 import requests
 
 from backend.app.schemas.ai import DocumentAnswerRequest
+from backend.app.schemas.ai import KnowledgeBaseAnswerRequest
 from backend.app.services.ai import (
     AiNotConfiguredError,
     AiProviderError,
@@ -12,6 +13,7 @@ from backend.app.services.ai import (
     DocumentNotReadyError,
     answer_document_service,
     prepare_document_answer,
+    prepare_knowledge_base_answer,
     stream_document_answer_service,
 )
 
@@ -307,3 +309,30 @@ def test_streamed_no_hit_answer_saves_once(monkeypatch):
     assert len(events) == 3
     assert 'event: token' in events[1]
     save_mock.assert_called_once()
+
+
+def test_knowledge_base_answer_retrieves_only_ready_documents(monkeypatch):
+    current_user = SimpleNamespace(id=1)
+    db = Mock()
+    documents = [
+        SimpleNamespace(id=8, filename="handbook.pdf"),
+        SimpleNamespace(id=9, filename="benefits.pdf"),
+    ]
+    search_mock = Mock(return_value=[
+        {"document_id": 9, "chunk_index": 3, "page": 2, "text": "Benefits", "score": 0.91},
+    ])
+    monkeypatch.setattr("backend.app.services.ai.get_knowledge_base_service", Mock())
+    monkeypatch.setattr("backend.app.services.ai.get_ready_documents_service", Mock(return_value=documents))
+    monkeypatch.setattr("backend.app.services.ai.get_or_create_knowledge_base_conversation_service", Mock(return_value=SimpleNamespace(id=7)))
+    monkeypatch.setattr("backend.app.services.ai.search_document_chunks", search_mock)
+    monkeypatch.setattr("backend.app.services.ai.DEEPSEEK_API_KEY", "test-key")
+
+    prepared = prepare_knowledge_base_answer(
+        request=KnowledgeBaseAnswerRequest(knowledge_base_id=3, question="What benefits are available?"),
+        current_user=current_user,
+        db=db,
+    )
+
+    assert prepared.conversation.id == 7
+    assert prepared.sources[0].filename == "benefits.pdf"
+    assert search_mock.call_args.kwargs["document_ids"] == [8, 9]

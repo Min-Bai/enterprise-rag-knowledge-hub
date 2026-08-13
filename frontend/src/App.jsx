@@ -6,12 +6,14 @@ import {
   deleteKnowledgeBase,
   getApiHealth,
   getDocumentConversations,
+  getKnowledgeBaseConversations,
   getKnowledgeBases,
   getMyDocuments,
   login,
   logout,
   retryDocument,
   streamDocumentAnswer,
+  streamKnowledgeBaseAnswer,
   uploadDocument,
 } from './api.js'
 import LoginForm from './LoginForm.jsx'
@@ -33,6 +35,7 @@ function App() {
   const [deletingDocumentId, setDeletingDocumentId] = useState(null)
   const [retryingDocumentId, setRetryingDocumentId] = useState(null)
   const [selectedDocumentId, setSelectedDocumentId] = useState('')
+  const [answerScope, setAnswerScope] = useState('knowledge-base')
   const [documentQuestion, setDocumentQuestion] = useState('')
   const [documentAnswer, setDocumentAnswer] = useState(null)
   const [conversations, setConversations] = useState([])
@@ -107,18 +110,20 @@ function App() {
   }, [accessToken, selectedKnowledgeBaseId, hasPendingDocuments])
 
   useEffect(() => {
-    if (!accessToken || !selectedDocumentId) {
+    const scopeId = answerScope === 'knowledge-base' ? selectedKnowledgeBaseId : selectedDocumentId
+    if (!accessToken || !scopeId) {
       setConversations([])
       setSelectedConversationId('')
       return
     }
-    getDocumentConversations(accessToken, selectedDocumentId)
+    const loadConversations = answerScope === 'knowledge-base' ? getKnowledgeBaseConversations : getDocumentConversations
+    loadConversations(accessToken, scopeId)
       .then((data) => setConversations(data))
       .catch((error) => {
         if (error.status === 401) clearSession()
         else setDocumentAnswerError(error.message)
       })
-  }, [accessToken, selectedDocumentId])
+  }, [accessToken, answerScope, selectedDocumentId, selectedKnowledgeBaseId])
 
   async function handleLogin(username, password) {
     const data = await login(username, password)
@@ -194,7 +199,9 @@ function App() {
       let conversationId = selectedConversationId
       let sources = []
       let answer = ''
-      await streamDocumentAnswer(accessToken, Number(selectedDocumentId), question, selectedConversationId, {
+      const streamAnswer = answerScope === 'knowledge-base' ? streamKnowledgeBaseAnswer : streamDocumentAnswer
+      const scopeId = answerScope === 'knowledge-base' ? selectedKnowledgeBaseId : selectedDocumentId
+      await streamAnswer(accessToken, Number(scopeId), question, selectedConversationId, {
         onMetadata: (data) => {
           conversationId = String(data.conversation_id)
           sources = data.sources || []
@@ -206,7 +213,8 @@ function App() {
           setDocumentAnswer((current) => ({ answer, sources: current?.sources || sources }))
         },
       })
-      setConversations(await getDocumentConversations(accessToken, selectedDocumentId))
+      const loadConversations = answerScope === 'knowledge-base' ? getKnowledgeBaseConversations : getDocumentConversations
+      setConversations(await loadConversations(accessToken, scopeId))
     }
     catch (error) { setDocumentAnswerError(error.message) } finally { setIsAnsweringDocument(false) }
   }
@@ -221,7 +229,7 @@ function App() {
       <h2>Documents</h2><form className="document-upload-form" onSubmit={handleUpload}><label htmlFor="document-file">Upload PDF</label><input id="document-file" type="file" accept="application/pdf,.pdf" onChange={(event) => { setDocumentFile(event.target.files?.[0] ?? null); setDocumentUploadError('') }} /><button type="submit" disabled={!documentFile || !selectedKnowledgeBaseId || isUploadingDocument}>{isUploadingDocument ? 'Uploading...' : 'Upload document'}</button></form>
       {documentUploadError && <p className="form-error">{documentUploadError}</p>}
       {documents.length > 0 && <ul className="document-list" aria-label="Uploaded documents">{documents.map((document) => <li key={document.id} className="document-list-item"><div><strong>{document.filename}</strong><span className={`document-status ${document.status}`}>{document.status}</span>{document.error_message && <p className="document-error">{document.error_message}</p>}</div><div className="document-actions">{document.status === 'failed' && <button type="button" className="retry-button" disabled={retryingDocumentId !== null} onClick={() => handleRetryDocument(document.id)}>{retryingDocumentId === document.id ? 'Retrying...' : 'Retry'}</button>}<button type="button" className="delete-button" disabled={deletingDocumentId !== null} onClick={() => handleDeleteDocument(document.id)}>{deletingDocumentId === document.id ? 'Deleting...' : 'Delete'}</button></div></li>)}</ul>}
-      {documents.length === 0 ? <p>No documents uploaded yet.</p> : readyDocuments.length === 0 ? <p>No documents are ready for questions yet.</p> : <><form onSubmit={handleQuestion}><label htmlFor="document-select">Document</label><select id="document-select" value={selectedDocumentId} onChange={(event) => { setSelectedDocumentId(event.target.value); setDocumentAnswer(null) }}><option value="">Choose a ready document</option>{readyDocuments.map((document) => <option key={document.id} value={document.id}>{document.filename}</option>)}</select><div className="conversation-controls"><label htmlFor="conversation-select">Conversation</label><select id="conversation-select" value={selectedConversationId} onChange={(event) => { setSelectedConversationId(event.target.value); setDocumentAnswer(null) }}><option value="">New conversation</option>{conversations.map((conversation) => <option key={conversation.id} value={conversation.id}>Conversation {conversation.id}</option>)}</select></div><label htmlFor="document-question">Question</label><textarea id="document-question" value={documentQuestion} maxLength={2000} placeholder="Ask about the selected document" onChange={(event) => setDocumentQuestion(event.target.value)} /><button type="submit" disabled={isAnsweringDocument || !selectedDocumentId || !documentQuestion.trim()}>{isAnsweringDocument ? 'Answering...' : 'Ask document'}</button></form>{selectedConversationId && conversations.find((item) => String(item.id) === selectedConversationId)?.messages.length > 0 && <div className="conversation-history">{conversations.find((item) => String(item.id) === selectedConversationId).messages.map((message) => <p key={message.id} className={`conversation-message ${message.role}`}><strong>{message.role === 'user' ? 'You' : 'Assistant'}:</strong> {message.content}</p>)}</div>}</>}
+      {documents.length === 0 ? <p>No documents uploaded yet.</p> : readyDocuments.length === 0 ? <p>No documents are ready for questions yet.</p> : <><form onSubmit={handleQuestion}><label htmlFor="answer-scope">Question scope</label><select id="answer-scope" value={answerScope} onChange={(event) => { setAnswerScope(event.target.value); setSelectedConversationId(''); setDocumentAnswer(null) }}><option value="knowledge-base">Entire knowledge base</option><option value="document">One document</option></select>{answerScope === 'document' && <><label htmlFor="document-select">Document</label><select id="document-select" value={selectedDocumentId} onChange={(event) => { setSelectedDocumentId(event.target.value); setDocumentAnswer(null) }}><option value="">Choose a ready document</option>{readyDocuments.map((document) => <option key={document.id} value={document.id}>{document.filename}</option>)}</select></>}<div className="conversation-controls"><label htmlFor="conversation-select">Conversation</label><select id="conversation-select" value={selectedConversationId} onChange={(event) => { setSelectedConversationId(event.target.value); setDocumentAnswer(null) }}><option value="">New conversation</option>{conversations.map((conversation) => <option key={conversation.id} value={conversation.id}>Conversation {conversation.id}</option>)}</select></div><label htmlFor="document-question">Question</label><textarea id="document-question" value={documentQuestion} maxLength={2000} placeholder="Ask about the selected knowledge base" onChange={(event) => setDocumentQuestion(event.target.value)} /><button type="submit" disabled={isAnsweringDocument || (answerScope === 'document' && !selectedDocumentId) || !documentQuestion.trim()}>{isAnsweringDocument ? 'Answering...' : 'Ask knowledge base'}</button></form>{selectedConversationId && conversations.find((item) => String(item.id) === selectedConversationId)?.messages.length > 0 && <div className="conversation-history">{conversations.find((item) => String(item.id) === selectedConversationId).messages.map((message) => <p key={message.id} className={`conversation-message ${message.role}`}><strong>{message.role === 'user' ? 'You' : 'Assistant'}:</strong> {message.content}</p>)}</div>}</>}
       {documentAnswerError && <p className="form-error">{documentAnswerError}</p>}{documentAnswer && <div className="document-answer"><p>{documentAnswer.answer}</p>{documentAnswer.sources.length > 0 && <ul className="knowledge-sources" aria-label="Document sources">{documentAnswer.sources.map((source) => <li key={`${source.document_id}-${source.chunk_index}`}>{source.filename}{source.page ? ` - page ${source.page}` : ''} - chunk {source.chunk_index}</li>)}</ul>}</div>}
     </section>}
   </main>

@@ -15,10 +15,15 @@ class ConversationORM(Base):
         index=True,
         nullable=False,
     )
-    document_id: Mapped[int] = mapped_column(
+    document_id: Mapped[int | None] = mapped_column(
         ForeignKey("documents.id", ondelete="CASCADE"),
         index=True,
-        nullable=False,
+        nullable=True,
+    )
+    knowledge_base_id: Mapped[int | None] = mapped_column(
+        ForeignKey("knowledge_bases.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

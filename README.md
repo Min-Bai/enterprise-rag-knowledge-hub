@@ -3,10 +3,11 @@
 Enterprise knowledge-base question answering with FastAPI, React, MySQL,
 Redis, RQ, Qdrant, and Docker Compose. It supports private-document
 processing, LangChain recursive text splitting, vector retrieval, and
-source-grounded RAG answers with PDF page citations. LangChain prompt templates
-isolate retrieved reference material from model instructions before requests
-reach DeepSeek. Document conversations retain a user-scoped, document-scoped
-history for follow-up questions.
+source-grounded RAG answers with PDF page citations. Users can ask across every
+ready document in one knowledge base or constrain a question to one document.
+LangChain prompt templates isolate retrieved reference material from model
+instructions before requests reach DeepSeek. Conversations remain scoped to the
+selected document or knowledge base for follow-up questions.
 
 ## Architecture
 

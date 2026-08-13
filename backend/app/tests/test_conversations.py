@@ -79,3 +79,19 @@ def test_get_or_create_conversation_does_not_bypass_not_found_error(monkeypatch)
             document_id=8,
             db=Mock(),
         )
+
+
+def test_get_or_create_knowledge_base_conversation_creates_scoped_conversation():
+    db = Mock()
+
+    conversation = conversations.get_or_create_knowledge_base_conversation_service(
+        conversation_id=None,
+        user_id=1,
+        knowledge_base_id=3,
+        db=db,
+    )
+
+    assert conversation.user_id == 1
+    assert conversation.knowledge_base_id == 3
+    assert conversation.document_id is None
+    db.add.assert_called_once_with(conversation)

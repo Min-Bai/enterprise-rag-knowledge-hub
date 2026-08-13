@@ -229,3 +229,18 @@ def test_stream_route_returns_409_before_response_starts(monkeypatch):
 
     assert response.status_code == 409
     assert response.json()["detail"] == "document is not ready"
+
+
+def test_knowledge_base_stream_route_returns_events(monkeypatch):
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    monkeypatch.setattr("backend.app.routers.ai.enforce_ai_rate_limit", lambda user_id: None)
+    monkeypatch.setattr("backend.app.routers.ai.prepare_knowledge_base_answer", lambda **kwargs: object())
+    monkeypatch.setattr("backend.app.routers.ai.stream_document_answer_service", lambda **kwargs: iter(["event: done\\ndata: {}\\n\\n"]))
+
+    try:
+        response = client.post("/ai/knowledge-base-answer/stream", json={"knowledge_base_id": 3, "question": "What policies apply?"})
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
