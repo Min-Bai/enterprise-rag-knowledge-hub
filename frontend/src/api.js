@@ -141,6 +141,15 @@ export async function getMyDocuments(accessToken, knowledgeBaseId) {
   return readJson(await fetch(`${API_PREFIX}/documents?knowledge_base_id=${knowledgeBaseId}`, { headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to load documents')
 }
 
+export async function searchDocuments(accessToken, knowledgeBaseId, question, tags) {
+  const params = new URLSearchParams({ knowledge_base_id: knowledgeBaseId })
+  return readJson(await fetch(`${API_PREFIX}/documents/search?${params}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, tags }),
+  }), 'Failed to search documents')
+}
+
 export async function deleteDocument(accessToken, documentId) {
   const response = await fetch(`${API_PREFIX}/documents/${documentId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } })
   if (response.status !== 204) await readJson(response, 'Failed to delete document')

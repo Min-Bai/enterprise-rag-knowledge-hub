@@ -163,6 +163,41 @@ textarea {
   margin: 0 0 16px;
 }
 
+.document-search {
+  border-bottom: 1px solid #d5ddda;
+  margin: 0 0 16px;
+  padding-bottom: 16px;
+}
+
+.document-search-results {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
+.document-search-results li {
+  align-items: flex-start;
+  border: 1px solid #d5ddda;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.document-search-results span {
+  color: #52605c;
+  display: block;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.document-search-results p {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+}
+
 .document-list,
 .knowledge-sources {
   margin: 0;
