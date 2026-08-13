@@ -3,7 +3,7 @@ set -euo pipefail
 
 project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 env_file="$project_dir/backend/app/.env"
-backup_dir="${BACKUP_DIR:-$HOME/backups/todo-api}"
+backup_dir="${BACKUP_DIR:-$HOME/backups/enterprise-rag}"
 retention_days="${BACKUP_RETENTION_DAYS:-7}"
 
 if [[ ! -f "$env_file" ]]; then

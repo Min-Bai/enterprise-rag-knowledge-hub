@@ -2,7 +2,7 @@
 set -euo pipefail
 
 project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-backup_dir="${BACKUP_DIR:-$HOME/backups/todo-api}"
+backup_dir="${BACKUP_DIR:-$HOME/backups/enterprise-rag}"
 
 cd "$project_dir"
 

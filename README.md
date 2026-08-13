@@ -94,5 +94,5 @@ set +a
 sudo docker compose exec -T -e MYSQL_PWD="$MYSQL_PASSWORD" mysql \
   mysqldump --no-tablespaces --single-transaction \
   -u"$MYSQL_USER" "$MYSQL_DATABASE" \
-  > ~/backups/todo-app-mysql-$(date +%F).sql
+  > ~/backups/enterprise-rag/todo_app-mysql-$(date +%F).sql
 ```

@@ -1,4 +1,4 @@
-# Todo API project knowledge
+# Enterprise RAG Knowledge Hub project knowledge
 
 ## Authentication
 

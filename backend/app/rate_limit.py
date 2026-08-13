@@ -15,7 +15,7 @@ from .config import (
 from .redis_client import redis_client
 
 
-logger = logging.getLogger("todo_api.rate_limit")
+logger = logging.getLogger("enterprise_rag.rate_limit")
 
 
 class LoginRateLimiter:
