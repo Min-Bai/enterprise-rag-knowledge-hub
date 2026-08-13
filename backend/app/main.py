@@ -16,6 +16,7 @@ from .routers.auth import router as auth_router
 from .routers.ai import router as ai_router
 from .routers.documents import router as document_router
 from .routers.knowledge_bases import router as knowledge_base_router
+from .request_context import reset_request_id, set_request_id
 
 app = FastAPI(title="Enterprise RAG Knowledge Hub API")
 
@@ -90,6 +91,7 @@ app.include_router(knowledge_base_router)
 async def log_request(request: Request, call_next):
     start_time = perf_counter()
     request_id = uuid4().hex
+    request_id_token = set_request_id(request_id)
     try:
         response = await call_next(request)
     except Exception:
@@ -106,6 +108,8 @@ async def log_request(request: Request, call_next):
             content={"detail": "internal server error"},
             headers={"X-Request-ID": request_id},
         )
+    finally:
+        reset_request_id(request_id_token)
     elapsed_ms = (perf_counter() - start_time) * 1000
     response.headers["X-Request-ID"] = request_id
 

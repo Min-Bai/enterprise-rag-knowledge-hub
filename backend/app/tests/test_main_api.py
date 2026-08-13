@@ -41,6 +41,7 @@ def test_liveness_check():
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+    assert len(response.headers["x-request-id"]) == 32
 
 def test_readiness_check(monkeypatch):
     redis, qdrant = mock_readiness_dependencies(monkeypatch)

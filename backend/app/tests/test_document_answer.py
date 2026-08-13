@@ -104,6 +104,7 @@ def test_document_answer_logs_retrieval_without_question_or_document_content(mon
     assert "scope_id=8" in log
     assert "hit_count=0" in log
     assert "abstained=True" in log
+    assert "request_id=-" in log
     assert request.question not in log
 
 

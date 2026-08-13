@@ -12,6 +12,7 @@ from ..config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL, RAG_MI
 from ..exceptions import DocumentNotFoundError
 from ..models.document import DocumentORM
 from ..models.user import UserORM
+from ..request_context import get_request_id
 from ..schemas.ai import DocumentAnswerRequest, DocumentAnswerResponse, KnowledgeBaseAnswerRequest, SourceItem
 from .document_vectors import search_document_chunks
 from .rag_prompt import build_document_answer_messages
@@ -71,7 +72,8 @@ def get_model_message(response: requests.Response) -> dict[str, object]:
 def log_retrieval_outcome(*, scope: str, scope_id: int, hits: list[dict[str, object]]) -> None:
     highest_score = max((float(hit["score"]) for hit in hits), default=0.0)
     logger.info(
-        "event=rag_retrieval_completed scope=%s scope_id=%s hit_count=%s highest_score=%.4f abstained=%s",
+        "event=rag_retrieval_completed request_id=%s scope=%s scope_id=%s hit_count=%s highest_score=%.4f abstained=%s",
+        get_request_id(),
         scope,
         scope_id,
         len(hits),
@@ -276,7 +278,8 @@ def answer_document_service(*, request: DocumentAnswerRequest, current_user: Use
         logger.exception('document answer request failed')
         raise AiProviderError from error
     logger.info(
-        "event=rag_provider_completed provider=deepseek stream=false duration_ms=%.1f",
+        "event=rag_provider_completed request_id=%s provider=deepseek stream=false duration_ms=%.1f",
+        get_request_id(),
         (perf_counter() - provider_started_at) * 1000,
     )
     if not answer:
@@ -359,7 +362,8 @@ def stream_document_answer_service(
         return
 
     logger.info(
-        "event=rag_provider_completed provider=deepseek stream=true duration_ms=%.1f",
+        "event=rag_provider_completed request_id=%s provider=deepseek stream=true duration_ms=%.1f",
+        get_request_id(),
         (perf_counter() - provider_started_at) * 1000,
     )
 
