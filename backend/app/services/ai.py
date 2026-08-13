@@ -77,5 +77,13 @@ def answer_document_service(*, request: DocumentAnswerRequest, current_user: Use
         raise AiProviderError
     return DocumentAnswerResponse(
         answer=answer,
-        sources=[SourceItem(document_id=document.id, filename=document.filename, page=None, chunk_index=int(hit['chunk_index'])) for hit in hits],
+        sources=[
+            SourceItem(
+                document_id=document.id,
+                filename=document.filename,
+                page=hit.get('page'),
+                chunk_index=int(hit['chunk_index']),
+            )
+            for hit in hits
+        ],
     )

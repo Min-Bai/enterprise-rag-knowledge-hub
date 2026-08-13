@@ -1,6 +1,6 @@
 from ..database import SessionLocal
 from ..models.document import DocumentORM
-from .document_parser import extract_pdf_text, split_text_into_chunks
+from .document_parser import split_pdf_into_chunks
 from .document_vectors import index_document_chunks
 from sqlalchemy import update
 
@@ -40,8 +40,7 @@ def process_document(document_id: int) -> None:
         document.error_message = None
         db.commit()
 
-        text = extract_pdf_text(document.storage_path)
-        chunks = split_text_into_chunks(text)
+        chunks = split_pdf_into_chunks(document.storage_path)
 
         index_document_chunks(
             document_id=document.id,

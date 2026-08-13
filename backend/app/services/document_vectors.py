@@ -2,6 +2,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from qdrant_client import models
 
+from .document_parser import DocumentChunk
 from .vector_store import VECTOR_SIZE, get_embedding_model, get_qdrant_client
 
 
@@ -26,7 +27,7 @@ def ensure_document_collection() -> None:
 def index_document_chunks(
     document_id: int,
     user_id: int,
-    chunks: list[str],
+    chunks: list[DocumentChunk],
 ) -> None:
     if not chunks:
         raise ValueError("document has no text chunks")
@@ -52,7 +53,7 @@ def index_document_chunks(
     )
 
     vectors = get_embedding_model().encode(
-        chunks,
+        [chunk.text for chunk in chunks],
         normalize_embeddings=True,
     )
 
@@ -64,7 +65,8 @@ def index_document_chunks(
                 "document_id": document_id,
                 "user_id": user_id,
                 "chunk_index": index,
-                "text": chunk,
+                "page": chunk.page,
+                "text": chunk.text,
             },
         )
         for index, (chunk, vector) in enumerate(zip(chunks, vectors, strict=True))
@@ -141,6 +143,7 @@ def search_document_chunks(
         {
             "document_id": point.payload["document_id"],
             "chunk_index": point.payload["chunk_index"],
+            "page": point.payload.get("page"),
             "text": point.payload["text"],
             "score": point.score,
         }

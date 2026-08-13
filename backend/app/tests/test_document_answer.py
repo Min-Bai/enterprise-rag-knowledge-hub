@@ -77,6 +77,7 @@ def test_success_returns_answer_and_sources(monkeypatch):
                 {
                     "document_id": 8,
                     "chunk_index": 2,
+                    "page": 3,
                     "text": "Testing content",
                     "score": 0.91,
                 }
@@ -99,6 +100,7 @@ def test_success_returns_answer_and_sources(monkeypatch):
     assert result.answer == "This document explains testing."
     assert result.sources[0].document_id == 8
     assert result.sources[0].filename == "test.pdf"
+    assert result.sources[0].page == 3
     assert result.sources[0].chunk_index == 2
     deepseek_mock.assert_called_once()
     request_messages = deepseek_mock.call_args.kwargs["json"]["messages"]

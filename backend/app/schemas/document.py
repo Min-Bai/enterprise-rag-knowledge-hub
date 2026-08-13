@@ -16,6 +16,7 @@ class DocumentChunkResponse(BaseModel):
     document_id: int
     filename: str
     chunk_index: int
+    page: int | None = None
     text: str
     score: float
 

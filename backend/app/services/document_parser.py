@@ -1,22 +1,45 @@
+from dataclasses import dataclass
 from pathlib import Path
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
 
 
-def extract_pdf_text(storage_path: str) -> str:
+@dataclass(frozen=True)
+class DocumentChunk:
+    text: str
+    page: int
+
+
+def extract_pdf_pages(storage_path: str) -> list[tuple[int, str]]:
     reader = PdfReader(Path(storage_path))
-
-    pages_text = [
-        page.extract_text() or ""
-        for page in reader.pages
+    pages = [
+        (page_number, (page.extract_text() or "").strip())
+        for page_number, page in enumerate(reader.pages, start=1)
     ]
-    text = "\n".join(pages_text).strip()
-
-    if not text:
+    pages = [page for page in pages if page[1]]
+    if not pages:
         raise ValueError("PDF does not contain extractable text")
+    return pages
+
+
+def extract_pdf_text(storage_path: str) -> str:
+    return "\n".join(text for _, text in extract_pdf_pages(storage_path))
 
     return text
+
+def create_text_splitter(
+    *,
+    chunk_size: int,
+    overlap: int,
+) -> RecursiveCharacterTextSplitter:
+    return RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=overlap,
+        length_function=len,
+        separators=["\n\n", "\n", "。", "！", "？", " ", ""],
+    )
+
 
 def split_text_into_chunks(
     text: str,
@@ -33,10 +56,23 @@ def split_text_into_chunks(
     if not cleaned_text:
         return []
 
-    splitter = RecursiveCharacterTextSplitter(
+    return create_text_splitter(
         chunk_size=chunk_size,
-        chunk_overlap=overlap,
-        length_function=len,
-        separators=["\n\n", "\n", "。", "！", "？", " ", ""],
+        overlap=overlap,
+    ).split_text(cleaned_text)
+
+
+def split_pdf_into_chunks(
+    storage_path: str,
+    chunk_size: int = 500,
+    overlap: int = 50,
+) -> list[DocumentChunk]:
+    splitter = create_text_splitter(
+        chunk_size=chunk_size,
+        overlap=overlap,
     )
-    return splitter.split_text(cleaned_text)
+    return [
+        DocumentChunk(text=chunk, page=page_number)
+        for page_number, page_text in extract_pdf_pages(storage_path)
+        for chunk in splitter.split_text(page_text)
+    ]
