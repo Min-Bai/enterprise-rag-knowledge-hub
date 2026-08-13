@@ -1,27 +1,33 @@
-# Enterprise RAG Knowledge Hub project knowledge
+# Enterprise RAG Knowledge Hub Project Knowledge
 
 ## Authentication
 
-Users log in through `POST /auth/login` with a username and password. A successful login returns a JWT access token. Protected endpoints require the `Authorization: Bearer <token>` request header.
+Users authenticate through `POST /auth/login` with a username and password.
+Successful authentication returns a JWT access token. Protected endpoints use
+the `Authorization: Bearer <token>` header. Invalid tokens return HTTP 401 and
+insufficient privileges return HTTP 403.
 
-Passwords are stored as hashes. The authentication code verifies the password hash and then creates the JWT. A missing or invalid token returns HTTP 401. A logged-in user without the required role returns HTTP 403.
+## Knowledge Bases And Documents
 
-## Tasks
+Each knowledge base belongs to one user. Documents are uploaded into a selected
+knowledge base, stored durably, processed by an RQ worker, split into chunks,
+embedded, and indexed in Qdrant. Document status progresses through `uploaded`,
+`processing`, `ready`, or `failed`.
 
-`GET /tasks/me` returns the current user's tasks. The current user comes from the JWT, not from a user ID supplied by the client. `POST /tasks` creates a task for the current user.
+## RAG Answers
 
-查询当前用户任务时使用 `GET /tasks/me`。当前用户由 JWT token 决定，客户端不需要也不应该传入 user_id。
+Document-answer endpoints retrieve relevant chunks from Qdrant, apply a minimum
+similarity threshold, and use the matched context to generate answers. Responses
+include source chunks so the user can inspect the grounding evidence.
 
-Tasks have `title`, `done`, `archived`, and timestamps. `PATCH /tasks/{task_id}` performs a partial update. The `/done`, `/undone`, and `/archive` routes are action endpoints for explicit state changes.
+## Supporting Task Workspace
 
-## Application layers
+The application retains authenticated task endpoints from the original learning
+project. Tasks are user-scoped and are not part of the knowledge-base retrieval
+index.
 
-Routers receive HTTP requests, validate request data with Pydantic schemas, and convert application errors to HTTP responses. Services contain business logic and database operations. ORM models define database tables. Alembic migrations change the database schema.
+## Operations
 
-## Redis
-
-Redis provides rate limiting for login and AI endpoints. The login limiter counts failed requests in a time window. AI endpoints are limited per current user so a single user cannot consume unlimited model requests.
-
-## 健康检查
-
-健康检查接口是 `GET /health`，用于确认 API 服务是否正常运行。
+MySQL stores relational application data. Redis provides RQ queues and rate
+limiting. Qdrant stores vector data. The `/health` endpoint checks MySQL, Redis,
+and Qdrant readiness.
