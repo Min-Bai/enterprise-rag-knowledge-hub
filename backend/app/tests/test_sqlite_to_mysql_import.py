@@ -94,5 +94,5 @@ def test_import_sqlite_data_copies_records_once(monkeypatch, tmp_path):
 def test_import_sqlite_data_rejects_non_sqlite_source():
     with pytest.raises(ValueError, match="source database must use SQLite"):
         importer.import_sqlite_data(
-            "mysql+pymysql://user:password@mysql:3306/todo_app"
+            "mysql+pymysql://user:password@mysql:3306/enterprise_rag"
         )
