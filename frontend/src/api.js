@@ -35,6 +35,45 @@ export async function answerDocument(accessToken, documentId, question, conversa
   return readJson(response, 'Document answer request failed')
 }
 
+export async function streamDocumentAnswer(accessToken, documentId, question, conversationId, handlers) {
+  const body = { document_id: documentId, question }
+  if (conversationId) body.conversation_id = Number(conversationId)
+  const response = await fetch(`${API_PREFIX}/ai/document-answer/stream`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) return readJson(response, 'Document answer request failed')
+  if (!response.body) throw new Error('Document answer stream is unavailable')
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let completed = false
+
+  function handleFrame(frame) {
+    const event = frame.match(/^event: (.+)$/m)?.[1]
+    const payload = frame.match(/^data: (.+)$/m)?.[1]
+    if (!event || payload === undefined) return
+    const data = JSON.parse(payload)
+    if (event === 'metadata') handlers.onMetadata?.(data)
+    if (event === 'token') handlers.onToken?.(data.text || '')
+    if (event === 'error') throw new Error(data.detail || 'Document answer stream failed')
+    if (event === 'done') completed = true
+  }
+
+  while (true) {
+    const { done, value } = await reader.read()
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
+    const frames = buffer.split('\n\n')
+    buffer = frames.pop()
+    for (const frame of frames) handleFrame(frame)
+    if (done) break
+  }
+  if (buffer) handleFrame(buffer)
+  if (!completed) throw new Error('Document answer stream ended unexpectedly')
+}
+
 export async function getDocumentConversations(accessToken, documentId) {
   return readJson(await fetch(`${API_PREFIX}/ai/documents/${documentId}/conversations`, { headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to load conversation history')
 }

@@ -11,6 +11,8 @@ from backend.app.services.ai import (
     DocumentNotFoundError,
     DocumentNotReadyError,
     answer_document_service,
+    prepare_document_answer,
+    stream_document_answer_service,
 )
 
 
@@ -237,3 +239,71 @@ def test_missing_deepseek_key_raises_not_configured_error(monkeypatch):
             current_user=current_user,
             db=db,
         )
+
+
+def test_streamed_answer_emits_tokens_and_saves_completed_turn(monkeypatch):
+    request, current_user, db = make_dependencies()
+    response = Mock()
+    response.__enter__ = Mock(return_value=response)
+    response.__exit__ = Mock(return_value=None)
+    response.raise_for_status.return_value = None
+    response.iter_lines.return_value = [
+        'data: {"choices":[{"delta":{"content":"Hello"}}]}',
+        'data: {"choices":[{"delta":{"content":" world"}}]}',
+        'data: [DONE]',
+    ]
+    save_mock = Mock()
+    monkeypatch.setattr(
+        "backend.app.services.ai.search_document_chunks",
+        Mock(return_value=[{"document_id": 8, "chunk_index": 2, "text": "Testing content", "score": 0.91}]),
+    )
+    monkeypatch.setattr("backend.app.services.ai.requests.post", Mock(return_value=response))
+    monkeypatch.setattr("backend.app.services.ai.DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setattr("backend.app.services.ai.save_conversation_turn", save_mock)
+
+    prepared = prepare_document_answer(request=request, current_user=current_user, db=db)
+    events = list(stream_document_answer_service(request=request, prepared=prepared, db=db))
+
+    assert 'event: metadata' in events[0]
+    assert '"text": "Hello"' in events[1]
+    assert '"text": " world"' in events[2]
+    assert 'event: done' in events[3]
+    save_mock.assert_called_once()
+    assert save_mock.call_args.kwargs["answer"] == "Hello world"
+
+
+def test_streamed_provider_error_does_not_save_turn(monkeypatch):
+    request, current_user, db = make_dependencies()
+    response = Mock()
+    response.__enter__ = Mock(return_value=response)
+    response.__exit__ = Mock(return_value=None)
+    response.raise_for_status.side_effect = requests.RequestException
+    save_mock = Mock()
+    monkeypatch.setattr(
+        "backend.app.services.ai.search_document_chunks",
+        Mock(return_value=[{"document_id": 8, "chunk_index": 2, "text": "Testing content", "score": 0.91}]),
+    )
+    monkeypatch.setattr("backend.app.services.ai.requests.post", Mock(return_value=response))
+    monkeypatch.setattr("backend.app.services.ai.DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setattr("backend.app.services.ai.save_conversation_turn", save_mock)
+
+    prepared = prepare_document_answer(request=request, current_user=current_user, db=db)
+    events = list(stream_document_answer_service(request=request, prepared=prepared, db=db))
+
+    assert len(events) == 2
+    assert 'event: error' in events[-1]
+    save_mock.assert_not_called()
+
+
+def test_streamed_no_hit_answer_saves_once(monkeypatch):
+    request, current_user, db = make_dependencies()
+    save_mock = Mock()
+    monkeypatch.setattr("backend.app.services.ai.search_document_chunks", Mock(return_value=[]))
+    monkeypatch.setattr("backend.app.services.ai.save_conversation_turn", save_mock)
+
+    prepared = prepare_document_answer(request=request, current_user=current_user, db=db)
+    events = list(stream_document_answer_service(request=request, prepared=prepared, db=db))
+
+    assert len(events) == 3
+    assert 'event: token' in events[1]
+    save_mock.assert_called_once()

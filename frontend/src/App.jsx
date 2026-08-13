@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import {
-  answerDocument,
   createKnowledgeBase,
   deleteDocument,
   deleteKnowledgeBase,
@@ -12,6 +11,7 @@ import {
   login,
   logout,
   retryDocument,
+  streamDocumentAnswer,
   uploadDocument,
 } from './api.js'
 import LoginForm from './LoginForm.jsx'
@@ -186,22 +186,27 @@ function App() {
 
   async function handleQuestion(event) {
     event.preventDefault()
+    const question = documentQuestion.trim()
     setIsAnsweringDocument(true)
     setDocumentAnswerError('')
+    setDocumentAnswer({ answer: '', sources: [] })
     try {
-      const result = await answerDocument(accessToken, Number(selectedDocumentId), documentQuestion.trim(), selectedConversationId)
-      setDocumentAnswer(result)
-      setSelectedConversationId(String(result.conversation_id))
-      setConversations((current) => {
-        const existing = current.find((item) => item.id === result.conversation_id)
-        const turn = [
-          { id: `user-${Date.now()}`, role: 'user', content: documentQuestion.trim(), sources: null },
-          { id: `assistant-${Date.now()}`, role: 'assistant', content: result.answer, sources: result.sources },
-        ]
-        return existing
-          ? current.map((item) => item.id === result.conversation_id ? { ...item, messages: [...item.messages, ...turn] } : item)
-          : [{ id: result.conversation_id, messages: turn }, ...current]
+      let conversationId = selectedConversationId
+      let sources = []
+      let answer = ''
+      await streamDocumentAnswer(accessToken, Number(selectedDocumentId), question, selectedConversationId, {
+        onMetadata: (data) => {
+          conversationId = String(data.conversation_id)
+          sources = data.sources || []
+          setSelectedConversationId(conversationId)
+          setDocumentAnswer({ answer: '', sources })
+        },
+        onToken: (text) => {
+          answer += text
+          setDocumentAnswer((current) => ({ answer, sources: current?.sources || sources }))
+        },
       })
+      setConversations(await getDocumentConversations(accessToken, selectedDocumentId))
     }
     catch (error) { setDocumentAnswerError(error.message) } finally { setIsAnsweringDocument(false) }
   }

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -15,6 +16,8 @@ from ..services.ai import (
     AiProviderError,
     DocumentNotReadyError,
     answer_document_service,
+    prepare_document_answer,
+    stream_document_answer_service,
 )
 from ..services.conversations import (
     ConversationNotFoundError,
@@ -45,6 +48,31 @@ def answer_document(
         raise HTTPException(status_code=503, detail='AI service is not configured')
     except AiProviderError:
         raise HTTPException(status_code=502, detail='AI provider request failed')
+
+
+@router.post('/document-answer/stream')
+def stream_document_answer(
+    request: DocumentAnswerRequest,
+    db: Session = Depends(get_db),
+    current_user: UserORM = Depends(get_current_user),
+):
+    enforce_ai_rate_limit(current_user.id)
+    try:
+        prepared = prepare_document_answer(
+            request=request,
+            current_user=current_user,
+            db=db,
+        )
+        stream = stream_document_answer_service(request=request, prepared=prepared, db=db)
+        return StreamingResponse(stream, media_type='text/event-stream')
+    except DocumentNotFoundError:
+        raise HTTPException(status_code=404, detail='document not found')
+    except ConversationNotFoundError:
+        raise HTTPException(status_code=404, detail='conversation not found')
+    except DocumentNotReadyError:
+        raise HTTPException(status_code=409, detail='document is not ready')
+    except AiNotConfiguredError:
+        raise HTTPException(status_code=503, detail='AI service is not configured')
 
 
 @router.get('/documents/{document_id}/conversations', response_model=list[ConversationResponse])
