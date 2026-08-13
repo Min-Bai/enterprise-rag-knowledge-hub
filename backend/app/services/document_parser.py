@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
 
 
@@ -32,8 +33,10 @@ def split_text_into_chunks(
     if not cleaned_text:
         return []
 
-    step = chunk_size - overlap
-    return [
-        cleaned_text[start : start + chunk_size]
-        for start in range(0, len(cleaned_text), step)
-    ]
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=overlap,
+        length_function=len,
+        separators=["\n\n", "\n", "。", "！", "？", " ", ""],
+    )
+    return splitter.split_text(cleaned_text)

@@ -2,7 +2,8 @@
 
 Enterprise knowledge-base question answering with FastAPI, React, MySQL,
 Redis, RQ, Qdrant, and Docker Compose. It supports private-document
-processing, vector retrieval, and source-grounded RAG answers.
+processing, LangChain recursive text splitting, vector retrieval, and
+source-grounded RAG answers.
 
 ## Architecture
 
