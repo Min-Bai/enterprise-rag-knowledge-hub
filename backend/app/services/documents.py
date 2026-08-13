@@ -124,7 +124,7 @@ def delete_document_service(
     document_id: int,
     user_id: int,
     db: Session,
-) -> None:
+) -> DocumentORM:
     document = get_document_service(document_id=document_id, user_id=user_id, db=db)
     knowledge_base = get_knowledge_base_service(db, document.knowledge_base_id, user_id)
     require_knowledge_base_role(knowledge_base=knowledge_base, user_id=user_id, db=db, allowed_roles={"owner", "editor"})
@@ -138,3 +138,4 @@ def delete_document_service(
 
     db.delete(document)
     db.commit()
+    return document

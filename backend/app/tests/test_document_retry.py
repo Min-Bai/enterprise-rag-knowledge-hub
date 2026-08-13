@@ -94,6 +94,7 @@ def test_retry_route_requeues_failed_document(monkeypatch):
         "backend.app.routers.documents.enqueue_document_processing",
         enqueue,
     )
+    monkeypatch.setattr("backend.app.routers.documents.write_audit_log", Mock())
 
     try:
         response = client.post("/documents/8/retry")

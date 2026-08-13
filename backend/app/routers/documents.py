@@ -27,6 +27,7 @@ from ..exceptions import (
 )
 from ..services.knowledge_bases import KnowledgeBaseNotFoundError
 from ..services.knowledge_base_members import KnowledgeBaseAccessDeniedError
+from ..services.audit_logs import write_audit_log
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -85,6 +86,7 @@ async def upload_document(
         raise HTTPException(status_code=403, detail="knowledge base editor access required")
 
     enqueue_document_processing(document.id)
+    write_audit_log(actor_user_id=current_user.id, action="document.uploaded", target_type="document", target_id=document.id, knowledge_base_id=document.knowledge_base_id, details={"filename": document.filename}, db=db)
     return document
 
 @router.post("/search", response_model=DocumentSearchResponse)
@@ -153,6 +155,7 @@ def retry_document(
         raise HTTPException(status_code=403, detail="knowledge base editor access required")
 
     enqueue_document_processing(document.id)
+    write_audit_log(actor_user_id=current_user.id, action="document.retried", target_type="document", target_id=document.id, knowledge_base_id=document.knowledge_base_id, details=None, db=db)
     return document
 
 @router.delete(
@@ -165,7 +168,7 @@ def delete_document(
     db: Session = Depends(get_db),
 ):
     try:
-        delete_document_service(
+        document = delete_document_service(
             document_id=document_id,
             user_id=current_user.id,
             db=db,
@@ -177,3 +180,4 @@ def delete_document(
         )
     except KnowledgeBaseAccessDeniedError:
         raise HTTPException(status_code=403, detail="knowledge base editor access required")
+    write_audit_log(actor_user_id=current_user.id, action="document.deleted", target_type="document", target_id=document.id, knowledge_base_id=document.knowledge_base_id, details={"filename": document.filename}, db=db)

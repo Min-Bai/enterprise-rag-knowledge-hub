@@ -116,6 +116,10 @@ export async function removeKnowledgeBaseMember(accessToken, knowledgeBaseId, us
   if (response.status !== 204) await readJson(response, 'Failed to remove knowledge base member')
 }
 
+export async function getKnowledgeBaseAuditLogs(accessToken, knowledgeBaseId) {
+  return readJson(await fetch(`${API_PREFIX}/knowledge-bases/${knowledgeBaseId}/audit-logs`, { headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to load audit logs')
+}
+
 export async function uploadDocument(accessToken, file, knowledgeBaseId) {
   const formData = new FormData()
   formData.append('file', file)

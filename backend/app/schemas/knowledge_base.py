@@ -57,3 +57,15 @@ class KnowledgeBaseMemberResponse(BaseModel):
     user_id: int
     username: str
     role: Literal["owner", "editor", "viewer"]
+
+
+class AuditLogResponse(BaseModel):
+    id: int
+    actor_user_id: int
+    action: str
+    target_type: str
+    target_id: int | None
+    details: dict[str, object] | None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

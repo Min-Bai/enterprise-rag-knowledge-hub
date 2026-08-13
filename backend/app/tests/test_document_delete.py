@@ -98,6 +98,7 @@ def test_delete_document_route_returns_204(monkeypatch):
         "backend.app.routers.documents.delete_document_service",
         delete_service_mock,
     )
+    monkeypatch.setattr("backend.app.routers.documents.write_audit_log", Mock())
 
     try:
         response = client.delete("/documents/8")
@@ -124,6 +125,7 @@ def test_delete_document_route_returns_404_when_not_found(monkeypatch):
         "backend.app.routers.documents.delete_document_service",
         raise_not_found,
     )
+    monkeypatch.setattr("backend.app.routers.documents.write_audit_log", Mock())
 
     try:
         response = client.delete("/documents/999")

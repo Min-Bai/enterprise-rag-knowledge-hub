@@ -8,6 +8,7 @@ import {
   getApiHealth,
   getDocumentConversations,
   getKnowledgeBaseConversations,
+  getKnowledgeBaseAuditLogs,
   getKnowledgeBaseMembers,
   getKnowledgeBases,
   getMyDocuments,
@@ -30,6 +31,7 @@ function App() {
   const [knowledgeBaseDescription, setKnowledgeBaseDescription] = useState('')
   const [knowledgeBaseError, setKnowledgeBaseError] = useState('')
   const [knowledgeBaseMembers, setKnowledgeBaseMembers] = useState([])
+  const [auditLogs, setAuditLogs] = useState([])
   const [memberUsername, setMemberUsername] = useState('')
   const [memberRole, setMemberRole] = useState('viewer')
   const [isCreatingKnowledgeBase, setIsCreatingKnowledgeBase] = useState(false)
@@ -100,6 +102,20 @@ function App() {
     }
     loadDocuments()
     return () => { cancelled = true }
+  }, [accessToken, selectedKnowledgeBaseId])
+
+  useEffect(() => {
+    if (!accessToken || !selectedKnowledgeBaseId) {
+      setAuditLogs([])
+      return
+    }
+    getKnowledgeBaseAuditLogs(accessToken, selectedKnowledgeBaseId)
+      .then(setAuditLogs)
+      .catch((error) => {
+        if (error.status === 401) clearSession()
+        else if (error.status === 403) setAuditLogs([])
+        else setKnowledgeBaseError(error.message)
+      })
   }, [accessToken, selectedKnowledgeBaseId])
 
   useEffect(() => {
@@ -263,6 +279,7 @@ function App() {
       <label htmlFor="knowledge-base-select">Current knowledge base</label><select id="knowledge-base-select" value={selectedKnowledgeBaseId} onChange={(event) => { setSelectedKnowledgeBaseId(event.target.value); setDocumentAnswer(null) }}><option value="">Choose a knowledge base</option>{knowledgeBases.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
       <form className="knowledge-base-form" onSubmit={handleCreateKnowledgeBase}><label htmlFor="knowledge-base-name">New knowledge base</label><input id="knowledge-base-name" value={knowledgeBaseName} maxLength={100} placeholder="For example: Employee handbook" onChange={(event) => setKnowledgeBaseName(event.target.value)} /><label htmlFor="knowledge-base-description">Description</label><textarea id="knowledge-base-description" value={knowledgeBaseDescription} maxLength={2000} placeholder="Optional description" onChange={(event) => setKnowledgeBaseDescription(event.target.value)} /><button type="submit" disabled={!knowledgeBaseName.trim() || isCreatingKnowledgeBase}>{isCreatingKnowledgeBase ? 'Creating...' : 'Create knowledge base'}</button></form>
       {knowledgeBaseMembers.length > 0 && <section className="knowledge-base-members"><h2>Members</h2><form className="knowledge-base-form" onSubmit={handleAddMember}><label htmlFor="member-username">Username</label><input id="member-username" value={memberUsername} maxLength={50} onChange={(event) => setMemberUsername(event.target.value)} /><label htmlFor="member-role">Role</label><select id="member-role" value={memberRole} onChange={(event) => setMemberRole(event.target.value)}><option value="viewer">Viewer</option><option value="editor">Editor</option></select><button type="submit" disabled={!memberUsername.trim()}>Add member</button></form><ul className="document-list">{knowledgeBaseMembers.map((member) => <li key={member.user_id} className="document-list-item"><span>{member.username} ({member.role})</span>{member.role !== 'owner' && <button type="button" className="delete-button" onClick={() => handleRemoveMember(member.user_id)}>Remove</button>}</li>)}</ul></section>}
+      {auditLogs.length > 0 && <section className="knowledge-base-members"><h2>Audit log</h2><ul className="document-list">{auditLogs.map((event) => <li key={event.id} className="document-list-item"><span>{event.action} · {event.target_type}{event.target_id ? ` #${event.target_id}` : ''}</span><time dateTime={event.created_at}>{new Date(event.created_at).toLocaleString()}</time></li>)}</ul></section>}
       {knowledgeBaseError && <p className="form-error">{knowledgeBaseError}</p>}
       <h2>Documents</h2><form className="document-upload-form" onSubmit={handleUpload}><label htmlFor="document-file">Upload PDF</label><input id="document-file" type="file" accept="application/pdf,.pdf" onChange={(event) => { setDocumentFile(event.target.files?.[0] ?? null); setDocumentUploadError('') }} /><button type="submit" disabled={!documentFile || !selectedKnowledgeBaseId || isUploadingDocument}>{isUploadingDocument ? 'Uploading...' : 'Upload document'}</button></form>
       {documentUploadError && <p className="form-error">{documentUploadError}</p>}

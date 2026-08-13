@@ -10,6 +10,7 @@ from ..schemas.knowledge_base import (
     KnowledgeBaseUpdate,
     KnowledgeBaseMemberCreate,
     KnowledgeBaseMemberResponse,
+    AuditLogResponse,
 )
 from ..services.knowledge_bases import (
     KnowledgeBaseNotFoundError,
@@ -20,6 +21,7 @@ from ..services.knowledge_bases import (
     get_knowledge_base_service,
     update_knowledge_base_service,
 )
+from ..services.audit_logs import get_knowledge_base_audit_logs, write_audit_log
 from ..services.knowledge_base_members import (
     KnowledgeBaseAccessDeniedError,
     KnowledgeBaseMemberNotFoundError,
@@ -47,7 +49,9 @@ def create_knowledge_base(
     current_user: UserORM = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return create_knowledge_base_service(db, current_user.id, payload)
+    knowledge_base = create_knowledge_base_service(db, current_user.id, payload)
+    write_audit_log(actor_user_id=current_user.id, action="knowledge_base.created", target_type="knowledge_base", target_id=knowledge_base.id, knowledge_base_id=knowledge_base.id, details={"name": knowledge_base.name}, db=db)
+    return knowledge_base
 
 
 @router.patch("/{knowledge_base_id}", response_model=KnowledgeBaseResponse)
@@ -60,12 +64,14 @@ def update_knowledge_base(
     try:
         knowledge_base = get_knowledge_base_service(db, knowledge_base_id, current_user.id)
         require_knowledge_base_role(knowledge_base=knowledge_base, user_id=current_user.id, db=db, allowed_roles={"owner"})
-        return update_knowledge_base_service(
+        updated = update_knowledge_base_service(
             db,
             knowledge_base_id,
             current_user.id,
             payload,
         )
+        write_audit_log(actor_user_id=current_user.id, action="knowledge_base.updated", target_type="knowledge_base", target_id=updated.id, knowledge_base_id=updated.id, details=payload.model_dump(exclude_unset=True), db=db)
+        return updated
     except KnowledgeBaseNotFoundError:
         raise HTTPException(status_code=404, detail="knowledge base not found")
     except KnowledgeBaseAccessDeniedError:
@@ -111,6 +117,7 @@ def add_member(knowledge_base_id: int, payload: KnowledgeBaseMemberCreate, curre
         knowledge_base = get_knowledge_base_service(db, knowledge_base_id, current_user.id)
         require_knowledge_base_role(knowledge_base=knowledge_base, user_id=current_user.id, db=db, allowed_roles={"owner"})
         membership = add_knowledge_base_member(knowledge_base=knowledge_base, username=payload.username, role=payload.role, db=db)
+        write_audit_log(actor_user_id=current_user.id, action="knowledge_base.member_upserted", target_type="user", target_id=membership.user_id, knowledge_base_id=knowledge_base.id, details={"role": membership.role}, db=db)
         return {"user_id": membership.user_id, "username": payload.username, "role": membership.role}
     except KnowledgeBaseNotFoundError:
         raise HTTPException(status_code=404, detail="knowledge base not found")
@@ -126,9 +133,22 @@ def remove_member(knowledge_base_id: int, user_id: int, current_user: UserORM = 
         knowledge_base = get_knowledge_base_service(db, knowledge_base_id, current_user.id)
         require_knowledge_base_role(knowledge_base=knowledge_base, user_id=current_user.id, db=db, allowed_roles={"owner"})
         remove_knowledge_base_member(knowledge_base=knowledge_base, member_user_id=user_id, db=db)
+        write_audit_log(actor_user_id=current_user.id, action="knowledge_base.member_removed", target_type="user", target_id=user_id, knowledge_base_id=knowledge_base.id, details=None, db=db)
     except KnowledgeBaseNotFoundError:
         raise HTTPException(status_code=404, detail="knowledge base not found")
     except KnowledgeBaseMemberNotFoundError:
         raise HTTPException(status_code=404, detail="member not found")
+    except KnowledgeBaseAccessDeniedError:
+        raise HTTPException(status_code=403, detail="knowledge base owner access required")
+
+
+@router.get("/{knowledge_base_id}/audit-logs", response_model=list[AuditLogResponse])
+def get_audit_logs(knowledge_base_id: int, current_user: UserORM = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        knowledge_base = get_knowledge_base_service(db, knowledge_base_id, current_user.id)
+        require_knowledge_base_role(knowledge_base=knowledge_base, user_id=current_user.id, db=db, allowed_roles={"owner"})
+        return get_knowledge_base_audit_logs(knowledge_base_id=knowledge_base.id, db=db)
+    except KnowledgeBaseNotFoundError:
+        raise HTTPException(status_code=404, detail="knowledge base not found")
     except KnowledgeBaseAccessDeniedError:
         raise HTTPException(status_code=403, detail="knowledge base owner access required")
