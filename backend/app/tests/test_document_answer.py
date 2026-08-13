@@ -101,6 +101,10 @@ def test_success_returns_answer_and_sources(monkeypatch):
     assert result.sources[0].filename == "test.pdf"
     assert result.sources[0].chunk_index == 2
     deepseek_mock.assert_called_once()
+    request_messages = deepseek_mock.call_args.kwargs["json"]["messages"]
+    assert request_messages[0]["role"] == "system"
+    assert "untrusted data" in request_messages[0]["content"]
+    assert "<reference_material>" in request_messages[1]["content"]
 
 
 def test_deepseek_error_raises_provider_error(monkeypatch):
