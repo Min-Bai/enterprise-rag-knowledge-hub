@@ -9,6 +9,51 @@ LangChain prompt templates isolate retrieved reference material from model
 instructions before requests reach DeepSeek. Conversations remain scoped to the
 selected document or knowledge base for follow-up questions.
 
+## Implemented Capabilities
+
+- Private knowledge bases with owner, editor, and viewer roles.
+- PDF validation, SHA-256 duplicate detection per knowledge base, and secure
+  original-file downloads.
+- Background PDF extraction, LangChain recursive chunking, embeddings, and
+  Qdrant indexing with retry and reindex operations.
+- Document tags for organization, vector-search filtering, and RAG-answer
+  filtering. Updating tags on a ready document automatically rebuilds its
+  vectors so metadata and retrieval stay consistent.
+- Processing metadata in the document list: status, chunk count, and last
+  successful index time.
+- Knowledge-base and single-document answers with DeepSeek, streaming SSE,
+  source citations, conversation history, and citation follow-up actions.
+- Retrieval search with tag filters, matching snippets, page numbers, and
+  relevance scores.
+- Answer feedback summaries, retrieval-quality evaluation, structured audit
+  logs, and MySQL backup/restore verification scripts.
+
+## Key Workflows
+
+### Document lifecycle
+
+```text
+upload PDF -> SHA-256 duplicate check -> uploaded -> Redis/RQ
+    -> processing -> PDF chunks -> embeddings -> Qdrant -> ready
+                                                \-> failed -> retry
+```
+
+The document list exposes the final chunk count and index completion time. A
+reindex or a tag change on a ready document removes its old vectors before the
+worker queues a replacement index.
+
+### Grounded answer lifecycle
+
+```text
+question + optional tags -> authorization -> Qdrant filtered retrieval
+    -> relevance threshold -> LangChain prompt -> DeepSeek SSE response
+    -> conversation + cited sources persisted in MySQL
+```
+
+Sources include PDF pages where available. A user can search matching chunks,
+open the original authorized PDF, or switch directly into a cited document for
+a focused follow-up question.
+
 ## Architecture
 
 ```text
@@ -146,6 +191,17 @@ sudo docker compose exec -T -e MYSQL_PWD="$MYSQL_PASSWORD" mysql \
   -u"$MYSQL_USER" "$MYSQL_DATABASE" \
   > ~/backups/enterprise-rag/enterprise_rag-mysql-$(date +%F).sql
 ```
+
+Run the repository helpers from the production checkout for routine checks:
+
+```bash
+sudo bash scripts/check_production.sh
+sudo bash scripts/backup_mysql.sh
+```
+
+Validate backups periodically by restoring the newest dump into a temporary
+database and comparing table counts. A successful `mysqldump` alone does not
+prove that a restore will work.
 
 ## Production Resource Migration
 
