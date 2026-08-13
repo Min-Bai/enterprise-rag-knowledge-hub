@@ -1,3 +1,5 @@
+name: enterprise-rag
+
 services:
   mysql:
     image: docker.m.daocloud.io/library/mysql:8.4
@@ -13,7 +15,7 @@ services:
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
     volumes:
-      - todo-mysql-data:/var/lib/mysql
+      - enterprise-rag-mysql-data:/var/lib/mysql
     ports:
       - "127.0.0.1:3306:3306"
     healthcheck:
@@ -42,9 +44,9 @@ services:
       HF_ENDPOINT: https://hf-mirror.com
       QDRANT_URL: http://qdrant:6333
     volumes:
-      - todo-api-data:/app/data
-      - todo-document-data:/app/backend/app/data
-      - todo-model-cache:/app/model-cache
+      - enterprise-rag-api-data:/app/data
+      - enterprise-rag-document-data:/app/backend/app/data
+      - enterprise-rag-model-cache:/app/model-cache
     depends_on:
       mysql:
         condition: service_healthy
@@ -82,9 +84,9 @@ services:
       HF_ENDPOINT: https://hf-mirror.com
       QDRANT_URL: http://qdrant:6333
     volumes:
-      - todo-api-data:/app/data
-      - todo-document-data:/app/backend/app/data
-      - todo-model-cache:/app/model-cache
+      - enterprise-rag-api-data:/app/data
+      - enterprise-rag-document-data:/app/backend/app/data
+      - enterprise-rag-model-cache:/app/model-cache
     depends_on:
       mysql:
         condition: service_healthy
@@ -104,7 +106,7 @@ services:
         max-file: "3"
     command: redis-server --appendonly yes
     volumes:
-      - todo-redis-data:/data
+      - enterprise-rag-redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -120,7 +122,7 @@ services:
         max-size: "10m"
         max-file: "3"
     volumes:
-      - todo-qdrant-data:/qdrant/storage
+      - enterprise-rag-qdrant-data:/qdrant/storage
 
   frontend:
     build:
@@ -139,10 +141,15 @@ services:
         condition: service_healthy
 
 volumes:
-  todo-api-data:
-    external: true
-  todo-redis-data:
-  todo-qdrant-data:
-  todo-model-cache:
-  todo-document-data:
-  todo-mysql-data:
+  enterprise-rag-api-data:
+    name: enterprise-rag-api-data
+  enterprise-rag-redis-data:
+    name: enterprise-rag-redis-data
+  enterprise-rag-qdrant-data:
+    name: enterprise-rag-qdrant-data
+  enterprise-rag-model-cache:
+    name: enterprise-rag-model-cache
+  enterprise-rag-document-data:
+    name: enterprise-rag-document-data
+  enterprise-rag-mysql-data:
+    name: enterprise-rag-mysql-data

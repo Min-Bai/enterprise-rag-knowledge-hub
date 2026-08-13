@@ -1,4 +1,4 @@
-name: Deploy API
+name: Deploy Enterprise RAG
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy to Ubuntu VM
+    name: Deploy to Enterprise RAG VM
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
@@ -20,7 +20,7 @@ jobs:
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 90
     concurrency:
-      group: production-deploy
+      group: enterprise-rag-deploy
       cancel-in-progress: false
     env:
       DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
@@ -28,9 +28,9 @@ jobs:
       - name: Deploy checked CI commit
         shell: powershell
         run: |
-          ssh todo-vm "bash ~/deploy-api.sh $env:DEPLOY_SHA"
+          ssh enterprise-rag-vm "bash ~/deploy-enterprise-rag.sh $env:DEPLOY_SHA"
 
       - name: Check API health
         shell: powershell
         run: |
-          ssh todo-vm "curl --fail --silent --show-error http://localhost:8000/health"
+          ssh enterprise-rag-vm "curl --fail --silent --show-error http://localhost:8000/health"
