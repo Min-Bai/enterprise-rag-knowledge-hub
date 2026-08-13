@@ -129,6 +129,8 @@ def retry_document_service(
 
     document.status = "uploaded"
     document.error_message = None
+    document.chunk_count = 0
+    document.processed_at = None
     db.commit()
     db.refresh(document)
     return document
@@ -167,6 +169,8 @@ def reindex_document_service(
     delete_document_vectors(document_id=document.id, user_id=document.user_id)
     document.status = "uploaded"
     document.error_message = None
+    document.chunk_count = 0
+    document.processed_at = None
     db.commit()
     db.refresh(document)
     return document
@@ -194,6 +198,8 @@ def update_document_tags_service(
         delete_document_vectors(document_id=document.id, user_id=document.user_id)
         document.status = "uploaded"
         document.error_message = None
+        document.chunk_count = 0
+        document.processed_at = None
     db.commit()
     db.refresh(document)
     return document

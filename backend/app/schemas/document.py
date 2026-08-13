@@ -9,6 +9,8 @@ class DocumentResponse(BaseModel):
     status: str
     content_sha256: str | None = None
     tags: list[str] = Field(default_factory=list)
+    chunk_count: int = 0
+    processed_at: datetime | None = None
     error_message: str | None
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)

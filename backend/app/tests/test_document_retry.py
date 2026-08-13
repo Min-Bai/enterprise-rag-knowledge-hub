@@ -26,6 +26,8 @@ def test_retry_failed_document_clears_vectors_and_resets_status(monkeypatch):
         knowledge_base_id=1,
         status="failed",
         error_message="processing interrupted",
+        chunk_count=5,
+        processed_at=datetime.now(),
     )
     db = Mock()
     db.scalar.return_value = document
@@ -87,6 +89,8 @@ def test_reindex_ready_document_clears_vectors_and_requeues(monkeypatch):
     assert result is document
     assert document.status == "uploaded"
     assert document.error_message is None
+    assert document.chunk_count == 0
+    assert document.processed_at is None
     delete_vectors.assert_called_once_with(document_id=8, user_id=1)
 
 

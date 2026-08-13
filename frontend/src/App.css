@@ -227,6 +227,14 @@ textarea {
   margin-top: 4px;
 }
 
+.document-tags,
+.document-processing {
+  color: #52605c;
+  display: block;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
 .document-status.ready {
   color: #18794e;
 }

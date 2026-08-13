@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from ..database import SessionLocal
 from ..models.document import DocumentORM
 from .document_parser import split_pdf_into_chunks
@@ -38,6 +40,8 @@ def process_document(document_id: int) -> None:
 
         document.status = "processing"
         document.error_message = None
+        document.chunk_count = 0
+        document.processed_at = None
         db.commit()
 
         chunks = split_pdf_into_chunks(document.storage_path)
@@ -51,6 +55,8 @@ def process_document(document_id: int) -> None:
         )
 
         document.status = "ready"
+        document.chunk_count = len(chunks)
+        document.processed_at = datetime.now(UTC)
         db.commit()
 
     except Exception as error:
@@ -60,6 +66,8 @@ def process_document(document_id: int) -> None:
         if document is not None:
             document.status = "failed"
             document.error_message = str(error)[:50]
+            document.chunk_count = 0
+            document.processed_at = None
             db.commit()
 
     finally:

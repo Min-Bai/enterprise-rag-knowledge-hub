@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -46,3 +47,33 @@ def test_process_document_skips_deleted_document(monkeypatch):
     db.commit.assert_not_called()
     db.rollback.assert_not_called()
     db.close.assert_called_once()
+
+
+def test_process_document_records_chunk_count_and_completion_time(monkeypatch):
+    document = SimpleNamespace(
+        id=8,
+        user_id=1,
+        knowledge_base_id=3,
+        tags=["HR"],
+        status="uploaded",
+        error_message="old",
+        chunk_count=0,
+        processed_at=None,
+        storage_path="/tmp/handbook.pdf",
+    )
+    db = Mock()
+    db.get.return_value = document
+    chunks = [object(), object(), object()]
+    index_chunks = Mock()
+    monkeypatch.setattr(document_processor, "SessionLocal", lambda: db)
+    monkeypatch.setattr(document_processor, "split_pdf_into_chunks", Mock(return_value=chunks))
+    monkeypatch.setattr(document_processor, "index_document_chunks", index_chunks)
+
+    document_processor.process_document(8)
+
+    assert document.status == "ready"
+    assert document.error_message is None
+    assert document.chunk_count == 3
+    assert document.processed_at is not None
+    index_chunks.assert_called_once_with(document_id=8, user_id=1, knowledge_base_id=3, tags=["HR"], chunks=chunks)
+    assert db.commit.call_count == 2
