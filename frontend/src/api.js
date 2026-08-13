@@ -104,6 +104,10 @@ export async function deleteKnowledgeBase(accessToken, knowledgeBaseId) {
   if (response.status !== 204) await readJson(response, 'Failed to delete knowledge base')
 }
 
+export async function updateKnowledgeBase(accessToken, knowledgeBaseId, name, description) {
+  return readJson(await fetch(`${API_PREFIX}/knowledge-bases/${knowledgeBaseId}`, { method: 'PATCH', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ name, description: description || null }) }), 'Failed to update knowledge base')
+}
+
 export async function getKnowledgeBaseMembers(accessToken, knowledgeBaseId) {
   return readJson(await fetch(`${API_PREFIX}/knowledge-bases/${knowledgeBaseId}/members`, { headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to load knowledge base members')
 }

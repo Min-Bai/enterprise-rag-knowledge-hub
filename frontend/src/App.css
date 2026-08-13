@@ -122,6 +122,11 @@ textarea {
   font-size: 14px;
 }
 
+.knowledge-base-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .conversation-controls {
   display: grid;
   gap: 8px;

@@ -25,6 +25,7 @@ import {
   submitAnswerFeedback,
   uploadDocument,
   updateDocumentTags,
+  updateKnowledgeBase,
 } from './api.js'
 import LoginForm from './LoginForm.jsx'
 
@@ -42,6 +43,10 @@ function App() {
   const [memberUsername, setMemberUsername] = useState('')
   const [memberRole, setMemberRole] = useState('viewer')
   const [isCreatingKnowledgeBase, setIsCreatingKnowledgeBase] = useState(false)
+  const [isEditingKnowledgeBase, setIsEditingKnowledgeBase] = useState(false)
+  const [editingKnowledgeBase, setEditingKnowledgeBase] = useState(false)
+  const [editKnowledgeBaseName, setEditKnowledgeBaseName] = useState('')
+  const [editKnowledgeBaseDescription, setEditKnowledgeBaseDescription] = useState('')
   const [deletingKnowledgeBaseId, setDeletingKnowledgeBaseId] = useState(null)
   const [documents, setDocuments] = useState([])
   const [documentFile, setDocumentFile] = useState(null)
@@ -226,6 +231,27 @@ function App() {
     } catch (error) { setKnowledgeBaseError(error.message) } finally { setDeletingKnowledgeBaseId(null) }
   }
 
+  function startEditingKnowledgeBase() {
+    const knowledgeBase = knowledgeBases.find((item) => String(item.id) === selectedKnowledgeBaseId)
+    if (!knowledgeBase) return
+    setEditKnowledgeBaseName(knowledgeBase.name)
+    setEditKnowledgeBaseDescription(knowledgeBase.description || '')
+    setEditingKnowledgeBase(true)
+    setKnowledgeBaseError('')
+  }
+
+  async function handleUpdateKnowledgeBase(event) {
+    event.preventDefault()
+    if (!selectedKnowledgeBaseId) return
+    setIsEditingKnowledgeBase(true)
+    setKnowledgeBaseError('')
+    try {
+      const updated = await updateKnowledgeBase(accessToken, Number(selectedKnowledgeBaseId), editKnowledgeBaseName.trim(), editKnowledgeBaseDescription.trim())
+      setKnowledgeBases((current) => current.map((item) => item.id === updated.id ? updated : item))
+      setEditingKnowledgeBase(false)
+    } catch (error) { setKnowledgeBaseError(error.message) } finally { setIsEditingKnowledgeBase(false) }
+  }
+
   async function handleAddMember(event) {
     event.preventDefault()
     setKnowledgeBaseError('')
@@ -374,8 +400,9 @@ function App() {
   return <main className="app-shell">
     <header className="app-header"><div><h1>Enterprise Knowledge Hub</h1><p className={apiStatus.isError ? 'api-status error' : 'api-status'}>{apiStatus.message}</p></div>{accessToken && <button className="logout-button" type="button" disabled={isLoggingOut} onClick={handleLogout}>Log out</button>}</header>
     {!accessToken ? <LoginForm onLogin={handleLogin} /> : <section className="document-answer-panel" aria-label="Knowledge base documents">
-      <div className="knowledge-base-header"><div><h2>Knowledge bases</h2><p>Organize private documents and ask grounded questions.</p></div>{selectedKnowledgeBaseId && <button type="button" className="delete-button" disabled={deletingKnowledgeBaseId !== null} onClick={handleDeleteKnowledgeBase}>Delete knowledge base</button>}</div>
+      <div className="knowledge-base-header"><div><h2>Knowledge bases</h2><p>Organize private documents and ask grounded questions.</p></div>{selectedKnowledgeBaseId && <div className="knowledge-base-actions"><button type="button" onClick={startEditingKnowledgeBase}>Edit knowledge base</button><button type="button" className="delete-button" disabled={deletingKnowledgeBaseId !== null} onClick={handleDeleteKnowledgeBase}>Delete knowledge base</button></div>}</div>
       <label htmlFor="knowledge-base-select">Current knowledge base</label><select id="knowledge-base-select" value={selectedKnowledgeBaseId} onChange={(event) => { setSelectedKnowledgeBaseId(event.target.value); setDocumentAnswer(null) }}><option value="">Choose a knowledge base</option>{knowledgeBases.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+      {editingKnowledgeBase && <form className="knowledge-base-form" onSubmit={handleUpdateKnowledgeBase}><label htmlFor="edit-knowledge-base-name">Knowledge base name</label><input id="edit-knowledge-base-name" value={editKnowledgeBaseName} maxLength={100} onChange={(event) => setEditKnowledgeBaseName(event.target.value)} /><label htmlFor="edit-knowledge-base-description">Description</label><textarea id="edit-knowledge-base-description" value={editKnowledgeBaseDescription} maxLength={2000} onChange={(event) => setEditKnowledgeBaseDescription(event.target.value)} /><div className="knowledge-base-actions"><button type="submit" disabled={!editKnowledgeBaseName.trim() || isEditingKnowledgeBase}>{isEditingKnowledgeBase ? 'Saving...' : 'Save changes'}</button><button type="button" className="logout-button" disabled={isEditingKnowledgeBase} onClick={() => setEditingKnowledgeBase(false)}>Cancel</button></div></form>}
       <form className="knowledge-base-form" onSubmit={handleCreateKnowledgeBase}><label htmlFor="knowledge-base-name">New knowledge base</label><input id="knowledge-base-name" value={knowledgeBaseName} maxLength={100} placeholder="For example: Employee handbook" onChange={(event) => setKnowledgeBaseName(event.target.value)} /><label htmlFor="knowledge-base-description">Description</label><textarea id="knowledge-base-description" value={knowledgeBaseDescription} maxLength={2000} placeholder="Optional description" onChange={(event) => setKnowledgeBaseDescription(event.target.value)} /><button type="submit" disabled={!knowledgeBaseName.trim() || isCreatingKnowledgeBase}>{isCreatingKnowledgeBase ? 'Creating...' : 'Create knowledge base'}</button></form>
       {knowledgeBaseMembers.length > 0 && <section className="knowledge-base-members"><h2>Members</h2><form className="knowledge-base-form" onSubmit={handleAddMember}><label htmlFor="member-username">Username</label><input id="member-username" value={memberUsername} maxLength={50} onChange={(event) => setMemberUsername(event.target.value)} /><label htmlFor="member-role">Role</label><select id="member-role" value={memberRole} onChange={(event) => setMemberRole(event.target.value)}><option value="viewer">Viewer</option><option value="editor">Editor</option></select><button type="submit" disabled={!memberUsername.trim()}>Add member</button></form><ul className="document-list">{knowledgeBaseMembers.map((member) => <li key={member.user_id} className="document-list-item"><span>{member.username} ({member.role})</span>{member.role !== 'owner' && <button type="button" className="delete-button" onClick={() => handleRemoveMember(member.user_id)}>Remove</button>}</li>)}</ul></section>}
       {auditLogs.length > 0 && <section className="knowledge-base-members"><h2>Audit log</h2><ul className="document-list">{auditLogs.map((event) => <li key={event.id} className="document-list-item"><span>{event.action} · {event.target_type}{event.target_id ? ` #${event.target_id}` : ''}</span><time dateTime={event.created_at}>{new Date(event.created_at).toLocaleString()}</time></li>)}</ul></section>}
