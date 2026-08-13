@@ -9,6 +9,14 @@ MAX_DOCUMENT_SIZE = 10 * 1024 * 1024
 DOCUMENT_DIRECTORY = Path(__file__).resolve().parents[1] / "data" / "documents"
 
 
+def get_stored_document_file(storage_path: str) -> Path:
+    document_directory = DOCUMENT_DIRECTORY.resolve()
+    path = Path(storage_path).resolve()
+    if not path.is_relative_to(document_directory) or not path.is_file():
+        raise FileNotFoundError("document file is unavailable")
+    return path
+
+
 async def save_document_file(file: UploadFile) -> tuple[str, str]:
     original_filename = file.filename or ""
 

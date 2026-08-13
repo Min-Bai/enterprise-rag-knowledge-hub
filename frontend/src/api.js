@@ -166,3 +166,15 @@ export async function reindexDocument(accessToken, documentId) {
 export async function updateDocumentTags(accessToken, documentId, tags) {
   return readJson(await fetch(`${API_PREFIX}/documents/${documentId}/tags`, { method: 'PATCH', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ tags }) }), 'Failed to update document tags')
 }
+
+export async function downloadDocument(accessToken, selectedDocument) {
+  const response = await fetch(`${API_PREFIX}/documents/${selectedDocument.id}/download`, { headers: { Authorization: `Bearer ${accessToken}` } })
+  if (!response.ok) await readJson(response, 'Failed to download document')
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = selectedDocument.filename
+  link.click()
+  URL.revokeObjectURL(url)
+}

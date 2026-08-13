@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -10,11 +11,12 @@ from ..schemas.document import (
     DocumentSearchResponse,
     DocumentTagsUpdateRequest,
 )
-from ..services.document_storage import save_document_file
+from ..services.document_storage import get_stored_document_file, save_document_file
 from ..services.documents import (
     create_document_service,
     delete_document_service,
     get_documents_service,
+    get_document_service,
     get_ready_documents_service,
     reindex_document_service,
     retry_document_service,
@@ -231,6 +233,30 @@ def update_document_tags(
         db=db,
     )
     return document
+
+
+@router.get("/{document_id}/download")
+def download_document(
+    document_id: int,
+    current_user: UserORM = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        document = get_document_service(document_id=document_id, user_id=current_user.id, db=db)
+        storage_path = get_stored_document_file(document.storage_path)
+    except (DocumentNotFoundError, FileNotFoundError):
+        raise HTTPException(status_code=404, detail="document not found")
+
+    write_audit_log(
+        actor_user_id=current_user.id,
+        action="document.downloaded",
+        target_type="document",
+        target_id=document.id,
+        knowledge_base_id=document.knowledge_base_id,
+        details={"filename": document.filename},
+        db=db,
+    )
+    return FileResponse(storage_path, media_type="application/pdf", filename=document.filename)
 
 @router.delete(
     "/{document_id}",
