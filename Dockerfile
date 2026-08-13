@@ -11,7 +11,7 @@ ENV PIP_DEFAULT_TIMEOUT=120
 
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
+    pip install -r requirements.txt
 
 COPY backend ./backend
 COPY scripts ./scripts
