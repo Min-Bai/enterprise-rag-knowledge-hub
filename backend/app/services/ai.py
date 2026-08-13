@@ -15,6 +15,7 @@ from ..models.user import UserORM
 from ..schemas.ai import DocumentAnswerRequest, DocumentAnswerResponse, KnowledgeBaseAnswerRequest, SourceItem
 from .document_vectors import search_document_chunks
 from .rag_prompt import build_document_answer_messages
+from .audit_logs import write_audit_log
 from .conversations import (
     ConversationNotFoundError,
     get_conversation_history,
@@ -79,6 +80,31 @@ def log_retrieval_outcome(*, scope: str, scope_id: int, hits: list[dict[str, obj
     )
 
 
+def write_retrieval_audit_log(
+    *,
+    actor_user_id: int,
+    knowledge_base_id: int,
+    target_type: str,
+    target_id: int,
+    hits: list[dict[str, object]],
+    db: Session,
+) -> None:
+    highest_score = max((float(hit["score"]) for hit in hits), default=0.0)
+    write_audit_log(
+        actor_user_id=actor_user_id,
+        action="rag.retrieval_completed",
+        target_type=target_type,
+        target_id=target_id,
+        knowledge_base_id=knowledge_base_id,
+        details={
+            "hit_count": len(hits),
+            "highest_score": round(highest_score, 4),
+            "abstained": not hits,
+        },
+        db=db,
+    )
+
+
 def prepare_document_answer(
     *,
     request: DocumentAnswerRequest,
@@ -96,6 +122,14 @@ def prepare_document_answer(
     )
     hits = [hit for hit in search_document_chunks(question=request.question, user_id=document.user_id, document_ids=[document.id], limit=3) if float(hit['score']) >= RAG_MIN_SCORE]
     log_retrieval_outcome(scope="document", scope_id=document.id, hits=hits)
+    write_retrieval_audit_log(
+        actor_user_id=current_user.id,
+        knowledge_base_id=document.knowledge_base_id,
+        target_type="document",
+        target_id=document.id,
+        hits=hits,
+        db=db,
+    )
     if not hits:
         return PreparedDocumentAnswer(conversation=conversation, hits=[], sources=[])
     if not DEEPSEEK_API_KEY:
@@ -148,6 +182,14 @@ def prepare_knowledge_base_answer(
         scope="knowledge_base",
         scope_id=request.knowledge_base_id,
         hits=hits,
+    )
+    write_retrieval_audit_log(
+        actor_user_id=current_user.id,
+        knowledge_base_id=request.knowledge_base_id,
+        target_type="knowledge_base",
+        target_id=request.knowledge_base_id,
+        hits=hits,
+        db=db,
     )
     if not hits:
         return PreparedDocumentAnswer(conversation=conversation, hits=[], sources=[])

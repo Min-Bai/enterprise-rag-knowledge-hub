@@ -27,6 +27,7 @@ def make_dependencies():
     document = SimpleNamespace(
         id=8,
         user_id=1,
+        knowledge_base_id=3,
         filename="test.pdf",
         status="ready",
     )
@@ -104,6 +105,34 @@ def test_document_answer_logs_retrieval_without_question_or_document_content(mon
     assert "hit_count=0" in log
     assert "abstained=True" in log
     assert request.question not in log
+
+
+def test_document_answer_audits_retrieval_metadata_without_question_or_content(monkeypatch):
+    request, current_user, db = make_dependencies()
+    document = db.scalar.return_value
+    document.knowledge_base_id = 3
+    write_audit_log = Mock()
+    monkeypatch.setattr(
+        "backend.app.services.ai.search_document_chunks",
+        Mock(return_value=[]),
+    )
+    monkeypatch.setattr("backend.app.services.ai.write_audit_log", write_audit_log)
+
+    answer_document_service(request=request, current_user=current_user, db=db)
+
+    assert write_audit_log.call_args.kwargs == {
+        "actor_user_id": 1,
+        "action": "rag.retrieval_completed",
+        "target_type": "document",
+        "target_id": 8,
+        "knowledge_base_id": 3,
+        "details": {
+            "hit_count": 0,
+            "highest_score": 0.0,
+            "abstained": True,
+        },
+        "db": db,
+    }
 
 
 def test_success_returns_answer_and_sources(monkeypatch):
@@ -364,3 +393,32 @@ def test_knowledge_base_answer_retrieves_only_ready_documents(monkeypatch):
     assert prepared.conversation.id == 7
     assert prepared.sources[0].filename == "benefits.pdf"
     assert search_mock.call_args.kwargs["document_ids"] == [8, 9]
+
+
+def test_knowledge_base_answer_audits_retrieval_metadata(monkeypatch):
+    current_user = SimpleNamespace(id=1)
+    db = Mock()
+    write_audit_log = Mock()
+    monkeypatch.setattr("backend.app.services.ai.get_knowledge_base_service", Mock())
+    monkeypatch.setattr("backend.app.services.ai.get_ready_documents_service", Mock(return_value=[]))
+    monkeypatch.setattr(
+        "backend.app.services.ai.get_or_create_knowledge_base_conversation_service",
+        Mock(return_value=SimpleNamespace(id=7)),
+    )
+    monkeypatch.setattr("backend.app.services.ai.search_document_chunks", Mock(return_value=[]))
+    monkeypatch.setattr("backend.app.services.ai.write_audit_log", write_audit_log)
+
+    result = prepare_knowledge_base_answer(
+        request=KnowledgeBaseAnswerRequest(knowledge_base_id=3, question="What policies apply?"),
+        current_user=current_user,
+        db=db,
+    )
+
+    assert result.hits == []
+    assert write_audit_log.call_args.kwargs["knowledge_base_id"] == 3
+    assert write_audit_log.call_args.kwargs["target_type"] == "knowledge_base"
+    assert write_audit_log.call_args.kwargs["details"] == {
+        "hit_count": 0,
+        "highest_score": 0.0,
+        "abstained": True,
+    }
