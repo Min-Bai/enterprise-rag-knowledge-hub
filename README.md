@@ -57,6 +57,22 @@ DATABASE_URL=mysql+pymysql://enterprise_rag:replace-with-a-private-password@mysq
 
 ## Run With Docker Compose
 
+Create the persistent volumes once before the first production startup:
+
+```bash
+for volume in \
+  enterprise-rag-api-data \
+  enterprise-rag-document-data \
+  enterprise-rag-model-cache \
+  enterprise-rag-mysql-data \
+  enterprise-rag-redis-data \
+  enterprise-rag-qdrant-data; do
+  docker volume create "$volume"
+done
+```
+
+Then start the services:
+
 ```bash
 docker compose up -d --build
 docker compose ps

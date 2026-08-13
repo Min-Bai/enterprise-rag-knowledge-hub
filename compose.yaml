@@ -143,13 +143,19 @@ services:
 volumes:
   enterprise-rag-api-data:
     name: enterprise-rag-api-data
+    external: true
   enterprise-rag-redis-data:
     name: enterprise-rag-redis-data
+    external: true
   enterprise-rag-qdrant-data:
     name: enterprise-rag-qdrant-data
+    external: true
   enterprise-rag-model-cache:
     name: enterprise-rag-model-cache
+    external: true
   enterprise-rag-document-data:
     name: enterprise-rag-document-data
+    external: true
   enterprise-rag-mysql-data:
     name: enterprise-rag-mysql-data
+    external: true
