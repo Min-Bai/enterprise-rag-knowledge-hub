@@ -5,6 +5,7 @@ from ..exceptions import (
     DocumentReindexNotAllowedError,
     DuplicateDocumentError,
     DocumentRetryNotAllowedError,
+    DocumentTagUpdateNotAllowedError,
 )
 from .document_vectors import delete_document_vectors
 
@@ -166,6 +167,33 @@ def reindex_document_service(
     delete_document_vectors(document_id=document.id, user_id=document.user_id)
     document.status = "uploaded"
     document.error_message = None
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+def update_document_tags_service(
+    document_id: int,
+    user_id: int,
+    tags: list[str],
+    db: Session,
+) -> DocumentORM:
+    document = get_document_service(document_id=document_id, user_id=user_id, db=db)
+    knowledge_base = get_knowledge_base_service(db, document.knowledge_base_id, user_id)
+    require_knowledge_base_role(
+        knowledge_base=knowledge_base,
+        user_id=user_id,
+        db=db,
+        allowed_roles={"owner", "editor"},
+    )
+    if document.status == "processing":
+        raise DocumentTagUpdateNotAllowedError
+
+    document.tags = normalize_document_tags(tags)
+    if document.status == "ready":
+        delete_document_vectors(document_id=document.id, user_id=document.user_id)
+        document.status = "uploaded"
+        document.error_message = None
     db.commit()
     db.refresh(document)
     return document

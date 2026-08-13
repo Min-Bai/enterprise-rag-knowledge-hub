@@ -33,3 +33,7 @@ class DocumentReindexNotAllowedError(Exception):
 
 class DuplicateDocumentError(Exception):
     pass
+
+
+class DocumentTagUpdateNotAllowedError(Exception):
+    pass

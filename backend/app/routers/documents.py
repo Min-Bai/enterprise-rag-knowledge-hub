@@ -8,6 +8,7 @@ from ..schemas.document import (
     DocumentResponse,
     DocumentSearchRequest,
     DocumentSearchResponse,
+    DocumentTagsUpdateRequest,
 )
 from ..services.document_storage import save_document_file
 from ..services.documents import (
@@ -17,6 +18,7 @@ from ..services.documents import (
     get_ready_documents_service,
     reindex_document_service,
     retry_document_service,
+    update_document_tags_service,
 )
 from ..services.document_queue import enqueue_document_processing
 from ..services.document_vectors import search_document_chunks
@@ -27,6 +29,7 @@ from ..exceptions import (
     DocumentNotFoundError,
     DocumentReindexNotAllowedError,
     DocumentRetryNotAllowedError,
+    DocumentTagUpdateNotAllowedError,
 )
 from ..services.knowledge_bases import KnowledgeBaseNotFoundError
 from ..services.knowledge_base_members import KnowledgeBaseAccessDeniedError
@@ -192,6 +195,41 @@ def retry_document(
 
     enqueue_document_processing(document.id)
     write_audit_log(actor_user_id=current_user.id, action="document.retried", target_type="document", target_id=document.id, knowledge_base_id=document.knowledge_base_id, details=None, db=db)
+    return document
+
+
+@router.patch("/{document_id}/tags", response_model=DocumentResponse)
+def update_document_tags(
+    document_id: int,
+    payload: DocumentTagsUpdateRequest,
+    current_user: UserORM = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        document = update_document_tags_service(
+            document_id=document_id,
+            user_id=current_user.id,
+            tags=payload.tags,
+            db=db,
+        )
+    except DocumentNotFoundError:
+        raise HTTPException(status_code=404, detail="document not found")
+    except KnowledgeBaseAccessDeniedError:
+        raise HTTPException(status_code=403, detail="knowledge base editor access required")
+    except DocumentTagUpdateNotAllowedError:
+        raise HTTPException(status_code=409, detail="processing documents cannot have tags updated")
+
+    if document.status == "uploaded":
+        enqueue_document_processing(document.id)
+    write_audit_log(
+        actor_user_id=current_user.id,
+        action="document.tags_updated",
+        target_type="document",
+        target_id=document.id,
+        knowledge_base_id=document.knowledge_base_id,
+        details={"tags": document.tags},
+        db=db,
+    )
     return document
 
 @router.delete(

@@ -153,3 +153,7 @@ export async function retryDocument(accessToken, documentId) {
 export async function reindexDocument(accessToken, documentId) {
   return readJson(await fetch(`${API_PREFIX}/documents/${documentId}/reindex`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to reindex document')
 }
+
+export async function updateDocumentTags(accessToken, documentId, tags) {
+  return readJson(await fetch(`${API_PREFIX}/documents/${documentId}/tags`, { method: 'PATCH', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ tags }) }), 'Failed to update document tags')
+}

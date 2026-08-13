@@ -14,6 +14,19 @@ class DocumentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class DocumentTagsUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tags: list[str] = Field(default_factory=list, max_length=10)
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, value: list[str]) -> list[str]:
+        from ..services.document_tags import normalize_document_tags
+
+        return normalize_document_tags(value)
+
+
 class DocumentChunkResponse(BaseModel):
     document_id: int
     filename: str
