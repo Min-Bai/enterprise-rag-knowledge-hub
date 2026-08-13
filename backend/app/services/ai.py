@@ -275,7 +275,10 @@ def answer_document_service(*, request: DocumentAnswerRequest, current_user: Use
         response.raise_for_status()
         answer = str(get_model_message(response).get('content', '')).strip()
     except (KeyError, IndexError, ValueError, requests.RequestException) as error:
-        logger.exception('document answer request failed')
+        logger.exception(
+            "event=rag_provider_failed request_id=%s provider=deepseek stream=false",
+            get_request_id(),
+        )
         raise AiProviderError from error
     logger.info(
         "event=rag_provider_completed request_id=%s provider=deepseek stream=false duration_ms=%.1f",
@@ -357,7 +360,10 @@ def stream_document_answer_service(
                     answer_parts.append(text)
                     yield sse_event('token', {'text': text})
     except (KeyError, ValueError, requests.RequestException) as error:
-        logger.exception('document answer stream failed')
+        logger.exception(
+            "event=rag_provider_failed request_id=%s provider=deepseek stream=true",
+            get_request_id(),
+        )
         yield sse_event('error', {'detail': 'AI provider request failed'})
         return
 

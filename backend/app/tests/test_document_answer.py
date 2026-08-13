@@ -190,8 +190,9 @@ def test_success_returns_answer_and_sources(monkeypatch):
     assert "<reference_material>" in request_messages[1]["content"]
 
 
-def test_deepseek_error_raises_provider_error(monkeypatch):
+def test_deepseek_error_raises_provider_error(monkeypatch, caplog):
     request, current_user, db = make_dependencies()
+    caplog.set_level("ERROR")
     response = Mock()
     response.raise_for_status.side_effect = requests.RequestException
 
@@ -220,6 +221,16 @@ def test_deepseek_error_raises_provider_error(monkeypatch):
             current_user=current_user,
             db=db,
         )
+
+    log = next(
+        record.message
+        for record in caplog.records
+        if "event=rag_provider_failed" in record.message
+    )
+    assert "request_id=-" in log
+    assert "provider=deepseek" in log
+    assert "stream=false" in log
+    assert request.question not in log
 
 
 def test_other_user_document_is_not_revealed(monkeypatch):
