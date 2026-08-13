@@ -244,3 +244,27 @@ def test_knowledge_base_stream_route_returns_events(monkeypatch):
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")
+
+
+def test_feedback_route_returns_updated_assistant_message(monkeypatch):
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    monkeypatch.setattr(
+        "backend.app.routers.ai.save_answer_feedback",
+        lambda **_kwargs: SimpleNamespace(
+            id=9,
+            role="assistant",
+            content="Answer",
+            sources=[],
+            feedback="helpful",
+            feedback_comment=None,
+            created_at=__import__("datetime").datetime.now(),
+        ),
+    )
+
+    try:
+        response = client.put("/ai/answer-messages/9/feedback", json={"feedback": "helpful"})
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 200
+    assert response.json()["feedback"] == "helpful"

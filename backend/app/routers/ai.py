@@ -11,7 +11,10 @@ from ..schemas.ai import (
     DocumentAnswerRequest,
     DocumentAnswerResponse,
     KnowledgeBaseAnswerRequest,
+    AnswerFeedbackRequest,
+    ConversationMessageResponse,
 )
+from ..services.answer_feedback import AnswerFeedbackNotFoundError, save_answer_feedback
 from ..services.ai import (
     AiNotConfiguredError,
     AiProviderError,
@@ -31,6 +34,25 @@ from ..exceptions import DocumentNotFoundError
 from ..services.knowledge_bases import KnowledgeBaseNotFoundError
 
 router = APIRouter(prefix='/ai', tags=['ai'])
+
+
+@router.put('/answer-messages/{message_id}/feedback', response_model=ConversationMessageResponse)
+def submit_answer_feedback(
+    message_id: int,
+    payload: AnswerFeedbackRequest,
+    db: Session = Depends(get_db),
+    current_user: UserORM = Depends(get_current_user),
+):
+    try:
+        return save_answer_feedback(
+            message_id=message_id,
+            user_id=current_user.id,
+            feedback=payload.feedback,
+            comment=payload.comment,
+            db=db,
+        )
+    except AnswerFeedbackNotFoundError:
+        raise HTTPException(status_code=404, detail='answer message not found')
 
 
 @router.post('/document-answer', response_model=DocumentAnswerResponse)

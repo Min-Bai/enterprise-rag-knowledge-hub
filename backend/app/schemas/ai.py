@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -33,9 +35,18 @@ class ConversationMessageResponse(BaseModel):
     role: str
     content: str
     sources: list[SourceItem] | None
+    feedback: Literal["helpful", "unhelpful"] | None = None
+    feedback_comment: str | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AnswerFeedbackRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    feedback: Literal["helpful", "unhelpful"]
+    comment: str | None = Field(default=None, max_length=1000)
 
 
 class ConversationResponse(BaseModel):
