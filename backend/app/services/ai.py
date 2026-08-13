@@ -102,6 +102,7 @@ def write_retrieval_audit_log(
             "abstained": not hits,
         },
         db=db,
+        commit=False,
     )
 
 

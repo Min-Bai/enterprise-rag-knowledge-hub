@@ -25,6 +25,24 @@ def test_write_audit_log_persists_structured_event():
     db.commit.assert_called_once()
 
 
+def test_write_audit_log_can_join_an_existing_transaction():
+    db = Mock()
+
+    write_audit_log(
+        actor_user_id=1,
+        action="rag.retrieval_completed",
+        target_type="document",
+        target_id=8,
+        knowledge_base_id=3,
+        details={"hit_count": 0},
+        db=db,
+        commit=False,
+    )
+
+    db.add.assert_called_once()
+    db.commit.assert_not_called()
+
+
 def test_get_audit_logs_includes_actor_username():
     event = SimpleNamespace(
         id=4,

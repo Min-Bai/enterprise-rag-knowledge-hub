@@ -132,6 +132,7 @@ def test_document_answer_audits_retrieval_metadata_without_question_or_content(m
             "abstained": True,
         },
         "db": db,
+        "commit": False,
     }
 
 
