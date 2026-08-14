@@ -180,11 +180,15 @@ expected document page or exact chunk for every question.
 Run the evaluation where Qdrant and the embedding model are available:
 
 ```bash
-python scripts/evaluate_retrieval.py path/to/retrieval_cases.json --k 3
+python scripts/evaluate_retrieval.py path/to/retrieval_cases.json --k 3 \
+  --output reports/retrieval-baseline.json \
+  --min-recall-at-k 0.8 --min-mrr-at-k 0.6
 ```
 
 The report contains `recall_at_k`, `mrr_at_k`, and failed case names. The tool
-only reads vectors; it does not modify documents, Qdrant, or MySQL.
+only reads vectors; it does not modify documents, Qdrant, or MySQL. It records
+the evaluation dataset hash so reports remain comparable. The optional minimum
+metrics make the command fail when retrieval quality regresses.
 
 ## Backups
 

@@ -1,6 +1,8 @@
 """Run a labeled retrieval dataset against the configured Qdrant collection."""
 
 import argparse
+from datetime import UTC, datetime
+from hashlib import sha256
 import json
 import sys
 from pathlib import Path
@@ -46,11 +48,55 @@ def load_cases(path: Path) -> list[RetrievalEvaluationCase]:
     return cases
 
 
+def build_report(
+    *, dataset: Path, report: dict[str, object]
+) -> dict[str, object]:
+    return {
+        **report,
+        "dataset": dataset.name,
+        "dataset_sha256": sha256(dataset.read_bytes()).hexdigest(),
+        "generated_at": datetime.now(UTC).isoformat(),
+    }
+
+
+def check_thresholds(
+    *,
+    report: dict[str, object],
+    min_recall_at_k: float | None,
+    min_mrr_at_k: float | None,
+) -> list[str]:
+    failures: list[str] = []
+    if min_recall_at_k is not None and float(report["recall_at_k"]) < min_recall_at_k:
+        failures.append(
+            f"recall_at_k {float(report['recall_at_k']):.4f} is below {min_recall_at_k:.4f}"
+        )
+    if min_mrr_at_k is not None and float(report["mrr_at_k"]) < min_mrr_at_k:
+        failures.append(
+            f"mrr_at_k {float(report['mrr_at_k']):.4f} is below {min_mrr_at_k:.4f}"
+        )
+    return failures
+
+
+def write_report(*, output: Path, report: dict[str, object]) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("dataset", type=Path)
     parser.add_argument("--k", type=int, default=3)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--min-recall-at-k", type=float)
+    parser.add_argument("--min-mrr-at-k", type=float)
     args = parser.parse_args()
+
+    for name, threshold in {
+        "--min-recall-at-k": args.min_recall_at_k,
+        "--min-mrr-at-k": args.min_mrr_at_k,
+    }.items():
+        if threshold is not None and not 0 <= threshold <= 1:
+            parser.error(f"{name} must be between 0 and 1")
 
     cases = load_cases(args.dataset)
     results = [
@@ -62,7 +108,22 @@ def main() -> int:
         )
         for case in cases
     ]
-    print(json.dumps(evaluate_retrieval_results(cases, results, args.k), indent=2))
+    report = build_report(
+        dataset=args.dataset,
+        report=evaluate_retrieval_results(cases, results, args.k),
+    )
+    if args.output:
+        write_report(output=args.output, report=report)
+    print(json.dumps(report, indent=2))
+
+    failures = check_thresholds(
+        report=report,
+        min_recall_at_k=args.min_recall_at_k,
+        min_mrr_at_k=args.min_mrr_at_k,
+    )
+    if failures:
+        print("Retrieval quality gate failed: " + "; ".join(failures), file=sys.stderr)
+        return 1
     return 0
 
 
