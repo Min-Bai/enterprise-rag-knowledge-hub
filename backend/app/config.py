@@ -78,6 +78,7 @@ DOCUMENT_UPLOAD_RATE_WINDOW_SECONDS = get_positive_int_env(
     "DOCUMENT_UPLOAD_RATE_WINDOW_SECONDS",
     60 * 60,
 )
+MAX_DOCUMENT_SIZE_MB = get_positive_int_env("MAX_DOCUMENT_SIZE_MB", 10)
 
 
 def get_score_env(name: str, default: float) -> float:

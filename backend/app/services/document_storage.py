@@ -4,9 +4,15 @@ from uuid import uuid4
 
 from fastapi import UploadFile
 
+from ..config import MAX_DOCUMENT_SIZE_MB
 
-MAX_DOCUMENT_SIZE = 10 * 1024 * 1024
+
+MAX_DOCUMENT_SIZE = MAX_DOCUMENT_SIZE_MB * 1024 * 1024
 DOCUMENT_DIRECTORY = Path(__file__).resolve().parents[1] / "data" / "documents"
+
+
+class DocumentTooLargeError(ValueError):
+    pass
 
 
 def get_stored_document_file(storage_path: str) -> Path:
@@ -29,7 +35,9 @@ async def save_document_file(file: UploadFile) -> tuple[str, str]:
     content = await file.read(MAX_DOCUMENT_SIZE + 1)
 
     if len(content) > MAX_DOCUMENT_SIZE:
-        raise ValueError("file size must not exceed 10 MB")
+        raise DocumentTooLargeError(
+            f"file size must not exceed {MAX_DOCUMENT_SIZE_MB} MB"
+        )
 
     if not content.startswith(b"%PDF-"):
         raise ValueError("invalid PDF file")

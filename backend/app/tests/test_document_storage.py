@@ -81,5 +81,8 @@ async def test_save_document_file_rejects_oversized_pdf():
         headers={"content-type": "application/pdf"},
     )
 
-    with pytest.raises(ValueError, match="file size must not exceed 10 MB"):
+    with pytest.raises(
+        document_storage.DocumentTooLargeError,
+        match="file size must not exceed 10 MB",
+    ):
         await document_storage.save_document_file(file)

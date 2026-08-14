@@ -11,7 +11,11 @@ from ..schemas.document import (
     DocumentSearchResponse,
     DocumentTagsUpdateRequest,
 )
-from ..services.document_storage import get_stored_document_file, save_document_file
+from ..services.document_storage import (
+    DocumentTooLargeError,
+    get_stored_document_file,
+    save_document_file,
+)
 from ..services.documents import (
     create_document_service,
     delete_document_service,
@@ -74,6 +78,8 @@ async def upload_document(
     try:
         document_tags = parse_document_tags(tags)
         storage_path, content_sha256 = await save_document_file(file)
+    except DocumentTooLargeError as error:
+        raise HTTPException(status_code=413, detail=str(error))
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
 

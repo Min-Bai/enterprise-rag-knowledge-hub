@@ -116,7 +116,11 @@ MYSQL_USER=enterprise_rag
 MYSQL_PASSWORD=replace-with-a-private-password
 MYSQL_ROOT_PASSWORD=replace-with-a-different-private-password
 DATABASE_URL=mysql+pymysql://enterprise_rag:replace-with-a-private-password@mysql:3306/enterprise_rag?charset=utf8mb4
+MAX_DOCUMENT_SIZE_MB=10
 ```
+
+PDF uploads default to 10 MB. Increase `MAX_DOCUMENT_SIZE_MB` only after
+confirming that API, worker, and storage capacity support the larger files.
 
 ## Run With Docker Compose
 
