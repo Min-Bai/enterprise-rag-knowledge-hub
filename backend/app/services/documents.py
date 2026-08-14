@@ -70,6 +70,8 @@ def get_documents_service(
     db: Session,
     user_id: int,
     knowledge_base_id: int | None = None,
+    limit: int = 100,
+    offset: int = 0,
 ) -> list[DocumentORM]:
     if knowledge_base_id is not None:
         knowledge_base = get_knowledge_base_service(db, knowledge_base_id, user_id)
@@ -78,7 +80,7 @@ def get_documents_service(
     else:
         statement = select(DocumentORM).where(DocumentORM.user_id == user_id)
     statement = statement.order_by(DocumentORM.created_at.desc())
-    return list(db.scalars(statement).all())
+    return list(db.scalars(statement.limit(limit).offset(offset)).all())
 
 
 def get_document_service(

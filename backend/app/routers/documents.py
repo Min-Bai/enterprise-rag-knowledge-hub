@@ -48,6 +48,8 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 @router.get("", response_model=list[DocumentResponse])
 def get_documents(
     knowledge_base_id: int | None = Query(default=None, ge=1),
+    limit: int = Query(default=100, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     current_user: UserORM = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -56,6 +58,8 @@ def get_documents(
             db=db,
             user_id=current_user.id,
             knowledge_base_id=knowledge_base_id,
+            limit=limit,
+            offset=offset,
         )
     except KnowledgeBaseNotFoundError:
         raise HTTPException(status_code=404, detail="knowledge base not found")
