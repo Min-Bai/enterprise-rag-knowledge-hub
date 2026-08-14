@@ -127,6 +127,35 @@ textarea {
   gap: 8px;
 }
 
+.knowledge-base-select-row {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.role-badge {
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 8px;
+  text-transform: capitalize;
+}
+
+.role-badge.owner {
+  background: #e5f0ff;
+  color: #164e8c;
+}
+
+.role-badge.editor {
+  background: #e7f6ee;
+  color: #176642;
+}
+
+.role-badge.viewer {
+  background: #f0f2f4;
+  color: #44515b;
+}
+
 .conversation-controls {
   display: grid;
   gap: 8px;

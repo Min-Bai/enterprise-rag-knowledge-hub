@@ -786,7 +786,16 @@ function App() {
               </div>
             )}
           </div>
-          <label htmlFor="knowledge-base-select">Current knowledge base</label>
+          <div className="knowledge-base-select-row">
+            <label htmlFor="knowledge-base-select">
+              Current knowledge base
+            </label>
+            {selectedKnowledgeBase && (
+              <span className={`role-badge ${selectedKnowledgeBaseRole}`}>
+                {selectedKnowledgeBaseRole}
+              </span>
+            )}
+          </div>
           <select
             id="knowledge-base-select"
             value={selectedKnowledgeBaseId}
