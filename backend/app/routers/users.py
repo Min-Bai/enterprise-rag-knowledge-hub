@@ -115,19 +115,28 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 @router.get("", response_model=list[UserResponse])
 def get_users(
     is_active: bool | None = None,
+    current_admin: UserORM = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     return get_users_service(db=db, is_active=is_active)
 
 @router.get("/{user_id}/detail", response_model=UserDetailResponse)
-def get_user_detail(user_id: int, db: Session = Depends(get_db)):
+def get_user_detail(
+    user_id: int,
+    current_admin: UserORM = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     try:
         return get_user_detail_service(user_id=user_id, db=db)
     except UserNotFoundError:
         raise HTTPException(status_code=404, detail="user not found")
 
 @router.get("/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(
+    user_id: int,
+    current_admin: UserORM = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     try:
         return get_user_service(user_id=user_id, db=db)
     except UserNotFoundError:

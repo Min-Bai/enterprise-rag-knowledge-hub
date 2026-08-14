@@ -147,7 +147,7 @@ def test_get_users():
     )
     assert create_response.status_code == 200
 
-    response = client.get("/users")
+    response = client.get("/users", headers=auth_headers(1))
 
     assert response.status_code == 200
 
@@ -162,7 +162,7 @@ def test_get_user_by_id():
     assert create_response.status_code == 200
     created_user = create_response.json()
 
-    response = client.get(f"/users/{created_user['id']}")
+    response = client.get(f"/users/{created_user['id']}", headers=auth_headers(1))
 
     assert response.status_code == 200
     assert response.json()["id"] == created_user["id"]
@@ -171,7 +171,7 @@ def test_get_user_by_id():
 
 
 def test_get_missing_user_returns_404():
-    response = client.get("/users/999999")
+    response = client.get("/users/999999", headers=auth_headers(1))
 
     assert response.status_code == 404
     assert response.json()["detail"] == "user not found"
@@ -331,7 +331,7 @@ def test_get_users_filter_by_is_active_false():
     )
     assert update_response.status_code == 200
 
-    response = client.get("/users", params={"is_active": "false"})
+    response = client.get("/users", params={"is_active": "false"}, headers=auth_headers(1))
 
     assert response.status_code == 200
 
@@ -346,7 +346,7 @@ def test_get_users_filter_by_is_active_true():
     create_response = client.post("/users", json={"username": username, "password": "secret123"})
     assert create_response.status_code == 200
 
-    response = client.get("/users", params={"is_active": "true"})
+    response = client.get("/users", params={"is_active": "true"}, headers=auth_headers(1))
 
     assert response.status_code == 200
 
@@ -363,7 +363,7 @@ def test_get_user_detail():
     assert user_response.status_code == 200
     user = user_response.json()
 
-    response = client.get(f"/users/{user['id']}/detail")
+    response = client.get(f"/users/{user['id']}/detail", headers=auth_headers(1))
 
     assert response.status_code == 200
 
@@ -372,10 +372,30 @@ def test_get_user_detail():
     assert data["username"] == user["username"]
 
 def test_get_missing_user_detail_returns_404():
-    response = client.get("/users/999999/detail")
+    response = client.get("/users/999999/detail", headers=auth_headers(1))
 
     assert response.status_code == 404
     assert response.json()["detail"] == "user not found"
+
+
+def test_user_directory_requires_an_admin_account():
+    anonymous_response = client.get("/users")
+    assert anonymous_response.status_code == 401
+
+    user_response = client.post(
+        "/users",
+        json={"username": f"user_{uuid4().hex[:8]}", "password": "secret123"},
+    )
+    user = user_response.json()
+
+    response = client.get("/users", headers=auth_headers(user["id"]))
+    assert response.status_code == 403
+    assert response.json()["detail"] == "admin permission required"
+
+
+def test_user_detail_requires_an_admin_account():
+    response = client.get("/users/1")
+    assert response.status_code == 401
 
 def test_duplicate_user_returns_400_without_duplicate_side_effects():
     username = f"user_{uuid4().hex[:8]}"
