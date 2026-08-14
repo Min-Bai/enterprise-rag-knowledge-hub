@@ -32,6 +32,8 @@ import LoginForm from "./LoginForm.jsx";
 import ConversationControls from "./ConversationControls.jsx";
 import WorkspaceHeader from "./WorkspaceHeader.jsx";
 
+const MAX_DOCUMENT_UPLOAD_BYTES = 10 * 1024 * 1024;
+
 function getConversationLabel(conversation) {
   const question = conversation.messages
     ?.find((message) => message.role === "user")
@@ -1009,7 +1011,14 @@ function App() {
                     type="file"
                     accept="application/pdf,.pdf"
                     onChange={(event) => {
-                      setDocumentFile(event.target.files?.[0] ?? null);
+                      const file = event.target.files?.[0] ?? null;
+                      if (file && file.size > MAX_DOCUMENT_UPLOAD_BYTES) {
+                        setDocumentFile(null);
+                        setDocumentUploadError("文件不能超过 10 MB");
+                        event.target.value = "";
+                        return;
+                      }
+                      setDocumentFile(file);
                       setDocumentUploadError("");
                     }}
                   />
