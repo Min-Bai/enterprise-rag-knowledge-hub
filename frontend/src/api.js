@@ -317,14 +317,19 @@ export async function uploadDocument(accessToken, file, knowledgeBaseId, tags) {
   formData.append("file", file);
   formData.append("knowledge_base_id", knowledgeBaseId);
   if (tags?.length) formData.append("tags", tags.join(","));
-  return readJson(
-    await fetch(`${API_PREFIX}/documents`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
-      body: formData,
-    }),
-    "Failed to upload document",
-  );
+  try {
+    return await readJson(
+      await fetch(`${API_PREFIX}/documents`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: formData,
+      }),
+      "上传文档失败",
+    );
+  } catch (error) {
+    if (error.status === 413) throw new Error("文件不能超过 10 MB");
+    throw error;
+  }
 }
 
 export async function getMyDocuments(
