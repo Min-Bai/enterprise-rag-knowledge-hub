@@ -158,6 +158,12 @@ as a command-line argument:
 docker compose exec -it api python scripts/create_admin.py --username admin
 ```
 
+To promote an existing user after verifying their identity:
+
+```bash
+docker compose exec -it api python scripts/promote_user.py --username username
+```
+
 Self-registration is disabled by default. An authenticated administrator can
 create additional users through `POST /users`; set `ALLOW_SELF_REGISTRATION=true`
 only for an explicitly intended self-service environment.
