@@ -111,6 +111,10 @@ RAG_QUERY_REWRITE_ENABLED = get_optional_bool_env(
     "RAG_QUERY_REWRITE_ENABLED",
     False,
 )
+ALLOW_SELF_REGISTRATION = get_optional_bool_env(
+    "ALLOW_SELF_REGISTRATION",
+    False,
+)
 
 CORS_ORIGINS = [
     origin.strip()

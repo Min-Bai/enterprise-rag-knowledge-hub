@@ -45,6 +45,11 @@ app.dependency_overrides[get_db] = override_get_db
 app.dependency_overrides[enforce_login_rate_limit] = lambda: None
 
 
+@pytest.fixture(autouse=True)
+def allow_self_registration_in_tests(monkeypatch):
+    monkeypatch.setattr("backend.app.routers.users.ALLOW_SELF_REGISTRATION", True)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_database():
     Base.metadata.drop_all(bind=test_engine)

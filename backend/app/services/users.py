@@ -65,17 +65,30 @@ def update_user_service(user_id: int, user_update: UserUpdate, db: Session):
 
 
 def create_user_service(user: UserCreate, db: Session):
-    user = UserORM(username=user.username, email=user.email, password_hash=hash_password(user.password))
-    db.add(user)
+    return create_user_with_role_service(user=user, role="user", db=db)
+
+
+def create_admin_user_service(user: UserCreate, db: Session):
+    return create_user_with_role_service(user=user, role="admin", db=db)
+
+
+def create_user_with_role_service(*, user: UserCreate, role: str, db: Session):
+    new_user = UserORM(
+        username=user.username,
+        email=user.email,
+        password_hash=hash_password(user.password),
+        role=role,
+    )
+    db.add(new_user)
     try:
         db.flush()
-        get_default_knowledge_base_service(db, user.id)
+        get_default_knowledge_base_service(db, new_user.id)
         db.commit()
     except IntegrityError:
         db.rollback()
         raise DuplicateUsernameError('username already exists')
-    db.refresh(user)
-    return user
+    db.refresh(new_user)
+    return new_user
 
 
 def get_user_detail_service(user_id: int, db: Session):

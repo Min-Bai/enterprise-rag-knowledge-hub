@@ -150,6 +150,18 @@ docker compose up -d --build
 docker compose ps
 ```
 
+For a new deployment, create the first administrator from an interactive
+terminal after the API is running. The password is prompted and is not passed
+as a command-line argument:
+
+```bash
+docker compose exec -it api python scripts/create_admin.py --username admin
+```
+
+Self-registration is disabled by default. An authenticated administrator can
+create additional users through `POST /users`; set `ALLOW_SELF_REGISTRATION=true`
+only for an explicitly intended self-service environment.
+
 The API runs Alembic migrations on startup. Health endpoints:
 
 ```text

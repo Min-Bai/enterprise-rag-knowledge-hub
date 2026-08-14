@@ -30,7 +30,8 @@ from ..exceptions import (
     UserNotFoundError,
     IncorrectPasswordError,
 )
-from ..auth import get_current_user, require_admin
+from ..auth import get_current_user, get_optional_current_user, raise_unauthorized, require_admin
+from ..config import ALLOW_SELF_REGISTRATION
 from ..models.user import UserORM
 
 
@@ -106,7 +107,16 @@ def logout(
     )
 
 @router.post("", response_model=UserResponse)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+def create_user(
+    user: UserCreate,
+    current_user: UserORM | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+):
+    if not ALLOW_SELF_REGISTRATION:
+        if current_user is None:
+            raise_unauthorized("self registration is disabled")
+        if current_user.role != "admin":
+            raise HTTPException(status_code=403, detail="admin permission required")
     try:
         return create_user_service(user=user, db=db)
     except DuplicateUsernameError:

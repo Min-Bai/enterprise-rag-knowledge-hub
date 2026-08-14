@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from backend.app.main import app
 from backend.app.security import create_access_token
+from backend.app.routers import users as users_router
 
 
 client = TestClient(app)
@@ -120,6 +121,35 @@ def test_create_user():
     assert isinstance(data["id"], int)
     assert "password" not in data
     assert "password_hash" not in data
+
+
+def test_registration_can_be_disabled_without_blocking_administrators(monkeypatch):
+    regular_user = client.post(
+        "/users",
+        json={"username": f"user_{uuid4().hex[:8]}", "password": "secret123"},
+    ).json()
+    monkeypatch.setattr(users_router, "ALLOW_SELF_REGISTRATION", False)
+
+    anonymous_response = client.post(
+        "/users",
+        json={"username": f"user_{uuid4().hex[:8]}", "password": "secret123"},
+    )
+    assert anonymous_response.status_code == 401
+    assert anonymous_response.json()["detail"] == "self registration is disabled"
+
+    regular_user_response = client.post(
+        "/users",
+        json={"username": f"user_{uuid4().hex[:8]}", "password": "secret123"},
+        headers=auth_headers(regular_user["id"]),
+    )
+    assert regular_user_response.status_code == 403
+
+    admin_response = client.post(
+        "/users",
+        json={"username": f"user_{uuid4().hex[:8]}", "password": "secret123"},
+        headers=auth_headers(1),
+    )
+    assert admin_response.status_code == 200
 
 def test_create_duplicate_user_returns_400():
     username = f"user_{uuid4().hex[:8]}"
