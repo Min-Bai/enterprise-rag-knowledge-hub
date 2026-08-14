@@ -263,11 +263,19 @@ export async function removeKnowledgeBaseMember(
     await readJson(response, "Failed to remove knowledge base member");
 }
 
-export async function getKnowledgeBaseAuditLogs(accessToken, knowledgeBaseId) {
+export async function getKnowledgeBaseAuditLogs(
+  accessToken,
+  knowledgeBaseId,
+  offset = 0,
+  limit = 100,
+) {
   return readJson(
-    await fetch(`${API_PREFIX}/knowledge-bases/${knowledgeBaseId}/audit-logs`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }),
+    await fetch(
+      `${API_PREFIX}/knowledge-bases/${knowledgeBaseId}/audit-logs?offset=${offset}&limit=${limit}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    ),
     "Failed to load audit logs",
   );
 }

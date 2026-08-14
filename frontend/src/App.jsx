@@ -54,6 +54,8 @@ function App() {
   const [knowledgeBaseError, setKnowledgeBaseError] = useState("");
   const [knowledgeBaseMembers, setKnowledgeBaseMembers] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [hasMoreAuditLogs, setHasMoreAuditLogs] = useState(false);
+  const [isLoadingMoreAuditLogs, setIsLoadingMoreAuditLogs] = useState(false);
   const [feedbackSummary, setFeedbackSummary] = useState(null);
   const [memberUsername, setMemberUsername] = useState("");
   const [memberRole, setMemberRole] = useState("viewer");
@@ -117,11 +119,36 @@ function App() {
   async function refreshAuditLogs(knowledgeBaseId = selectedKnowledgeBaseId) {
     if (!accessToken || !knowledgeBaseId) return;
     try {
-      setAuditLogs(
-        await getKnowledgeBaseAuditLogs(accessToken, knowledgeBaseId),
+      const data = await getKnowledgeBaseAuditLogs(
+        accessToken,
+        knowledgeBaseId,
       );
+      setAuditLogs(data);
+      setHasMoreAuditLogs(data.length === 100);
     } catch (error) {
       if (error.status === 401) clearSession();
+    }
+  }
+
+  async function handleLoadMoreAuditLogs() {
+    setIsLoadingMoreAuditLogs(true);
+    try {
+      const data = await getKnowledgeBaseAuditLogs(
+        accessToken,
+        selectedKnowledgeBaseId,
+        auditLogs.length,
+      );
+      setAuditLogs((current) => [
+        ...current,
+        ...data.filter(
+          (item) => !current.some((event) => event.id === item.id),
+        ),
+      ]);
+      setHasMoreAuditLogs(data.length === 100);
+    } catch (error) {
+      setKnowledgeBaseError(error.message);
+    } finally {
+      setIsLoadingMoreAuditLogs(false);
     }
   }
 
@@ -895,6 +922,17 @@ function App() {
                   </li>
                 ))}
               </ul>
+              {hasMoreAuditLogs && (
+                <button
+                  type="button"
+                  disabled={isLoadingMoreAuditLogs}
+                  onClick={handleLoadMoreAuditLogs}
+                >
+                  {isLoadingMoreAuditLogs
+                    ? "Loading..."
+                    : "Load more audit logs"}
+                </button>
+              )}
             </section>
           )}
           {auditLogs.length > 0 && (
