@@ -22,13 +22,16 @@ def write_audit_log(
         db.commit()
 
 
-def get_knowledge_base_audit_logs(*, knowledge_base_id: int, db: Session, limit: int = 100) -> list[dict[str, object]]:
+def get_knowledge_base_audit_logs(
+    *, knowledge_base_id: int, db: Session, limit: int = 100, offset: int = 0
+) -> list[dict[str, object]]:
     rows = db.execute(
         select(AuditLogORM, UserORM.username)
         .join(UserORM, UserORM.id == AuditLogORM.actor_user_id)
         .where(AuditLogORM.knowledge_base_id == knowledge_base_id)
         .order_by(AuditLogORM.id.desc())
         .limit(limit)
+        .offset(offset)
     ).all()
     return [
         {

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -145,11 +145,22 @@ def remove_member(knowledge_base_id: int, user_id: int, current_user: UserORM = 
 
 
 @router.get("/{knowledge_base_id}/audit-logs", response_model=list[AuditLogResponse])
-def get_audit_logs(knowledge_base_id: int, current_user: UserORM = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_audit_logs(
+    knowledge_base_id: int,
+    limit: int = Query(default=100, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    current_user: UserORM = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     try:
         knowledge_base = get_knowledge_base_service(db, knowledge_base_id, current_user.id)
         require_knowledge_base_role(knowledge_base=knowledge_base, user_id=current_user.id, db=db, allowed_roles={"owner"})
-        return get_knowledge_base_audit_logs(knowledge_base_id=knowledge_base.id, db=db)
+        return get_knowledge_base_audit_logs(
+            knowledge_base_id=knowledge_base.id,
+            limit=limit,
+            offset=offset,
+            db=db,
+        )
     except KnowledgeBaseNotFoundError:
         raise HTTPException(status_code=404, detail="knowledge base not found")
     except KnowledgeBaseAccessDeniedError:
