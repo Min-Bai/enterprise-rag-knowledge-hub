@@ -30,6 +30,7 @@ import {
 } from "./api.js";
 import LoginForm from "./LoginForm.jsx";
 import ConversationControls from "./ConversationControls.jsx";
+import WorkspaceHeader from "./WorkspaceHeader.jsx";
 
 function getConversationLabel(conversation) {
   const question = conversation.messages
@@ -39,12 +40,27 @@ function getConversationLabel(conversation) {
   return question.length > 48 ? `${question.slice(0, 48)}...` : question;
 }
 
+function getRoleLabel(role) {
+  return { owner: "所有者", editor: "编辑者", viewer: "查看者" }[role] || role;
+}
+
+function getDocumentStatusLabel(status) {
+  return (
+    {
+      uploaded: "待处理",
+      processing: "处理中",
+      ready: "已就绪",
+      failed: "处理失败",
+    }[status] || status
+  );
+}
+
 function App() {
   const [accessToken, setAccessToken] = useState(() =>
     sessionStorage.getItem("access_token"),
   );
   const [apiStatus, setApiStatus] = useState({
-    message: "Checking API...",
+    message: "正在检查 API 状态...",
     isError: false,
   });
   const [knowledgeBases, setKnowledgeBases] = useState([]);
@@ -156,12 +172,12 @@ function App() {
     getApiHealth()
       .then((data) =>
         setApiStatus({
-          message: `API connected. Database: ${data.database}`,
+          message: `服务正常，数据库：${data.database}`,
           isError: false,
         }),
       )
       .catch(() =>
-        setApiStatus({ message: "API is unavailable", isError: true }),
+        setApiStatus({ message: "API 服务暂不可用", isError: true }),
       );
   }, []);
 
@@ -372,7 +388,7 @@ function App() {
     );
     if (
       !knowledgeBase ||
-      !window.confirm(`Delete knowledge base "${knowledgeBase.name}"?`)
+      !window.confirm(`确定删除知识库“${knowledgeBase.name}”吗？`)
     )
       return;
     setDeletingKnowledgeBaseId(knowledgeBase.id);
@@ -490,7 +506,7 @@ function App() {
   }
 
   async function handleDeleteDocument(documentId) {
-    if (!window.confirm("Delete this document?")) return;
+    if (!window.confirm("确定删除这份文档吗？")) return;
     setDeletingDocumentId(documentId);
     try {
       await deleteDocument(accessToken, documentId);
@@ -584,10 +600,7 @@ function App() {
 
   async function handleDeleteConversation() {
     const conversationId = Number(selectedConversationId);
-    if (
-      !conversationId ||
-      !window.confirm("Delete this conversation and all of its messages?")
-    )
+    if (!conversationId || !window.confirm("确定删除当前对话及其全部消息吗？"))
       return;
     setDeletingConversationId(conversationId);
     setDocumentAnswerError("");
@@ -623,7 +636,7 @@ function App() {
 
   async function handleEditDocumentTags(document) {
     const value = window.prompt(
-      "Tags, separated by commas",
+      "请输入标签，多个标签请用英文逗号分隔",
       document.tags?.join(", ") || "",
     );
     if (value === null) return;
@@ -714,9 +727,7 @@ function App() {
   async function handleFeedback(messageId, feedback) {
     setDocumentAnswerError("");
     const comment =
-      feedback === "unhelpful"
-        ? window.prompt("What should be improved?")
-        : null;
+      feedback === "unhelpful" ? window.prompt("请说明需要改进的地方") : null;
     if (comment === null && feedback === "unhelpful") return;
     try {
       const updated = await submitAnswerFeedback(
@@ -740,655 +751,660 @@ function App() {
 
   return (
     <main className="app-shell">
-      <header className="app-header">
-        <div>
-          <h1>Enterprise Knowledge Hub</h1>
-          <p className={apiStatus.isError ? "api-status error" : "api-status"}>
-            {apiStatus.message}
-          </p>
-        </div>
-        {accessToken && (
-          <button
-            className="logout-button"
-            type="button"
-            disabled={isLoggingOut}
-            onClick={handleLogout}
-          >
-            Log out
-          </button>
-        )}
-      </header>
+      <WorkspaceHeader
+        apiStatus={apiStatus}
+        isAuthenticated={Boolean(accessToken)}
+        isLoggingOut={isLoggingOut}
+        onLogout={handleLogout}
+      />
       {!accessToken ? (
         <LoginForm onLogin={handleLogin} />
       ) : (
-        <section
-          className="document-answer-panel"
-          aria-label="Knowledge base documents"
-        >
-          <div className="knowledge-base-header">
-            <div>
-              <h2>Knowledge bases</h2>
-              <p>Organize private documents and ask grounded questions.</p>
-            </div>
-            {canManageKnowledgeBase && (
-              <div className="knowledge-base-actions">
-                <button type="button" onClick={startEditingKnowledgeBase}>
-                  Edit knowledge base
-                </button>
-                <button
-                  type="button"
-                  className="delete-button"
-                  disabled={deletingKnowledgeBaseId !== null}
-                  onClick={handleDeleteKnowledgeBase}
-                >
-                  Delete knowledge base
-                </button>
+        <section className="workspace" aria-label="知识库工作台">
+          <div className="workspace-layout">
+            <aside className="workspace-sidebar">
+              <div className="knowledge-base-header">
+                <div>
+                  <h2>知识库</h2>
+                  <p>管理私有资料，并基于来源进行可信问答。</p>
+                </div>
+                {canManageKnowledgeBase && (
+                  <div className="knowledge-base-actions">
+                    <button type="button" onClick={startEditingKnowledgeBase}>
+                      编辑知识库
+                    </button>
+                    <button
+                      type="button"
+                      className="delete-button"
+                      disabled={deletingKnowledgeBaseId !== null}
+                      onClick={handleDeleteKnowledgeBase}
+                    >
+                      删除知识库
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <div className="knowledge-base-select-row">
-            <label htmlFor="knowledge-base-select">
-              Current knowledge base
-            </label>
-            {selectedKnowledgeBase && (
-              <span className={`role-badge ${selectedKnowledgeBaseRole}`}>
-                {selectedKnowledgeBaseRole}
-              </span>
-            )}
-          </div>
-          <select
-            id="knowledge-base-select"
-            value={selectedKnowledgeBaseId}
-            onChange={(event) => {
-              setSelectedKnowledgeBaseId(event.target.value);
-              setDocumentAnswer(null);
-            }}
-          >
-            <option value="">Choose a knowledge base</option>
-            {knowledgeBases.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-          {canManageKnowledgeBase && editingKnowledgeBase && (
-            <form
-              className="knowledge-base-form"
-              onSubmit={handleUpdateKnowledgeBase}
-            >
-              <label htmlFor="edit-knowledge-base-name">
-                Knowledge base name
-              </label>
-              <input
-                id="edit-knowledge-base-name"
-                value={editKnowledgeBaseName}
-                maxLength={100}
-                onChange={(event) =>
-                  setEditKnowledgeBaseName(event.target.value)
-                }
-              />
-              <label htmlFor="edit-knowledge-base-description">
-                Description
-              </label>
-              <textarea
-                id="edit-knowledge-base-description"
-                value={editKnowledgeBaseDescription}
-                maxLength={2000}
-                onChange={(event) =>
-                  setEditKnowledgeBaseDescription(event.target.value)
-                }
-              />
-              <div className="knowledge-base-actions">
+              <div className="knowledge-base-select-row">
+                <label htmlFor="knowledge-base-select">当前知识库</label>
+                {selectedKnowledgeBase && (
+                  <span className={`role-badge ${selectedKnowledgeBaseRole}`}>
+                    {getRoleLabel(selectedKnowledgeBaseRole)}
+                  </span>
+                )}
+              </div>
+              <select
+                id="knowledge-base-select"
+                value={selectedKnowledgeBaseId}
+                onChange={(event) => {
+                  setSelectedKnowledgeBaseId(event.target.value);
+                  setDocumentAnswer(null);
+                }}
+              >
+                <option value="">请选择知识库</option>
+                {knowledgeBases.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+              {canManageKnowledgeBase && editingKnowledgeBase && (
+                <form
+                  className="knowledge-base-form"
+                  onSubmit={handleUpdateKnowledgeBase}
+                >
+                  <label htmlFor="edit-knowledge-base-name">知识库名称</label>
+                  <input
+                    id="edit-knowledge-base-name"
+                    value={editKnowledgeBaseName}
+                    maxLength={100}
+                    onChange={(event) =>
+                      setEditKnowledgeBaseName(event.target.value)
+                    }
+                  />
+                  <label htmlFor="edit-knowledge-base-description">描述</label>
+                  <textarea
+                    id="edit-knowledge-base-description"
+                    value={editKnowledgeBaseDescription}
+                    maxLength={2000}
+                    onChange={(event) =>
+                      setEditKnowledgeBaseDescription(event.target.value)
+                    }
+                  />
+                  <div className="knowledge-base-actions">
+                    <button
+                      type="submit"
+                      disabled={
+                        !editKnowledgeBaseName.trim() || isEditingKnowledgeBase
+                      }
+                    >
+                      {isEditingKnowledgeBase ? "正在保存..." : "保存修改"}
+                    </button>
+                    <button
+                      type="button"
+                      className="logout-button"
+                      disabled={isEditingKnowledgeBase}
+                      onClick={() => setEditingKnowledgeBase(false)}
+                    >
+                      取消
+                    </button>
+                  </div>
+                </form>
+              )}
+              <form
+                className="knowledge-base-form"
+                onSubmit={handleCreateKnowledgeBase}
+              >
+                <label htmlFor="knowledge-base-name">新建知识库</label>
+                <input
+                  id="knowledge-base-name"
+                  value={knowledgeBaseName}
+                  maxLength={100}
+                  placeholder="例如：员工手册"
+                  onChange={(event) => setKnowledgeBaseName(event.target.value)}
+                />
+                <label htmlFor="knowledge-base-description">描述</label>
+                <textarea
+                  id="knowledge-base-description"
+                  value={knowledgeBaseDescription}
+                  maxLength={2000}
+                  placeholder="可选说明"
+                  onChange={(event) =>
+                    setKnowledgeBaseDescription(event.target.value)
+                  }
+                />
                 <button
                   type="submit"
                   disabled={
-                    !editKnowledgeBaseName.trim() || isEditingKnowledgeBase
+                    !knowledgeBaseName.trim() || isCreatingKnowledgeBase
                   }
                 >
-                  {isEditingKnowledgeBase ? "Saving..." : "Save changes"}
-                </button>
-                <button
-                  type="button"
-                  className="logout-button"
-                  disabled={isEditingKnowledgeBase}
-                  onClick={() => setEditingKnowledgeBase(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-          <form
-            className="knowledge-base-form"
-            onSubmit={handleCreateKnowledgeBase}
-          >
-            <label htmlFor="knowledge-base-name">New knowledge base</label>
-            <input
-              id="knowledge-base-name"
-              value={knowledgeBaseName}
-              maxLength={100}
-              placeholder="For example: Employee handbook"
-              onChange={(event) => setKnowledgeBaseName(event.target.value)}
-            />
-            <label htmlFor="knowledge-base-description">Description</label>
-            <textarea
-              id="knowledge-base-description"
-              value={knowledgeBaseDescription}
-              maxLength={2000}
-              placeholder="Optional description"
-              onChange={(event) =>
-                setKnowledgeBaseDescription(event.target.value)
-              }
-            />
-            <button
-              type="submit"
-              disabled={!knowledgeBaseName.trim() || isCreatingKnowledgeBase}
-            >
-              {isCreatingKnowledgeBase
-                ? "Creating..."
-                : "Create knowledge base"}
-            </button>
-          </form>
-          {knowledgeBaseMembers.length > 0 && (
-            <section className="knowledge-base-members">
-              <h2>Members</h2>
-              <form className="knowledge-base-form" onSubmit={handleAddMember}>
-                <label htmlFor="member-username">Username</label>
-                <input
-                  id="member-username"
-                  value={memberUsername}
-                  maxLength={50}
-                  onChange={(event) => setMemberUsername(event.target.value)}
-                />
-                <label htmlFor="member-role">Role</label>
-                <select
-                  id="member-role"
-                  value={memberRole}
-                  onChange={(event) => setMemberRole(event.target.value)}
-                >
-                  <option value="viewer">Viewer</option>
-                  <option value="editor">Editor</option>
-                </select>
-                <button type="submit" disabled={!memberUsername.trim()}>
-                  Add member
+                  {isCreatingKnowledgeBase ? "正在创建..." : "创建知识库"}
                 </button>
               </form>
-              <ul className="document-list">
-                {knowledgeBaseMembers.map((member) => (
-                  <li key={member.user_id} className="document-list-item">
-                    <span>
-                      {member.username} ({member.role})
-                    </span>
-                    {member.role !== "owner" && (
-                      <button
-                        type="button"
-                        className="delete-button"
-                        onClick={() => handleRemoveMember(member.user_id)}
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {hasMoreAuditLogs && (
-                <button
-                  type="button"
-                  disabled={isLoadingMoreAuditLogs}
-                  onClick={handleLoadMoreAuditLogs}
-                >
-                  {isLoadingMoreAuditLogs
-                    ? "Loading..."
-                    : "Load more audit logs"}
-                </button>
+              {knowledgeBaseMembers.length > 0 && (
+                <section className="knowledge-base-members">
+                  <h2>成员协作</h2>
+                  <form
+                    className="knowledge-base-form"
+                    onSubmit={handleAddMember}
+                  >
+                    <label htmlFor="member-username">用户名</label>
+                    <input
+                      id="member-username"
+                      value={memberUsername}
+                      maxLength={50}
+                      onChange={(event) =>
+                        setMemberUsername(event.target.value)
+                      }
+                    />
+                    <label htmlFor="member-role">权限角色</label>
+                    <select
+                      id="member-role"
+                      value={memberRole}
+                      onChange={(event) => setMemberRole(event.target.value)}
+                    >
+                      <option value="viewer">查看者</option>
+                      <option value="editor">编辑者</option>
+                    </select>
+                    <button type="submit" disabled={!memberUsername.trim()}>
+                      添加成员
+                    </button>
+                  </form>
+                  <ul className="document-list">
+                    {knowledgeBaseMembers.map((member) => (
+                      <li key={member.user_id} className="document-list-item">
+                        <span>
+                          {member.username}（{getRoleLabel(member.role)}）
+                        </span>
+                        {member.role !== "owner" && (
+                          <button
+                            type="button"
+                            className="delete-button"
+                            onClick={() => handleRemoveMember(member.user_id)}
+                          >
+                            移除
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  {hasMoreAuditLogs && (
+                    <button
+                      type="button"
+                      disabled={isLoadingMoreAuditLogs}
+                      onClick={handleLoadMoreAuditLogs}
+                    >
+                      {isLoadingMoreAuditLogs
+                        ? "正在加载..."
+                        : "加载更多审计记录"}
+                    </button>
+                  )}
+                </section>
               )}
-            </section>
-          )}
-          {auditLogs.length > 0 && (
-            <section className="knowledge-base-members">
-              <h2>Audit log</h2>
-              <ul className="document-list">
-                {auditLogs.map((event) => (
-                  <li key={event.id} className="document-list-item">
-                    <div>
-                      <strong>{event.action}</strong>
-                      <span className="audit-actor">
-                        {event.actor_username} · {event.target_type}
-                        {event.target_id ? ` #${event.target_id}` : ""}
-                      </span>
-                      {event.details && (
-                        <small className="audit-details">
-                          {Object.entries(event.details)
-                            .map(([key, value]) => `${key}: ${value}`)
-                            .join(" · ")}
-                        </small>
-                      )}
-                    </div>
-                    <time dateTime={event.created_at}>
-                      {new Date(event.created_at).toLocaleString()}
-                    </time>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-          {feedbackSummary && (
-            <section className="knowledge-base-members">
-              <h2>Answer quality</h2>
-              <p>
-                {feedbackSummary.total_feedback} ratings ·{" "}
-                {feedbackSummary.helpful_count} helpful ·{" "}
-                {feedbackSummary.unhelpful_count} not helpful
-                {feedbackSummary.helpful_rate !== null
-                  ? ` · ${Math.round(feedbackSummary.helpful_rate * 100)}% helpful`
-                  : ""}
-              </p>
-              {feedbackSummary.recent_unhelpful.length > 0 && (
-                <ul className="document-list">
-                  {feedbackSummary.recent_unhelpful.map((item) => (
-                    <li key={item.message_id} className="document-list-item">
-                      <span>{item.comment || item.answer}</span>
+              {auditLogs.length > 0 && (
+                <section className="knowledge-base-members">
+                  <h2>审计记录</h2>
+                  <ul className="document-list">
+                    {auditLogs.map((event) => (
+                      <li key={event.id} className="document-list-item">
+                        <div>
+                          <strong>{event.action}</strong>
+                          <span className="audit-actor">
+                            {event.actor_username} · {event.target_type}
+                            {event.target_id ? ` #${event.target_id}` : ""}
+                          </span>
+                          {event.details && (
+                            <small className="audit-details">
+                              {Object.entries(event.details)
+                                .map(([key, value]) => `${key}: ${value}`)
+                                .join(" · ")}
+                            </small>
+                          )}
+                        </div>
+                        <time dateTime={event.created_at}>
+                          {new Date(event.created_at).toLocaleString()}
+                        </time>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {feedbackSummary && (
+                <section className="knowledge-base-members">
+                  <h2>回答质量</h2>
+                  <p>
+                    共 {feedbackSummary.total_feedback} 次反馈，有帮助{" "}
+                    {feedbackSummary.helpful_count} 次，无帮助{" "}
+                    {feedbackSummary.unhelpful_count} 次
+                    {feedbackSummary.helpful_rate !== null
+                      ? `，好评率 ${Math.round(feedbackSummary.helpful_rate * 100)}%`
+                      : ""}
+                  </p>
+                  {feedbackSummary.recent_unhelpful.length > 0 && (
+                    <ul className="document-list">
+                      {feedbackSummary.recent_unhelpful.map((item) => (
+                        <li
+                          key={item.message_id}
+                          className="document-list-item"
+                        >
+                          <span>{item.comment || item.answer}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              )}
+              {knowledgeBaseError && (
+                <p className="form-error">{knowledgeBaseError}</p>
+              )}
+            </aside>
+            <section className="workspace-documents" aria-label="文档与检索">
+              <h2>文档与检索</h2>
+              {canManageDocuments && (
+                <form className="document-upload-form" onSubmit={handleUpload}>
+                  <label htmlFor="document-file">上传 PDF</label>
+                  <input
+                    id="document-file"
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    onChange={(event) => {
+                      setDocumentFile(event.target.files?.[0] ?? null);
+                      setDocumentUploadError("");
+                    }}
+                  />
+                  <label htmlFor="document-tags">标签</label>
+                  <input
+                    id="document-tags"
+                    value={documentTags}
+                    maxLength={500}
+                    placeholder="人事制度, 员工手册, 技术规范"
+                    onChange={(event) => setDocumentTags(event.target.value)}
+                  />
+                  <button
+                    type="submit"
+                    disabled={
+                      !documentFile ||
+                      !selectedKnowledgeBaseId ||
+                      isUploadingDocument
+                    }
+                  >
+                    {isUploadingDocument ? "正在上传..." : "上传文档"}
+                  </button>
+                </form>
+              )}
+              {documentUploadError && (
+                <p className="form-error">{documentUploadError}</p>
+              )}
+              <section className="document-search" aria-label="搜索文档内容">
+                <h2>检索内容</h2>
+                <form onSubmit={handleSearch}>
+                  <label htmlFor="search-question">检索问题</label>
+                  <input
+                    id="search-question"
+                    value={searchQuestion}
+                    maxLength={300}
+                    placeholder="例如：查找与报销制度相关的内容"
+                    onChange={(event) => setSearchQuestion(event.target.value)}
+                  />
+                  <label htmlFor="search-tags">按标签筛选</label>
+                  <input
+                    id="search-tags"
+                    value={searchTags}
+                    maxLength={500}
+                    placeholder="人事制度, 员工手册"
+                    onChange={(event) => setSearchTags(event.target.value)}
+                  />
+                  <button
+                    type="submit"
+                    disabled={
+                      isSearching ||
+                      !selectedKnowledgeBaseId ||
+                      !searchQuestion.trim()
+                    }
+                  >
+                    {isSearching ? "正在检索..." : "检索文档"}
+                  </button>
+                </form>
+                {searchError && <p className="form-error">{searchError}</p>}
+                {searchResults.length > 0 && (
+                  <ul className="document-search-results">
+                    {searchResults.map((result) => (
+                      <li key={`${result.document_id}-${result.chunk_index}`}>
+                        <div>
+                          <strong>{result.filename}</strong>
+                          <span>
+                            {result.page ? `第 ${result.page} 页` : "文档内容"}{" "}
+                            · 相关度 {Number(result.score).toFixed(2)}
+                          </span>
+                          <p>{result.text}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            askAboutSearchResult(result.document_id)
+                          }
+                        >
+                          针对本文提问
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {!isSearching &&
+                  searchQuestion.trim() &&
+                  searchResults.length === 0 &&
+                  !searchError && <p>未找到匹配内容。</p>}
+              </section>
+              {documents.length > 0 && (
+                <ul className="document-list" aria-label="已上传文档">
+                  {documents.map((document) => (
+                    <li key={document.id} className="document-list-item">
+                      <div>
+                        <strong>{document.filename}</strong>
+                        <span className={`document-status ${document.status}`}>
+                          {getDocumentStatusLabel(document.status)}
+                        </span>
+                        {document.tags?.length > 0 && (
+                          <small className="document-tags">
+                            {document.tags.join(" · ")}
+                          </small>
+                        )}
+                        {document.status === "ready" && (
+                          <small className="document-processing">
+                            {document.chunk_count} 个文本块
+                            {document.processed_at
+                              ? ` · 已索引 ${new Date(document.processed_at).toLocaleString()}`
+                              : ""}
+                          </small>
+                        )}
+                        {document.error_message && (
+                          <p className="document-error">
+                            {document.error_message}
+                          </p>
+                        )}
+                      </div>
+                      <div className="document-actions">
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadDocument(document)}
+                        >
+                          下载
+                        </button>
+                        {canManageDocuments && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleEditDocumentTags(document)}
+                            >
+                              编辑标签
+                            </button>
+                            {document.status === "ready" && (
+                              <button
+                                type="button"
+                                disabled={reindexingDocumentId !== null}
+                                onClick={() =>
+                                  handleReindexDocument(document.id)
+                                }
+                              >
+                                {reindexingDocumentId === document.id
+                                  ? "正在重建..."
+                                  : "重新索引"}
+                              </button>
+                            )}
+                            {document.status === "failed" && (
+                              <button
+                                type="button"
+                                className="retry-button"
+                                disabled={retryingDocumentId !== null}
+                                onClick={() => handleRetryDocument(document.id)}
+                              >
+                                {retryingDocumentId === document.id
+                                  ? "正在重试..."
+                                  : "重试"}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="delete-button"
+                              disabled={deletingDocumentId !== null}
+                              onClick={() => handleDeleteDocument(document.id)}
+                            >
+                              {deletingDocumentId === document.id
+                                ? "正在删除..."
+                                : "删除"}
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
               )}
-            </section>
-          )}
-          {knowledgeBaseError && (
-            <p className="form-error">{knowledgeBaseError}</p>
-          )}
-          <h2>Documents</h2>
-          {canManageDocuments && (
-            <form className="document-upload-form" onSubmit={handleUpload}>
-              <label htmlFor="document-file">Upload PDF</label>
-              <input
-                id="document-file"
-                type="file"
-                accept="application/pdf,.pdf"
-                onChange={(event) => {
-                  setDocumentFile(event.target.files?.[0] ?? null);
-                  setDocumentUploadError("");
-                }}
-              />
-              <label htmlFor="document-tags">Tags</label>
-              <input
-                id="document-tags"
-                value={documentTags}
-                maxLength={500}
-                placeholder="HR, policy, engineering"
-                onChange={(event) => setDocumentTags(event.target.value)}
-              />
-              <button
-                type="submit"
-                disabled={
-                  !documentFile ||
-                  !selectedKnowledgeBaseId ||
-                  isUploadingDocument
-                }
-              >
-                {isUploadingDocument ? "Uploading..." : "Upload document"}
-              </button>
-            </form>
-          )}
-          {documentUploadError && (
-            <p className="form-error">{documentUploadError}</p>
-          )}
-          <section
-            className="document-search"
-            aria-label="Search document content"
-          >
-            <h2>Search content</h2>
-            <form onSubmit={handleSearch}>
-              <label htmlFor="search-question">Search question</label>
-              <input
-                id="search-question"
-                value={searchQuestion}
-                maxLength={300}
-                placeholder="Find relevant policy content"
-                onChange={(event) => setSearchQuestion(event.target.value)}
-              />
-              <label htmlFor="search-tags">Filter by tags</label>
-              <input
-                id="search-tags"
-                value={searchTags}
-                maxLength={500}
-                placeholder="HR, policy"
-                onChange={(event) => setSearchTags(event.target.value)}
-              />
-              <button
-                type="submit"
-                disabled={
-                  isSearching ||
-                  !selectedKnowledgeBaseId ||
-                  !searchQuestion.trim()
-                }
-              >
-                {isSearching ? "Searching..." : "Search documents"}
-              </button>
-            </form>
-            {searchError && <p className="form-error">{searchError}</p>}
-            {searchResults.length > 0 && (
-              <ul className="document-search-results">
-                {searchResults.map((result) => (
-                  <li key={`${result.document_id}-${result.chunk_index}`}>
-                    <div>
-                      <strong>{result.filename}</strong>
-                      <span>
-                        {result.page
-                          ? `Page ${result.page}`
-                          : "Document content"}{" "}
-                        · relevance {Number(result.score).toFixed(2)}
-                      </span>
-                      <p>{result.text}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => askAboutSearchResult(result.document_id)}
-                    >
-                      Ask about document
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {!isSearching &&
-              searchQuestion.trim() &&
-              searchResults.length === 0 &&
-              !searchError && <p>No matching content found.</p>}
-          </section>
-          {documents.length > 0 && (
-            <ul className="document-list" aria-label="Uploaded documents">
-              {documents.map((document) => (
-                <li key={document.id} className="document-list-item">
-                  <div>
-                    <strong>{document.filename}</strong>
-                    <span className={`document-status ${document.status}`}>
-                      {document.status}
-                    </span>
-                    {document.tags?.length > 0 && (
-                      <small className="document-tags">
-                        {document.tags.join(" · ")}
-                      </small>
-                    )}
-                    {document.status === "ready" && (
-                      <small className="document-processing">
-                        {document.chunk_count} chunks
-                        {document.processed_at
-                          ? ` · indexed ${new Date(document.processed_at).toLocaleString()}`
-                          : ""}
-                      </small>
-                    )}
-                    {document.error_message && (
-                      <p className="document-error">{document.error_message}</p>
-                    )}
-                  </div>
-                  <div className="document-actions">
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadDocument(document)}
-                    >
-                      Download
-                    </button>
-                    {canManageDocuments && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => handleEditDocumentTags(document)}
-                        >
-                          Edit tags
-                        </button>
-                        {document.status === "ready" && (
-                          <button
-                            type="button"
-                            disabled={reindexingDocumentId !== null}
-                            onClick={() => handleReindexDocument(document.id)}
-                          >
-                            {reindexingDocumentId === document.id
-                              ? "Reindexing..."
-                              : "Reindex"}
-                          </button>
-                        )}
-                        {document.status === "failed" && (
-                          <button
-                            type="button"
-                            className="retry-button"
-                            disabled={retryingDocumentId !== null}
-                            onClick={() => handleRetryDocument(document.id)}
-                          >
-                            {retryingDocumentId === document.id
-                              ? "Retrying..."
-                              : "Retry"}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="delete-button"
-                          disabled={deletingDocumentId !== null}
-                          onClick={() => handleDeleteDocument(document.id)}
-                        >
-                          {deletingDocumentId === document.id
-                            ? "Deleting..."
-                            : "Delete"}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          {hasMoreDocuments && (
-            <button
-              type="button"
-              disabled={isLoadingMoreDocuments}
-              onClick={handleLoadMoreDocuments}
-            >
-              {isLoadingMoreDocuments ? "Loading..." : "Load more documents"}
-            </button>
-          )}
-          {documents.length === 0 ? (
-            <p>No documents uploaded yet.</p>
-          ) : readyDocuments.length === 0 ? (
-            <p>No documents are ready for questions yet.</p>
-          ) : (
-            <>
-              <form onSubmit={handleQuestion}>
-                <label htmlFor="answer-scope">Question scope</label>
-                <select
-                  id="answer-scope"
-                  value={answerScope}
-                  onChange={(event) => {
-                    setAnswerScope(event.target.value);
-                    setSelectedConversationId("");
-                    setDocumentAnswer(null);
-                  }}
+              {hasMoreDocuments && (
+                <button
+                  type="button"
+                  disabled={isLoadingMoreDocuments}
+                  onClick={handleLoadMoreDocuments}
                 >
-                  <option value="knowledge-base">Entire knowledge base</option>
-                  <option value="document">One document</option>
-                </select>
-                {answerScope === "document" && (
-                  <>
-                    <label htmlFor="document-select">Document</label>
+                  {isLoadingMoreDocuments ? "正在加载..." : "加载更多文档"}
+                </button>
+              )}
+            </section>
+            <section className="workspace-answer" aria-label="智能问答">
+              {documents.length === 0 ? (
+                <p>还没有上传文档。</p>
+              ) : readyDocuments.length === 0 ? (
+                <p>当前没有可用于问答的已就绪文档。</p>
+              ) : (
+                <>
+                  <form onSubmit={handleQuestion}>
+                    <label htmlFor="answer-scope">问答范围</label>
                     <select
-                      id="document-select"
-                      value={selectedDocumentId}
+                      id="answer-scope"
+                      value={answerScope}
                       onChange={(event) => {
-                        setSelectedDocumentId(event.target.value);
+                        setAnswerScope(event.target.value);
+                        setSelectedConversationId("");
                         setDocumentAnswer(null);
                       }}
                     >
-                      <option value="">Choose a ready document</option>
-                      {readyDocuments.map((document) => (
-                        <option key={document.id} value={document.id}>
-                          {document.filename}
-                        </option>
-                      ))}
+                      <option value="knowledge-base">整个知识库</option>
+                      <option value="document">指定一份文档</option>
                     </select>
-                  </>
-                )}
-                {answerScope === "knowledge-base" && (
-                  <>
-                    <label htmlFor="answer-tags">Filter by tags</label>
-                    <input
-                      id="answer-tags"
-                      value={answerTags}
-                      maxLength={500}
-                      placeholder="HR, policy"
-                      onChange={(event) => setAnswerTags(event.target.value)}
+                    {answerScope === "document" && (
+                      <>
+                        <label htmlFor="document-select">文档</label>
+                        <select
+                          id="document-select"
+                          value={selectedDocumentId}
+                          onChange={(event) => {
+                            setSelectedDocumentId(event.target.value);
+                            setDocumentAnswer(null);
+                          }}
+                        >
+                          <option value="">请选择已就绪文档</option>
+                          {readyDocuments.map((document) => (
+                            <option key={document.id} value={document.id}>
+                              {document.filename}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                    {answerScope === "knowledge-base" && (
+                      <>
+                        <label htmlFor="answer-tags">按标签筛选</label>
+                        <input
+                          id="answer-tags"
+                          value={answerTags}
+                          maxLength={500}
+                          placeholder="人事制度, 员工手册"
+                          onChange={(event) =>
+                            setAnswerTags(event.target.value)
+                          }
+                        />
+                      </>
+                    )}
+                    <ConversationControls
+                      conversations={conversations.map((conversation) => ({
+                        ...conversation,
+                        label: getConversationLabel(conversation),
+                      }))}
+                      selectedConversationId={selectedConversationId}
+                      onSelect={(conversationId) => {
+                        setSelectedConversationId(conversationId);
+                        setDocumentAnswer(null);
+                      }}
+                      onDelete={handleDeleteConversation}
+                      isDeleting={deletingConversationId !== null}
+                      hasMore={hasMoreConversations}
+                      onLoadMore={handleLoadMoreConversations}
+                      isLoadingMore={isLoadingMoreConversations}
                     />
-                  </>
-                )}
-                <ConversationControls
-                  conversations={conversations.map((conversation) => ({
-                    ...conversation,
-                    label: getConversationLabel(conversation),
-                  }))}
-                  selectedConversationId={selectedConversationId}
-                  onSelect={(conversationId) => {
-                    setSelectedConversationId(conversationId);
-                    setDocumentAnswer(null);
-                  }}
-                  onDelete={handleDeleteConversation}
-                  isDeleting={deletingConversationId !== null}
-                  hasMore={hasMoreConversations}
-                  onLoadMore={handleLoadMoreConversations}
-                  isLoadingMore={isLoadingMoreConversations}
-                />
-                <label htmlFor="document-question">Question</label>
-                <textarea
-                  id="document-question"
-                  value={documentQuestion}
-                  maxLength={2000}
-                  placeholder="Ask about the selected knowledge base"
-                  onChange={(event) => setDocumentQuestion(event.target.value)}
-                />
-                <button
-                  type="submit"
-                  disabled={
-                    isAnsweringDocument ||
-                    (answerScope === "document" && !selectedDocumentId) ||
-                    !documentQuestion.trim()
-                  }
-                >
-                  {isAnsweringDocument ? "Answering..." : "Ask knowledge base"}
-                </button>
-              </form>
-              {selectedConversationId &&
-                conversations.find(
-                  (item) => String(item.id) === selectedConversationId,
-                )?.messages.length > 0 && (
-                  <div className="conversation-history">
-                    {conversations
-                      .find(
-                        (item) => String(item.id) === selectedConversationId,
-                      )
-                      .messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`conversation-message ${message.role}`}
-                        >
-                          <p>
-                            <strong>
-                              {message.role === "user" ? "You" : "Assistant"}:
-                            </strong>{" "}
-                            {message.content}
-                          </p>
-                          {message.role === "assistant" && (
-                            <>
-                              {message.sources?.length > 0 && (
-                                <ul
-                                  className="knowledge-sources"
-                                  aria-label="Answer sources"
-                                >
-                                  {message.sources.map((source) => (
-                                    <li
-                                      key={`${message.id}-${source.document_id}-${source.chunk_index}`}
+                    <label htmlFor="document-question">问题</label>
+                    <textarea
+                      id="document-question"
+                      value={documentQuestion}
+                      maxLength={2000}
+                      placeholder="请基于已选择的知识库提出问题"
+                      onChange={(event) =>
+                        setDocumentQuestion(event.target.value)
+                      }
+                    />
+                    <button
+                      type="submit"
+                      disabled={
+                        isAnsweringDocument ||
+                        (answerScope === "document" && !selectedDocumentId) ||
+                        !documentQuestion.trim()
+                      }
+                    >
+                      {isAnsweringDocument ? "正在生成回答..." : "开始问答"}
+                    </button>
+                  </form>
+                  {selectedConversationId &&
+                    conversations.find(
+                      (item) => String(item.id) === selectedConversationId,
+                    )?.messages.length > 0 && (
+                      <div className="conversation-history">
+                        {conversations
+                          .find(
+                            (item) =>
+                              String(item.id) === selectedConversationId,
+                          )
+                          .messages.map((message) => (
+                            <div
+                              key={message.id}
+                              className={`conversation-message ${message.role}`}
+                            >
+                              <p>
+                                <strong>
+                                  {message.role === "user" ? "我" : "智能助手"}
+                                  ：
+                                </strong>{" "}
+                                {message.content}
+                              </p>
+                              {message.role === "assistant" && (
+                                <>
+                                  {message.sources?.length > 0 && (
+                                    <ul
+                                      className="knowledge-sources"
+                                      aria-label="回答来源"
                                     >
-                                      <span>
-                                        {source.filename}
-                                        {source.page
-                                          ? ` - page ${source.page}`
-                                          : ""}{" "}
-                                        - chunk {source.chunk_index}
-                                      </span>
-                                      {readyDocuments.some(
-                                        (document) =>
-                                          document.id === source.document_id,
-                                      ) && (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            askAboutSource(source.document_id)
-                                          }
+                                      {message.sources.map((source) => (
+                                        <li
+                                          key={`${message.id}-${source.document_id}-${source.chunk_index}`}
                                         >
-                                          Ask about source
-                                        </button>
-                                      )}
-                                    </li>
-                                  ))}
-                                </ul>
+                                          <span>
+                                            {source.filename}
+                                            {source.page
+                                              ? ` · 第 ${source.page} 页`
+                                              : ""}{" "}
+                                            · 文本块 {source.chunk_index}
+                                          </span>
+                                          {readyDocuments.some(
+                                            (document) =>
+                                              document.id ===
+                                              source.document_id,
+                                          ) && (
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                askAboutSource(
+                                                  source.document_id,
+                                                )
+                                              }
+                                            >
+                                              针对来源提问
+                                            </button>
+                                          )}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                  <div className="answer-feedback">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleFeedback(message.id, "helpful")
+                                      }
+                                    >
+                                      有帮助
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="delete-button"
+                                      onClick={() =>
+                                        handleFeedback(message.id, "unhelpful")
+                                      }
+                                    >
+                                      无帮助
+                                    </button>
+                                    {message.feedback && (
+                                      <span>{message.feedback}</span>
+                                    )}
+                                  </div>
+                                </>
                               )}
-                              <div className="answer-feedback">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleFeedback(message.id, "helpful")
-                                  }
-                                >
-                                  Helpful
-                                </button>
-                                <button
-                                  type="button"
-                                  className="delete-button"
-                                  onClick={() =>
-                                    handleFeedback(message.id, "unhelpful")
-                                  }
-                                >
-                                  Not helpful
-                                </button>
-                                {message.feedback && (
-                                  <span>{message.feedback}</span>
-                                )}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      ))}
-                  </div>
-                )}
-            </>
-          )}
-          {documentAnswerError && (
-            <p className="form-error">{documentAnswerError}</p>
-          )}
-          {documentAnswer && (
-            <div className="document-answer">
-              <p>{documentAnswer.answer}</p>
-              {documentAnswer.sources.length > 0 && (
-                <ul className="knowledge-sources" aria-label="Document sources">
-                  {documentAnswer.sources.map((source) => (
-                    <li key={`${source.document_id}-${source.chunk_index}`}>
-                      <span>
-                        {source.filename}
-                        {source.page ? ` - page ${source.page}` : ""} - chunk{" "}
-                        {source.chunk_index}
-                      </span>
-                      {readyDocuments.some(
-                        (document) => document.id === source.document_id,
-                      ) && (
-                        <button
-                          type="button"
-                          onClick={() => askAboutSource(source.document_id)}
-                        >
-                          Ask about source
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                </>
               )}
-            </div>
-          )}
+              {documentAnswerError && (
+                <p className="form-error">{documentAnswerError}</p>
+              )}
+              {documentAnswer && (
+                <div className="document-answer">
+                  <p>{documentAnswer.answer}</p>
+                  {documentAnswer.sources.length > 0 && (
+                    <ul className="knowledge-sources" aria-label="文档来源">
+                      {documentAnswer.sources.map((source) => (
+                        <li key={`${source.document_id}-${source.chunk_index}`}>
+                          <span>
+                            {source.filename}
+                            {source.page ? ` · 第 ${source.page} 页` : ""} ·
+                            文本块 {source.chunk_index}
+                          </span>
+                          {readyDocuments.some(
+                            (document) => document.id === source.document_id,
+                          ) && (
+                            <button
+                              type="button"
+                              onClick={() => askAboutSource(source.document_id)}
+                            >
+                              针对来源提问
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </section>
+          </div>
         </section>
       )}
     </main>

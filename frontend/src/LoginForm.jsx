@@ -22,9 +22,9 @@ function LoginForm({ onLogin }) {
 
   return (
     <section className="login-section" aria-labelledby="login-title">
-      <h2 id="login-title">Sign in</h2>
+      <h2 id="login-title">登录工作台</h2>
       <form className="login-form" onSubmit={handleSubmit}>
-        <label htmlFor="username">Username</label>
+        <label htmlFor="username">用户名</label>
         <input
           id="username"
           value={username}
@@ -32,7 +32,7 @@ function LoginForm({ onLogin }) {
           onChange={(event) => setUsername(event.target.value)}
           required
         />
-        <label htmlFor="password">Password</label>
+        <label htmlFor="password">密码</label>
         <input
           id="password"
           type="password"
@@ -42,7 +42,7 @@ function LoginForm({ onLogin }) {
           required
         />
         <button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Signing in..." : "Sign in"}
+          {isSubmitting ? "正在登录..." : "登录"}
         </button>
       </form>
       {message && (

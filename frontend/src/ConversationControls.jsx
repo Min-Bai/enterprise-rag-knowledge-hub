@@ -10,13 +10,13 @@ function ConversationControls({
 }) {
   return (
     <div className="conversation-controls">
-      <label htmlFor="conversation-select">Conversation</label>
+      <label htmlFor="conversation-select">历史对话</label>
       <select
         id="conversation-select"
         value={selectedConversationId}
         onChange={(event) => onSelect(event.target.value)}
       >
-        <option value="">New conversation</option>
+        <option value="">新建对话</option>
         {conversations.map((conversation) => (
           <option key={conversation.id} value={conversation.id}>
             {conversation.label}
@@ -30,12 +30,12 @@ function ConversationControls({
           disabled={isDeleting}
           onClick={onDelete}
         >
-          {isDeleting ? "Deleting..." : "Delete conversation"}
+          {isDeleting ? "正在删除..." : "删除当前对话"}
         </button>
       )}
       {hasMore && (
         <button type="button" disabled={isLoadingMore} onClick={onLoadMore}>
-          {isLoadingMore ? "Loading..." : "Load more conversations"}
+          {isLoadingMore ? "正在加载..." : "加载更多对话"}
         </button>
       )}
     </div>
