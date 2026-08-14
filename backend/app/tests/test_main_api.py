@@ -69,6 +69,7 @@ def test_readiness_check_returns_503_when_qdrant_is_unavailable(
     assert response.status_code == 503
     assert response.json() == {
         "detail": "dependencies unavailable",
+        "code": "DEPENDENCIES_UNAVAILABLE",
     }
     redis.ping.assert_called_once()
 
@@ -83,6 +84,7 @@ def test_readiness_check_returns_503_when_redis_is_unavailable(
     assert response.status_code == 503
     assert response.json() == {
         "detail": "dependencies unavailable",
+        "code": "DEPENDENCIES_UNAVAILABLE",
     }
     qdrant.get_collections.assert_not_called()
 

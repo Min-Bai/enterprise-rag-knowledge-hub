@@ -61,10 +61,15 @@ def test_enqueue_document_processing_sends_celery_task(monkeypatch):
         queue=document_queue.DOCUMENT_QUEUE_NAME,
     )
 
-def test_upload_document_rejects_rate_limited_user(monkeypatch):
+def test_upload_document_rejects_rate_limited_user(monkeypatch, tmp_path):
     app.dependency_overrides[get_current_user] = (
         lambda: SimpleNamespace(id=1)
     )
+    storage_path = tmp_path / "rate-limited.pdf"
+
+    async def save_file(_file):
+        storage_path.write_bytes(b"%PDF-test")
+        return str(storage_path), "a" * 64
 
     def reject_upload(_user_id):
         raise HTTPException(
@@ -75,6 +80,10 @@ def test_upload_document_rejects_rate_limited_user(monkeypatch):
     monkeypatch.setattr(
         "backend.app.routers.documents.enforce_document_upload_rate_limit",
         reject_upload,
+    )
+    monkeypatch.setattr(
+        "backend.app.routers.documents.save_document_file",
+        save_file,
     )
 
     try:
@@ -87,6 +96,8 @@ def test_upload_document_rejects_rate_limited_user(monkeypatch):
 
     assert response.status_code == 429
     assert response.json()["detail"] == "document upload rate limit exceeded"
+    assert response.json()["code"] == "DOCUMENT_UPLOAD_RATE_LIMITED"
+    assert not storage_path.exists()
 
 
 def test_upload_document_returns_413_when_the_file_exceeds_the_size_limit(monkeypatch):
@@ -112,4 +123,35 @@ def test_upload_document_returns_413_when_the_file_exceeds_the_size_limit(monkey
         app.dependency_overrides.pop(get_current_user, None)
 
     assert response.status_code == 413
-    assert response.json() == {"detail": "file size must not exceed 10 MB"}
+    assert response.json() == {
+        "detail": "file size must not exceed 10 MB",
+        "code": "DOCUMENT_FILE_TOO_LARGE",
+    }
+
+
+def test_invalid_document_does_not_consume_upload_rate_limit(monkeypatch):
+    rate_limit = Mock()
+
+    async def reject_large_file(_file):
+        raise DocumentTooLargeError("file size must not exceed 10 MB")
+
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    monkeypatch.setattr(
+        "backend.app.routers.documents.save_document_file",
+        reject_large_file,
+    )
+    monkeypatch.setattr(
+        "backend.app.routers.documents.enforce_document_upload_rate_limit",
+        rate_limit,
+    )
+
+    try:
+        response = client.post(
+            "/documents",
+            files={"file": ("large.pdf", b"%PDF-test", "application/pdf")},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 413
+    rate_limit.assert_not_called()

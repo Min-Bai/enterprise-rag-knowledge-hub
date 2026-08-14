@@ -11,6 +11,7 @@ from time import perf_counter
 from uuid import uuid4
 from .config import CORS_ORIGINS, LOG_LEVEL
 from .database import get_db
+from .error_codes import get_error_code
 from .routers.users import router as user_router
 from .routers.auth import router as auth_router
 from .routers.ai import router as ai_router
@@ -34,6 +35,18 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("enterprise_rag")
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(_request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "code": get_error_code(exc.detail, exc.status_code),
+        },
+        headers=exc.headers,
+    )
 
 @app.get("/")
 def read_root():
@@ -105,7 +118,7 @@ async def log_request(request: Request, call_next):
         )
         return JSONResponse(
             status_code=500,
-            content={"detail": "internal server error"},
+            content={"detail": "internal server error", "code": "INTERNAL_SERVER_ERROR"},
             headers={"X-Request-ID": request_id},
         )
     finally:
