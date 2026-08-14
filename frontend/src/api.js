@@ -1,23 +1,35 @@
+import { getUserErrorMessage } from "./errorMessages.js";
+
 const API_PREFIX = "/api";
 
-async function readJson(response, fallbackMessage) {
+async function readJson(response, _fallbackMessage) {
   const contentType = response.headers.get("Content-Type") || "";
   const data = contentType.includes("application/json")
     ? await response.json()
     : null;
   if (!response.ok) {
-    const error = new Error(data?.detail || fallbackMessage);
+    const retryAfterSeconds = Number(response.headers.get("Retry-After"));
+    const error = new Error(
+      getUserErrorMessage({
+        code: data?.code,
+        status: response.status,
+        retryAfterSeconds,
+      }),
+    );
+    error.code = data?.code;
     error.status = response.status;
+    error.retryAfterSeconds = retryAfterSeconds;
     throw error;
   }
   if (data === null)
-    throw new Error(`${fallbackMessage} (invalid server response)`);
+    throw new Error("服务器返回的数据格式不正确，请稍后重试。");
   return data;
 }
 
 export async function getApiHealth() {
   const response = await fetch(`${API_PREFIX}/health`);
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  if (!response.ok)
+    throw new Error(getUserErrorMessage({ status: response.status }));
   return response.json();
 }
 
@@ -103,7 +115,7 @@ async function streamAnswer(url, accessToken, body, handlers) {
     body: JSON.stringify(body),
   });
   if (!response.ok) return readJson(response, "Document answer request failed");
-  if (!response.body) throw new Error("Document answer stream is unavailable");
+  if (!response.body) throw new Error("问答服务暂不可用，请稍后重试。");
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -116,8 +128,9 @@ async function streamAnswer(url, accessToken, body, handlers) {
     const data = JSON.parse(payload);
     if (event === "metadata") handlers.onMetadata?.(data);
     if (event === "token") handlers.onToken?.(data.text || "");
-    if (event === "error")
-      throw new Error(data.detail || "Document answer stream failed");
+    if (event === "error") {
+      throw new Error(getUserErrorMessage({ code: data.code, status: data.status }));
+    }
     if (event === "done") completed = true;
   }
   while (true) {
@@ -129,7 +142,7 @@ async function streamAnswer(url, accessToken, body, handlers) {
     if (done) break;
   }
   if (buffer) handleFrame(buffer);
-  if (!completed) throw new Error("Document answer stream ended unexpectedly");
+  if (!completed) throw new Error("问答连接意外中断，请稍后重试。");
 }
 
 export async function getDocumentConversations(
@@ -317,19 +330,14 @@ export async function uploadDocument(accessToken, file, knowledgeBaseId, tags) {
   formData.append("file", file);
   formData.append("knowledge_base_id", knowledgeBaseId);
   if (tags?.length) formData.append("tags", tags.join(","));
-  try {
-    return await readJson(
-      await fetch(`${API_PREFIX}/documents`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: formData,
-      }),
-      "上传文档失败",
-    );
-  } catch (error) {
-    if (error.status === 413) throw new Error("文件不能超过 10 MB");
-    throw error;
-  }
+  return readJson(
+    await fetch(`${API_PREFIX}/documents`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: formData,
+    }),
+    "上传文档失败",
+  );
 }
 
 export async function getMyDocuments(

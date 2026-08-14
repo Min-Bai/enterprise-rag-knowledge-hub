@@ -305,4 +305,7 @@ def test_delete_conversation_route_returns_404_for_an_unavailable_conversation(m
         app.dependency_overrides.pop(get_current_user, None)
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "conversation not found"}
+    assert response.json() == {
+        "detail": "conversation not found",
+        "code": "CONVERSATION_NOT_FOUND",
+    }

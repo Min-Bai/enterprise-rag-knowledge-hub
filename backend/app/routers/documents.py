@@ -76,8 +76,6 @@ async def upload_document(
     db: Session = Depends(get_db),
 ):
     original_filename = file.filename or "document.pdf"
-    
-    enforce_document_upload_rate_limit(current_user.id)
 
     try:
         document_tags = parse_document_tags(tags)
@@ -86,6 +84,14 @@ async def upload_document(
         raise HTTPException(status_code=413, detail=str(error))
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
+
+    try:
+        enforce_document_upload_rate_limit(current_user.id)
+    except HTTPException:
+        from pathlib import Path
+
+        Path(storage_path).unlink(missing_ok=True)
+        raise
 
     try:
         document = create_document_service(
