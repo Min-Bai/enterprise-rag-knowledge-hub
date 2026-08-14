@@ -29,6 +29,13 @@ def test_jwt_secret_accepts_a_long_random_value():
     assert config.validate_jwt_secret(value) == value
 
 
+def test_cors_origins_rejects_wildcard_with_credentials(monkeypatch):
+    set_env_value(monkeypatch, "*")
+
+    with pytest.raises(RuntimeError, match=r"must not contain \*"):
+        config.get_cors_origins()
+
+
 @pytest.mark.parametrize(
     ("value", "expected"),
     [("true", True), ("FALSE", False)],

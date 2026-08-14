@@ -122,14 +122,19 @@ ALLOW_SELF_REGISTRATION = get_optional_bool_env(
     False,
 )
 
-CORS_ORIGINS = [
+def get_cors_origins() -> list[str]:
+    origins = [
     origin.strip()
     for origin in get_required_env("CORS_ORIGINS").split(",")
     if origin.strip()
-]
+    ]
+    if not origins:
+        raise RuntimeError("CORS_ORIGINS must contain at least one origin")
+    if "*" in origins:
+        raise RuntimeError("CORS_ORIGINS must not contain * when credentials are enabled")
+    return origins
 
-if not CORS_ORIGINS:
-    raise RuntimeError("CORS_ORIGINS must contain at least one origin")
+CORS_ORIGINS = get_cors_origins()
 
 LOG_LEVEL = get_required_env("LOG_LEVEL").upper()
 
