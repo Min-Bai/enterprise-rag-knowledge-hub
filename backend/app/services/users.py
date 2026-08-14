@@ -23,11 +23,16 @@ from ..security import hash_password, verify_password
 from .knowledge_bases import get_default_knowledge_base_service
 
 
-def get_users_service(db: Session, is_active: bool | None = None):
+def get_users_service(
+    db: Session,
+    is_active: bool | None = None,
+    limit: int = 100,
+    offset: int = 0,
+):
     statement = select(UserORM).order_by(UserORM.id)
     if is_active is not None:
         statement = statement.where(UserORM.is_active == is_active)
-    return db.scalars(statement).all()
+    return db.scalars(statement.limit(limit).offset(offset)).all()
 
 
 def get_user_service(user_id: int, db: Session):
