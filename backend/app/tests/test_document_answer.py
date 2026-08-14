@@ -85,6 +85,20 @@ def test_no_relevant_chunks_does_not_call_deepseek(monkeypatch):
     deepseek_mock.assert_not_called()
 
 
+def test_document_answer_uses_the_rewritten_query_for_retrieval(monkeypatch):
+    request, current_user, db = make_dependencies()
+    search = Mock(return_value=[])
+    monkeypatch.setattr(
+        "backend.app.services.ai.rewrite_retrieval_question",
+        lambda _question: "annual leave policy",
+    )
+    monkeypatch.setattr("backend.app.services.ai.search_document_chunks", search)
+
+    prepare_document_answer(request=request, current_user=current_user, db=db)
+
+    assert search.call_args.kwargs["question"] == "annual leave policy"
+
+
 def test_document_answer_logs_retrieval_without_question_or_document_content(monkeypatch, caplog):
     request, current_user, db = make_dependencies()
     caplog.set_level("INFO")

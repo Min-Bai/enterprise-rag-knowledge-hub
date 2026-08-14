@@ -41,6 +41,17 @@ def get_bool_env(name: str) -> bool:
     raise RuntimeError(f"{name} must be true or false")
 
 
+def get_optional_bool_env(name: str, default: bool) -> bool:
+    value = getenv(name)
+    if value is None:
+        return default
+    if value.lower() == "true":
+        return True
+    if value.lower() == "false":
+        return False
+    raise RuntimeError(f"{name} must be true or false")
+
+
 SQL_ECHO = get_bool_env("SQL_ECHO")
 DATABASE_URL = getenv("DATABASE_URL")
 REDIS_URL = getenv("REDIS_URL")
@@ -96,6 +107,10 @@ def get_score_env(name: str, default: float) -> float:
 
 
 RAG_MIN_SCORE = get_score_env("RAG_MIN_SCORE", 0.5)
+RAG_QUERY_REWRITE_ENABLED = get_optional_bool_env(
+    "RAG_QUERY_REWRITE_ENABLED",
+    False,
+)
 
 CORS_ORIGINS = [
     origin.strip()

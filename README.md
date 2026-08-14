@@ -122,6 +122,11 @@ MAX_DOCUMENT_SIZE_MB=10
 PDF uploads default to 10 MB. Increase `MAX_DOCUMENT_SIZE_MB` only after
 confirming that API, worker, and storage capacity support the larger files.
 
+`RAG_QUERY_REWRITE_ENABLED` defaults to `false`. Enable it only after measuring
+retrieval quality on the evaluation set: each enabled question makes one
+additional DeepSeek request before vector retrieval and safely falls back to
+the original question when rewriting fails.
+
 ## Run With Docker Compose
 
 Create the persistent volumes once before the first production startup:

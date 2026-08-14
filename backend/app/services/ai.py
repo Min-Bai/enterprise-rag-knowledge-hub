@@ -8,14 +8,20 @@ import requests
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL, RAG_MIN_SCORE
+from ..config import (
+    DEEPSEEK_API_KEY,
+    DEEPSEEK_BASE_URL,
+    DEEPSEEK_MODEL,
+    RAG_MIN_SCORE,
+    RAG_QUERY_REWRITE_ENABLED,
+)
 from ..exceptions import DocumentNotFoundError
 from ..models.document import DocumentORM
 from ..models.user import UserORM
 from ..request_context import get_request_id
 from ..schemas.ai import DocumentAnswerRequest, DocumentAnswerResponse, KnowledgeBaseAnswerRequest, SourceItem
 from .document_vectors import search_document_chunks
-from .rag_prompt import build_document_answer_messages
+from .rag_prompt import build_document_answer_messages, build_query_rewrite_messages
 from .audit_logs import write_audit_log
 from .conversations import (
     ConversationNotFoundError,
@@ -67,6 +73,49 @@ def get_model_message(response: requests.Response) -> dict[str, object]:
     if not isinstance(message, dict):
         raise AiProviderError('model response has no message')
     return message
+
+
+def rewrite_retrieval_question(question: str) -> str:
+    if not RAG_QUERY_REWRITE_ENABLED or not DEEPSEEK_API_KEY:
+        return question
+
+    started_at = perf_counter()
+    try:
+        response = requests.post(
+            f"{DEEPSEEK_BASE_URL}/chat/completions",
+            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+            json={
+                "model": DEEPSEEK_MODEL,
+                "messages": build_query_rewrite_messages(question=question),
+                "stream": False,
+                "max_tokens": 120,
+                "temperature": 0,
+            },
+            timeout=10,
+        )
+        response.raise_for_status()
+        rewritten = str(get_model_message(response).get("content", "")).strip()
+    except (AiProviderError, KeyError, IndexError, ValueError, requests.RequestException):
+        logger.warning(
+            "event=rag_query_rewrite_failed request_id=%s provider=deepseek",
+            get_request_id(),
+        )
+        return question
+
+    if not rewritten or len(rewritten) > 500:
+        logger.warning(
+            "event=rag_query_rewrite_rejected request_id=%s provider=deepseek",
+            get_request_id(),
+        )
+        return question
+
+    logger.info(
+        "event=rag_query_rewrite_completed request_id=%s provider=deepseek changed=%s duration_ms=%.1f",
+        get_request_id(),
+        rewritten != question,
+        (perf_counter() - started_at) * 1000,
+    )
+    return rewritten
 
 
 def log_retrieval_outcome(*, scope: str, scope_id: int, hits: list[dict[str, object]]) -> None:
@@ -123,7 +172,8 @@ def prepare_document_answer(
         document_id=document.id,
         db=db,
     )
-    hits = [hit for hit in search_document_chunks(question=request.question, user_id=document.user_id, document_ids=[document.id], limit=3) if float(hit['score']) >= RAG_MIN_SCORE]
+    retrieval_question = rewrite_retrieval_question(request.question)
+    hits = [hit for hit in search_document_chunks(question=retrieval_question, user_id=document.user_id, document_ids=[document.id], limit=3) if float(hit['score']) >= RAG_MIN_SCORE]
     log_retrieval_outcome(scope="document", scope_id=document.id, hits=hits)
     write_retrieval_audit_log(
         actor_user_id=current_user.id,
@@ -169,10 +219,11 @@ def prepare_knowledge_base_answer(
         db=db,
     )
     filenames = {document.id: document.filename for document in documents}
+    retrieval_question = rewrite_retrieval_question(request.question)
     hits = [
         hit
         for hit in search_document_chunks(
-            question=request.question,
+            question=retrieval_question,
             user_id=None,
             document_ids=list(filenames),
             limit=5,
