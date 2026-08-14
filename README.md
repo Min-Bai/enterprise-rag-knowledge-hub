@@ -208,6 +208,10 @@ sudo bash scripts/check_production.sh
 sudo bash scripts/backup_mysql.sh
 ```
 
+The production check verifies that the document worker container is running and
+reports the registered RQ worker count and pending document jobs before it
+checks API health and backups.
+
 Validate backups periodically by restoring the newest dump into a temporary
 database and comparing table counts. A successful `mysqldump` alone does not
 prove that a restore will work.
