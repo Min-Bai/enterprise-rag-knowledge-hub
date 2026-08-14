@@ -16,7 +16,8 @@ backend/app/
 |- services/               业务逻辑和 RAG 处理逻辑
 |- migrations/             Alembic 数据库迁移
 |- knowledge/              可被 RAG 检索的项目知识
-|- worker.py               RQ 文档处理 Worker
+|- celery_app.py           Celery 应用和 Worker 启动恢复逻辑
+|- tasks/                  Celery 后台任务
 `- tests/                  自动化测试
 ```
 

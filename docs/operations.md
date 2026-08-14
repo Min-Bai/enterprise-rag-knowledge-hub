@@ -8,7 +8,7 @@
 sudo bash scripts/check_production.sh
 ```
 
-该检查会验证 Docker Compose 服务状态、RQ Worker、队列积压、API 依赖、磁盘容量和最新备份。
+该检查会验证 Docker Compose 服务状态、Celery Worker、队列积压、API 依赖、磁盘容量和最新备份。
 
 ## 部署
 
@@ -25,6 +25,10 @@ sudo docker compose logs api --tail 100
 sudo docker compose logs worker --tail 100
 ```
 
+### 从 RQ 首次切换到 Celery
+
+部署包含 Celery 的第一个版本前，先停止旧 RQ Worker。然后使用 `scripts/requeue_uploaded_documents.py` 预览状态为 `uploaded` 的文档；确认旧 Worker 已停止后，使用 `--execute` 将这些文档投递到 Celery。旧 RQ 队列任务不会被 Celery 自动消费，因此该步骤不能跳过。
+
 ## 备份与恢复验证
 
 手动或通过定时任务创建备份：
@@ -40,7 +44,7 @@ sudo bash scripts/backup_mysql.sh
 | 现象 | 首先执行的操作 |
 | --- | --- |
 | API 健康检查失败 | 查看 API 日志，以及 MySQL、Redis、Qdrant 服务状态。 |
-| 文档长期处于 `uploaded` 或 `processing` | 查看 Worker 日志和 RQ 队列；Worker 恢复后在工作台中重试。 |
+| 文档长期处于 `uploaded` 或 `processing` | 查看 Celery Worker 日志和 Celery 队列；Worker 恢复后在工作台中重试。 |
 | 文档状态为 `failed` | 阅读文档错误信息，修复输入文件或依赖问题后重试。 |
 | 检索质量下降 | 修改分块、嵌入模型或分数阈值前，先运行已版本控制的检索评估。 |
 | 磁盘空间不足 | 删除任何内容前，先检查 Docker 镜像、备份保留策略和文档卷占用。 |

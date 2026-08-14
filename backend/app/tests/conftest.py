@@ -1,8 +1,11 @@
+from os import environ
 from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
+
+environ["REDIS_URL"] = "redis://localhost:6379/15"
 
 from backend.app.database import Base, get_db
 from backend.app.main import app
