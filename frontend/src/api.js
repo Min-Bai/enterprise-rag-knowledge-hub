@@ -91,6 +91,11 @@ export async function getKnowledgeBaseConversations(accessToken, knowledgeBaseId
   return readJson(await fetch(`${API_PREFIX}/ai/knowledge-bases/${knowledgeBaseId}/conversations`, { headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to load conversation history')
 }
 
+export async function deleteConversation(accessToken, conversationId) {
+  const response = await fetch(`${API_PREFIX}/ai/conversations/${conversationId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } })
+  if (response.status !== 204) await readJson(response, 'Failed to delete conversation')
+}
+
 export async function getKnowledgeBases(accessToken) {
   return readJson(await fetch(`${API_PREFIX}/knowledge-bases`, { headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to load knowledge bases')
 }

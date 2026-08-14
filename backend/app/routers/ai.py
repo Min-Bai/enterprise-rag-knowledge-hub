@@ -26,6 +26,7 @@ from ..services.ai import (
 )
 from ..services.conversations import (
     ConversationNotFoundError,
+    delete_conversation_service,
     get_document_conversations_service,
     get_knowledge_base_conversations_service,
 )
@@ -34,6 +35,22 @@ from ..exceptions import DocumentNotFoundError
 from ..services.knowledge_bases import KnowledgeBaseNotFoundError
 
 router = APIRouter(prefix='/ai', tags=['ai'])
+
+
+@router.delete('/conversations/{conversation_id}', status_code=204)
+def delete_conversation(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserORM = Depends(get_current_user),
+):
+    try:
+        delete_conversation_service(
+            conversation_id=conversation_id,
+            user_id=current_user.id,
+            db=db,
+        )
+    except ConversationNotFoundError:
+        raise HTTPException(status_code=404, detail='conversation not found')
 
 
 @router.put('/answer-messages/{message_id}/feedback', response_model=ConversationMessageResponse)

@@ -88,6 +88,22 @@ def get_conversation_history(
     ]
 
 
+def delete_conversation_service(
+    *, conversation_id: int, user_id: int, db: Session
+) -> None:
+    conversation = db.scalar(
+        select(ConversationORM).where(
+            ConversationORM.id == conversation_id,
+            ConversationORM.user_id == user_id,
+        )
+    )
+    if conversation is None:
+        raise ConversationNotFoundError
+
+    db.delete(conversation)
+    db.commit()
+
+
 def save_conversation_turn(
     *,
     conversation: ConversationORM,

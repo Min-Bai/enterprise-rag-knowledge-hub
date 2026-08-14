@@ -6,6 +6,7 @@ from backend.app.auth import get_current_user
 from backend.app.main import app
 from backend.app.schemas.ai import DocumentAnswerResponse
 from backend.app.services.ai import DocumentNotReadyError,AiProviderError,DocumentNotFoundError
+from backend.app.services.conversations import ConversationNotFoundError
 
 
 client = TestClient(app)
@@ -268,3 +269,38 @@ def test_feedback_route_returns_updated_assistant_message(monkeypatch):
 
     assert response.status_code == 200
     assert response.json()["feedback"] == "helpful"
+
+
+def test_delete_conversation_route_is_scoped_to_the_current_user(monkeypatch):
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    deleted = []
+    monkeypatch.setattr(
+        "backend.app.routers.ai.delete_conversation_service",
+        lambda **kwargs: deleted.append(kwargs),
+    )
+
+    try:
+        response = client.delete("/ai/conversations/9")
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 204
+    assert len(deleted) == 1
+    assert deleted[0]["conversation_id"] == 9
+    assert deleted[0]["user_id"] == 1
+
+
+def test_delete_conversation_route_returns_404_for_an_unavailable_conversation(monkeypatch):
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    monkeypatch.setattr(
+        "backend.app.routers.ai.delete_conversation_service",
+        lambda **_kwargs: (_ for _ in ()).throw(ConversationNotFoundError),
+    )
+
+    try:
+        response = client.delete("/ai/conversations/9")
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "conversation not found"}

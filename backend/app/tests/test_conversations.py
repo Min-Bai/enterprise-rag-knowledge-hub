@@ -42,6 +42,36 @@ def test_get_or_create_conversation_reuses_owned_document_conversation(monkeypat
     get_conversation.assert_called_once()
 
 
+def test_delete_conversation_removes_only_the_current_users_conversation():
+    db = Mock()
+    conversation = SimpleNamespace(id=4, user_id=1)
+    db.scalar.return_value = conversation
+
+    conversations.delete_conversation_service(
+        conversation_id=4,
+        user_id=1,
+        db=db,
+    )
+
+    db.delete.assert_called_once_with(conversation)
+    db.commit.assert_called_once()
+
+
+def test_delete_conversation_rejects_a_missing_or_other_users_conversation():
+    db = Mock()
+    db.scalar.return_value = None
+
+    with pytest.raises(conversations.ConversationNotFoundError):
+        conversations.delete_conversation_service(
+            conversation_id=4,
+            user_id=1,
+            db=db,
+        )
+
+    db.delete.assert_not_called()
+    db.commit.assert_not_called()
+
+
 def test_get_conversation_history_limits_messages_to_six():
     db = Mock()
     messages = [
