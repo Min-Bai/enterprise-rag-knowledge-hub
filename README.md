@@ -1,114 +1,86 @@
-# Enterprise RAG Knowledge Hub
+# 企业级 RAG 知识库问答系统
 
-Enterprise knowledge-base question answering with FastAPI, React, MySQL,
-Redis, RQ, Qdrant, and Docker Compose. It supports private-document
-processing, LangChain recursive text splitting, vector retrieval, and
-source-grounded RAG answers with PDF page citations. Users can ask across every
-ready document in one knowledge base or constrain a question to one document.
-LangChain prompt templates isolate retrieved reference material from model
-instructions before requests reach DeepSeek. Conversations remain scoped to the
-selected document or knowledge base for follow-up questions.
+这是一个面向企业内部资料的知识库问答系统，采用 FastAPI、React、MySQL、Redis、RQ、Qdrant 和 Docker Compose 构建。系统支持私有文档处理、LangChain 递归文本切分、向量检索，以及带 PDF 页码引用的可信 RAG 回答。
 
-## Implemented Capabilities
+用户可以在一个知识库的全部就绪文档中提问，也可以将问题限定在单篇文档。LangChain 提示词模板会将检索到的参考资料与模型指令隔离后再发送给 DeepSeek；多轮对话始终绑定当前选择的知识库或文档。
 
-- Private knowledge bases with owner, editor, and viewer roles.
-- PDF validation, SHA-256 duplicate detection per knowledge base, and secure
-  original-file downloads.
-- Background PDF extraction, LangChain recursive chunking, embeddings, and
-  Qdrant indexing with retry and reindex operations.
-- Document tags for organization, vector-search filtering, and RAG-answer
-  filtering. Updating tags on a ready document automatically rebuilds its
-  vectors so metadata and retrieval stay consistent.
-- Processing metadata in the document list: status, chunk count, and last
-  successful index time.
-- Knowledge-base and single-document answers with DeepSeek, streaming SSE,
-  source citations, conversation history, and citation follow-up actions.
-- Retrieval search with tag filters, matching snippets, page numbers, and
-  relevance scores.
-- Answer feedback summaries, retrieval-quality evaluation, structured audit
-  logs, and MySQL backup/restore verification scripts.
+## 已实现功能
 
-## Key Workflows
+- 私有知识库，包含所有者、编辑者和查看者三种协作角色。
+- PDF 格式校验、同知识库内的 SHA-256 重复文件检测，以及受权限保护的原文件下载。
+- 后台 PDF 文本提取、LangChain 递归分块、向量嵌入、Qdrant 索引，以及失败重试和重新索引。
+- 文档标签：用于分类、向量检索过滤和 RAG 回答过滤。修改已就绪文档的标签会自动重建向量，保证元数据与检索结果一致。
+- 文档列表展示处理状态、分块数量和最近一次成功索引时间。
+- 基于 DeepSeek 的知识库问答和单文档问答，支持 SSE 流式输出、来源引用、多轮对话和引用追问。
+- 检索结果支持标签过滤、命中片段、页码和相关性分数。
+- 回答反馈汇总、检索质量评估、结构化审计日志，以及 MySQL 备份和恢复验证脚本。
 
-### Document lifecycle
+## 核心流程
+
+### 文档处理流程
 
 ```text
-upload PDF -> SHA-256 duplicate check -> uploaded -> Redis/RQ
-    -> processing -> PDF chunks -> embeddings -> Qdrant -> ready
-                                                \-> failed -> retry
+上传 PDF -> SHA-256 重复检查 -> uploaded -> Redis/RQ
+    -> processing -> PDF 分块 -> 向量嵌入 -> Qdrant -> ready
+                                              \-> failed -> 重试
 ```
 
-The document list exposes the final chunk count and index completion time. A
-reindex or a tag change on a ready document removes its old vectors before the
-worker queues a replacement index.
+文档列表会显示最终分块数量和索引完成时间。对已就绪文档重新索引或修改标签时，系统会先删除旧向量，再由后台任务创建新的索引。
 
-### Grounded answer lifecycle
+### 可信问答流程
 
 ```text
-question + optional tags -> authorization -> Qdrant filtered retrieval
-    -> relevance threshold -> LangChain prompt -> DeepSeek SSE response
-    -> conversation + cited sources persisted in MySQL
+问题 + 可选标签 -> 权限验证 -> Qdrant 过滤检索
+    -> 相关性阈值 -> LangChain 提示词 -> DeepSeek SSE 流式回答
+    -> 对话记录和引用来源写入 MySQL
 ```
 
-Sources include PDF pages where available. A user can search matching chunks,
-open the original authorized PDF, or switch directly into a cited document for
-a focused follow-up question.
+来源信息包含可用的 PDF 页码。用户可以搜索匹配的文本片段、打开自己有权访问的原始 PDF，或直接切换到被引用的文档继续针对性追问。
 
-## Architecture
+## 系统架构
 
 ```text
-React frontend
+React 前端
     |
     v
-Nginx /api proxy
+Nginx /api 代理
     |
     v
 FastAPI API ---- MySQL
     |               |
-    |               +-- users, knowledge_bases, documents
+    |               +-- 用户、知识库、文档
     |
-    +-- Redis / RQ queue --> RQ worker --> Qdrant
+    +-- Redis / RQ 队列 --> RQ Worker --> Qdrant
 ```
 
-Document processing flow:
+文档状态流转：
 
 ```text
-upload -> uploaded -> Redis queue -> processing -> ready / failed
+上传 -> uploaded -> Redis 队列 -> processing -> ready / failed
 ```
 
-The worker validates documents, extracts text, splits chunks, creates
-embeddings, and stores vectors in Qdrant. Failed documents can be retried.
-Editors can reindex a ready document after changing document-processing or
-embedding settings; reindexing clears that document's old vectors and queues a
-fresh processing job.
-The upload flow fingerprints PDF content and rejects an identical file within
-the same knowledge base, preventing duplicate vectors and duplicate retrieval
-results.
-Each question is saved with its answer and citations; a follow-up uses only the
-latest history from the same user's selected document.
+后台 Worker 会校验文档、提取文本、切分文本块、生成向量，并将向量写入 Qdrant。失败的文档可以重试。编辑者在修改文档处理或嵌入相关设置后，可以重新索引已就绪文档；重新索引会清除该文档的旧向量并创建新的后台处理任务。
 
-Knowledge bases are private by default. An owner can share a knowledge base by
-username: editors can upload, retry, and delete documents; viewers can only
-read, search, and ask questions. The API enforces these roles for every
-knowledge-base, document, and retrieval request.
+上传时会对 PDF 内容计算指纹，并拒绝同一知识库中的相同文件，从而避免重复向量和重复检索结果。每次提问都会保存问题、回答和引用来源；追问只使用该用户在当前知识库或文档范围内最近的对话历史。
 
-## Services
+知识库默认私有。所有者可按用户名共享知识库：编辑者可以上传、重试和删除文档；查看者只能阅读、搜索和提问。API 会对每次知识库、文档和检索请求执行角色权限校验。
 
-| Service | Responsibility |
+## 服务说明
+
+| 服务 | 职责 |
 | --- | --- |
-| `frontend` | React application served by Nginx |
-| `api` | FastAPI REST API and Alembic migrations |
-| `worker` | RQ background document processor |
-| `mysql` | Persistent relational data |
-| `redis` | RQ queue and rate-limit storage |
-| `qdrant` | Document vector search |
+| `frontend` | 由 Nginx 提供服务的 React 前端 |
+| `api` | FastAPI REST API 和 Alembic 数据库迁移 |
+| `worker` | RQ 文档后台处理进程 |
+| `mysql` | 持久化关系型数据 |
+| `redis` | RQ 队列和限流数据 |
+| `qdrant` | 文档向量检索 |
 
-## Configuration
+## 配置
 
-Copy `backend/app/.env.example` to `backend/app/.env`, then set real secrets
-and passwords. Do not commit `.env`.
+将 `backend/app/.env.example` 复制为 `backend/app/.env`，然后填写真实的密钥和密码。不要提交 `.env` 文件。
 
-Required production database settings:
+生产数据库必填配置：
 
 ```env
 MYSQL_DATABASE=enterprise_rag
@@ -119,17 +91,13 @@ DATABASE_URL=mysql+pymysql://enterprise_rag:replace-with-a-private-password@mysq
 MAX_DOCUMENT_SIZE_MB=10
 ```
 
-PDF uploads default to 10 MB. Increase `MAX_DOCUMENT_SIZE_MB` only after
-confirming that API, worker, and storage capacity support the larger files.
+PDF 上传大小默认限制为 10 MB。只有在确认 API、Worker 和存储资源能够承载更大文件时，才提高 `MAX_DOCUMENT_SIZE_MB`。
 
-`RAG_QUERY_REWRITE_ENABLED` defaults to `false`. Enable it only after measuring
-retrieval quality on the evaluation set: each enabled question makes one
-additional DeepSeek request before vector retrieval and safely falls back to
-the original question when rewriting fails.
+`RAG_QUERY_REWRITE_ENABLED` 默认是 `false`。只有在评估集上测量过检索质量后才开启：开启后，每个问题在向量检索前会额外调用一次 DeepSeek；改写失败时会安全地回退到原问题。
 
-## Run With Docker Compose
+## 使用 Docker Compose 运行
 
-Create the persistent volumes once before the first production startup:
+首次在生产环境启动前，需要先创建持久化卷：
 
 ```bash
 for volume in \
@@ -143,32 +111,28 @@ for volume in \
 done
 ```
 
-Then start the services:
+然后启动所有服务：
 
 ```bash
 docker compose up -d --build
 docker compose ps
 ```
 
-For a new deployment, create the first administrator from an interactive
-terminal after the API is running. The password is prompted and is not passed
-as a command-line argument:
+新部署完成且 API 已启动后，请在交互式终端创建第一个管理员。命令会提示输入密码，因此密码不会出现在命令行历史中：
 
 ```bash
 docker compose exec -it api python scripts/create_admin.py --username admin
 ```
 
-To promote an existing user after verifying their identity:
+确认身份后，可将已有用户提升为管理员：
 
 ```bash
 docker compose exec -it api python scripts/promote_user.py --username username
 ```
 
-Self-registration is disabled by default. An authenticated administrator can
-create additional users through `POST /users`; set `ALLOW_SELF_REGISTRATION=true`
-only for an explicitly intended self-service environment.
+默认禁止自助注册。已登录的管理员可通过 `POST /users` 创建其他用户；只有明确需要开放注册的环境，才设置 `ALLOW_SELF_REGISTRATION=true`。
 
-The API runs Alembic migrations on startup. Health endpoints:
+API 会在启动时执行 Alembic 数据库迁移。健康检查接口：
 
 ```text
 GET /health/live
@@ -176,26 +140,21 @@ GET /health/ready
 GET /health
 ```
 
-The frontend is served on port `8080`; the API is served on port `8000`.
+前端服务端口是 `8080`，API 服务端口是 `8000`。
 
-## Tests
+## 测试
 
 ```bash
 python -m pytest backend/app/tests -q
 ```
 
-Tests use isolated SQLite databases. Development and production application
-data use MySQL.
+测试使用隔离的 SQLite 数据库；开发和生产环境的应用数据使用 MySQL。
 
-## Retrieval Evaluation
+## 检索评估
 
-Use a small, versioned set of representative questions to measure retrieval
-quality before changing chunking, embeddings, or the relevance threshold. Copy
-`backend/app/evaluations/retrieval_cases.example.json`, replace the example IDs
-with documents from a non-production evaluation knowledge base, and label the
-expected document page or exact chunk for every question.
+在修改分块策略、嵌入模型或相关性阈值之前，应使用一组小规模、已版本控制的代表性问题评估检索质量。复制 `backend/app/evaluations/retrieval_cases.example.json`，将示例 ID 替换为非生产评估知识库中的文档，并为每个问题标记预期的文档页码或准确文本块。
 
-Run the evaluation where Qdrant and the embedding model are available:
+在可访问 Qdrant 和嵌入模型的环境中执行评估：
 
 ```bash
 python scripts/evaluate_retrieval.py path/to/retrieval_cases.json --k 3 \
@@ -203,17 +162,13 @@ python scripts/evaluate_retrieval.py path/to/retrieval_cases.json --k 3 \
   --min-recall-at-k 0.8 --min-mrr-at-k 0.6
 ```
 
-The report contains `recall_at_k`, `mrr_at_k`, and failed case names. The tool
-only reads vectors; it does not modify documents, Qdrant, or MySQL. It records
-the evaluation dataset hash so reports remain comparable. The optional minimum
-metrics make the command fail when retrieval quality regresses.
+报告包含 `recall_at_k`、`mrr_at_k` 和失败用例名称。该工具只读取向量，不会修改文档、Qdrant 或 MySQL；它会记录评估数据集哈希值，使不同报告可比较。可选的最低指标参数会在检索质量下降时使命令失败。
 
-## Backups
+## 备份
 
-See [Production Operations](docs/operations.md) for deployment, backup,
-restore verification, troubleshooting, and security procedures.
+部署、备份、恢复验证、故障处理和安全操作请查看[生产运维手册](docs/operations.md)。
 
-Create a MySQL backup from the production host:
+在生产服务器上手动创建 MySQL 备份：
 
 ```bash
 set -a
@@ -226,34 +181,22 @@ sudo docker compose exec -T -e MYSQL_PWD="$MYSQL_PASSWORD" mysql \
   > ~/backups/enterprise-rag/enterprise_rag-mysql-$(date +%F).sql
 ```
 
-Run the repository helpers from the production checkout for routine checks:
+日常检查请在生产环境仓库目录执行辅助脚本：
 
 ```bash
 sudo bash scripts/check_production.sh
 sudo bash scripts/backup_mysql.sh
 ```
 
-The production check verifies that the document worker container is running and
-reports the registered RQ worker count and pending document jobs before it
-checks API health and backups.
+生产检查会确认文档 Worker 容器正在运行，并输出已注册的 RQ Worker 数量和待处理文档任务数，随后检查 API 健康状态和备份。
 
-Validate backups periodically by restoring the newest dump into a temporary
-database and comparing table counts. A successful `mysqldump` alone does not
-prove that a restore will work.
+应定期将最新备份恢复到临时数据库并比较表记录数量。单独的 `mysqldump` 成功并不能证明恢复一定成功。
 
-## Production Resource Migration
+## 生产资源迁移
 
-The repository includes `scripts/migrate_production_resources.sh` for the
-one-time migration from the former Todo deployment. It creates new
-`enterprise-rag-*` Docker volumes and an `enterprise_rag` MySQL database,
-copies MySQL, document, Qdrant, and model-cache data, and retains the old
-resources for rollback. Redis starts with an empty queue intentionally.
+仓库提供 `scripts/migrate_production_resources.sh`，用于从旧 Todo 部署一次性迁移到本项目。脚本会创建新的 `enterprise-rag-*` Docker 卷和 `enterprise_rag` MySQL 数据库，复制 MySQL、文档、Qdrant 和模型缓存数据，并保留旧资源以便回退。Redis 会有意以空队列启动。
 
-Run the script only on the production VM after this release is merged and the
-automatic deploy workflow is disabled. Do not update the old `~/todo-api`
-checkout before migration: it is needed to access the old Compose resources.
-Clone the current repository to a temporary directory and run the migration
-script from there:
+只应在该版本已合并、且自动部署工作流已关闭后，在生产虚拟机运行此脚本。迁移前不要更新旧的 `~/todo-api` 仓库，因为脚本需要读取旧 Compose 资源。请将当前仓库克隆到临时目录后再执行：
 
 ```bash
 git clone https://github.com/Min-Bai/enterprise-rag-knowledge-hub.git \
@@ -263,6 +206,4 @@ cd ~/enterprise-rag-migration
 bash scripts/migrate_production_resources.sh
 ```
 
-After migration, update the Windows runner SSH configuration so the same VM is
-available through the `enterprise-rag-vm` host alias. The deployment workflows
-use that alias and `~/deploy-enterprise-rag.sh`.
+迁移完成后，更新 Windows Runner 的 SSH 配置，使同一台虚拟机可通过 `enterprise-rag-vm` 主机别名访问。部署工作流使用该别名和 `~/deploy-enterprise-rag.sh`。

@@ -1,16 +1,33 @@
-# React + Vite
+# 企业级 RAG 知识库问答系统前端
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+`frontend` 是基于 React 和 Vite 构建的知识库工作台。它提供登录、知识库切换、文档管理、标签筛选、检索、流式问答、来源引用、多轮对话、角色协作和审计日志等界面。
 
-Currently, two official plugins are available:
+## 本地开发
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+先安装依赖：
 
-## React Compiler
+```bash
+npm install
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+启动本地开发服务器：
 
-## Expanding the Oxlint configuration
+```bash
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+开发服务器会将 `/api` 请求代理到后端服务。请同时启动后端、Redis、Qdrant 和数据库，才能使用完整功能。
+
+## 常用命令
+
+```bash
+npm run lint
+npm run format:check
+npm run format
+npm run build
+```
+
+- `lint`：检查前端代码规范。
+- `format:check`：检查代码格式是否符合 Prettier 规则。
+- `format`：自动格式化 `src` 下的前端代码。
+- `build`：构建生产环境静态资源。

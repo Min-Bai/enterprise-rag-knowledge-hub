@@ -1,59 +1,52 @@
-# Production Operations
+# 生产环境运维手册
 
-Run all commands from the production checkout, `~/enterprise-rag-knowledge-hub`.
+所有命令都应在生产环境仓库目录 `~/enterprise-rag-knowledge-hub` 中执行。
 
-## Daily check
+## 每日检查
 
 ```bash
 sudo bash scripts/check_production.sh
 ```
 
-The check verifies Compose service state, the RQ worker, queue depth, API
-dependencies, disk capacity, and the latest backup.
+该检查会验证 Docker Compose 服务状态、RQ Worker、队列积压、API 依赖、磁盘容量和最新备份。
 
-## Deploy
+## 部署
 
-Deploy the checked-out `main` branch after CI passes:
+CI 通过后，部署当前检出的 `main` 分支：
 
 ```bash
 sudo bash scripts/deploy_enterprise_rag.sh
 ```
 
-The script rebuilds API, worker, and frontend, then waits for `/health`.
-For a failed deployment, inspect the API first:
+脚本会重新构建 API、Worker 和前端，然后等待 `/health` 健康检查通过。部署失败时，优先查看 API 和 Worker 日志：
 
 ```bash
 sudo docker compose logs api --tail 100
 sudo docker compose logs worker --tail 100
 ```
 
-## Backup and restore verification
+## 备份与恢复验证
 
-Create a backup manually or through the scheduled job:
+手动或通过定时任务创建备份：
 
 ```bash
 sudo bash scripts/backup_mysql.sh
 ```
 
-Confirm a backup can be restored into a temporary database before relying on
-it for recovery. Do not restore over the production database during a test.
+在依赖备份进行恢复前，应先将备份恢复到临时数据库验证。测试时绝不能覆盖生产数据库。
 
-## Common recovery actions
+## 常见故障处理
 
-| Symptom | First action |
+| 现象 | 首先执行的操作 |
 | --- | --- |
-| API health fails | Inspect API logs and MySQL/Redis/Qdrant service state. |
-| Document remains `uploaded` or `processing` | Inspect worker logs and RQ queue; retry from the workspace after the worker recovers. |
-| Document is `failed` | Read the document error, correct the input or dependency failure, then retry. |
-| Retrieval quality declines | Run the versioned retrieval evaluation before changing chunking, embeddings, or score thresholds. |
-| Disk capacity is low | Check Docker images, backup retention, and document volume usage before deleting anything. |
+| API 健康检查失败 | 查看 API 日志，以及 MySQL、Redis、Qdrant 服务状态。 |
+| 文档长期处于 `uploaded` 或 `processing` | 查看 Worker 日志和 RQ 队列；Worker 恢复后在工作台中重试。 |
+| 文档状态为 `failed` | 阅读文档错误信息，修复输入文件或依赖问题后重试。 |
+| 检索质量下降 | 修改分块、嵌入模型或分数阈值前，先运行已版本控制的检索评估。 |
+| 磁盘空间不足 | 删除任何内容前，先检查 Docker 镜像、备份保留策略和文档卷占用。 |
 
-## Security operations
+## 安全操作
 
-- Keep `backend/app/.env` out of Git and use distinct MySQL application and
-  root passwords.
-- Self-registration remains disabled by default. Create the first admin with
-  `scripts/create_admin.py`; promote verified existing users with
-  `scripts/promote_user.py`.
-- Do not expose MySQL outside localhost. Use an SSH tunnel for administrative
-  database access.
+- `backend/app/.env` 必须排除在 Git 之外；MySQL 应用账户和 root 账户必须使用不同密码。
+- 默认禁止自助注册。使用 `scripts/create_admin.py` 创建首个管理员；确认身份后使用 `scripts/promote_user.py` 提升已有用户。
+- 不要将 MySQL 暴露到公网。数据库管理访问应通过 SSH 隧道完成。
