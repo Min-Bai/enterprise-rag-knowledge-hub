@@ -8,6 +8,7 @@ from backend.app.services.knowledge_base_members import (
     get_knowledge_base_role,
     require_knowledge_base_role,
 )
+from backend.app.services.knowledge_bases import get_knowledge_bases_service
 
 
 def test_owner_has_owner_role_without_membership_lookup():
@@ -38,3 +39,27 @@ def test_viewer_cannot_write_documents():
             db=db,
             allowed_roles={"owner", "editor"},
         )
+
+
+def test_knowledge_base_list_includes_the_shared_member_role():
+    knowledge_base = SimpleNamespace(
+        id=3,
+        name="Engineering",
+        description=None,
+        created_at="2026-08-14T00:00:00Z",
+        owner_user_id=1,
+    )
+    db = Mock()
+    db.execute.return_value.all.return_value = [(knowledge_base, "viewer")]
+
+    result = get_knowledge_bases_service(db=db, owner_user_id=2)
+
+    assert result == [
+        {
+            "id": 3,
+            "name": "Engineering",
+            "description": None,
+            "created_at": "2026-08-14T00:00:00Z",
+            "role": "viewer",
+        }
+    ]

@@ -1,4 +1,4 @@
-from sqlalchemy import distinct, or_, select
+from sqlalchemy import and_, distinct, or_, select
 from sqlalchemy.orm import Session
 
 from ..models.knowledge_base import KnowledgeBaseORM
@@ -58,14 +58,29 @@ def create_knowledge_base_service(
 def get_knowledge_bases_service(
     db: Session,
     owner_user_id: int,
-) -> list[KnowledgeBaseORM]:
+) -> list[dict[str, object]]:
     statement = (
-        select(KnowledgeBaseORM).distinct()
-        .outerjoin(KnowledgeBaseMemberORM, KnowledgeBaseMemberORM.knowledge_base_id == KnowledgeBaseORM.id)
+        select(KnowledgeBaseORM, KnowledgeBaseMemberORM.role).distinct()
+        .outerjoin(
+            KnowledgeBaseMemberORM,
+            and_(
+                KnowledgeBaseMemberORM.knowledge_base_id == KnowledgeBaseORM.id,
+                KnowledgeBaseMemberORM.user_id == owner_user_id,
+            ),
+        )
         .where(or_(KnowledgeBaseORM.owner_user_id == owner_user_id, KnowledgeBaseMemberORM.user_id == owner_user_id))
         .order_by(KnowledgeBaseORM.created_at.desc())
     )
-    return list(db.scalars(statement).all())
+    return [
+        {
+            "id": knowledge_base.id,
+            "name": knowledge_base.name,
+            "description": knowledge_base.description,
+            "created_at": knowledge_base.created_at,
+            "role": "owner" if knowledge_base.owner_user_id == owner_user_id else role,
+        }
+        for knowledge_base, role in db.execute(statement).all()
+    ]
 
 
 def get_knowledge_base_service(

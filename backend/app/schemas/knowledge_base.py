@@ -42,6 +42,7 @@ class KnowledgeBaseResponse(BaseModel):
     name: str
     description: str | None
     created_at: datetime
+    role: Literal["owner", "editor", "viewer"] = "owner"
 
     model_config = ConfigDict(from_attributes=True)
 

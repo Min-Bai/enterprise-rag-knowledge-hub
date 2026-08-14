@@ -26,10 +26,14 @@ def test_create_list_update_and_delete_knowledge_base():
         assert create_response.status_code == 201
         knowledge_base = create_response.json()
         assert knowledge_base["name"] == "Engineering handbook"
+        assert knowledge_base["role"] == "owner"
 
         list_response = client.get("/knowledge-bases")
         assert list_response.status_code == 200
-        assert any(item["id"] == knowledge_base["id"] for item in list_response.json())
+        listed_knowledge_base = next(
+            item for item in list_response.json() if item["id"] == knowledge_base["id"]
+        )
+        assert listed_knowledge_base["role"] == "owner"
 
         update_response = client.patch(
             f"/knowledge-bases/{knowledge_base['id']}",
