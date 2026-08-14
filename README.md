@@ -210,6 +210,9 @@ metrics make the command fail when retrieval quality regresses.
 
 ## Backups
 
+See [Production Operations](docs/operations.md) for deployment, backup,
+restore verification, troubleshooting, and security procedures.
+
 Create a MySQL backup from the production host:
 
 ```bash
