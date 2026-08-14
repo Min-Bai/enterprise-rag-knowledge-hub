@@ -29,6 +29,7 @@ import {
   updateKnowledgeBase,
 } from "./api.js";
 import LoginForm from "./LoginForm.jsx";
+import ConversationControls from "./ConversationControls.jsx";
 
 function getConversationLabel(conversation) {
   const question = conversation.messages
@@ -1152,36 +1153,19 @@ function App() {
                     />
                   </>
                 )}
-                <div className="conversation-controls">
-                  <label htmlFor="conversation-select">Conversation</label>
-                  <select
-                    id="conversation-select"
-                    value={selectedConversationId}
-                    onChange={(event) => {
-                      setSelectedConversationId(event.target.value);
-                      setDocumentAnswer(null);
-                    }}
-                  >
-                    <option value="">New conversation</option>
-                    {conversations.map((conversation) => (
-                      <option key={conversation.id} value={conversation.id}>
-                        {getConversationLabel(conversation)}
-                      </option>
-                    ))}
-                  </select>
-                  {selectedConversationId && (
-                    <button
-                      type="button"
-                      className="delete-button"
-                      disabled={deletingConversationId !== null}
-                      onClick={handleDeleteConversation}
-                    >
-                      {deletingConversationId
-                        ? "Deleting..."
-                        : "Delete conversation"}
-                    </button>
-                  )}
-                </div>
+                <ConversationControls
+                  conversations={conversations.map((conversation) => ({
+                    ...conversation,
+                    label: getConversationLabel(conversation),
+                  }))}
+                  selectedConversationId={selectedConversationId}
+                  onSelect={(conversationId) => {
+                    setSelectedConversationId(conversationId);
+                    setDocumentAnswer(null);
+                  }}
+                  onDelete={handleDeleteConversation}
+                  isDeleting={deletingConversationId !== null}
+                />
                 <label htmlFor="document-question">Question</label>
                 <textarea
                   id="document-question"
