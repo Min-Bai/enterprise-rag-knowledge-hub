@@ -132,11 +132,17 @@ async function streamAnswer(url, accessToken, body, handlers) {
   if (!completed) throw new Error("Document answer stream ended unexpectedly");
 }
 
-export async function getDocumentConversations(accessToken, documentId) {
+export async function getDocumentConversations(
+  accessToken,
+  documentId,
+  offset = 0,
+  limit = 100,
+) {
   return readJson(
-    await fetch(`${API_PREFIX}/ai/documents/${documentId}/conversations`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }),
+    await fetch(
+      `${API_PREFIX}/ai/documents/${documentId}/conversations?offset=${offset}&limit=${limit}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    ),
     "Failed to load conversation history",
   );
 }
@@ -144,10 +150,12 @@ export async function getDocumentConversations(accessToken, documentId) {
 export async function getKnowledgeBaseConversations(
   accessToken,
   knowledgeBaseId,
+  offset = 0,
+  limit = 100,
 ) {
   return readJson(
     await fetch(
-      `${API_PREFIX}/ai/knowledge-bases/${knowledgeBaseId}/conversations`,
+      `${API_PREFIX}/ai/knowledge-bases/${knowledgeBaseId}/conversations?offset=${offset}&limit=${limit}`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
     ),
     "Failed to load conversation history",

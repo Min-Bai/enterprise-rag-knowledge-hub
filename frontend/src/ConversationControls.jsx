@@ -4,6 +4,9 @@ function ConversationControls({
   onSelect,
   onDelete,
   isDeleting,
+  hasMore,
+  onLoadMore,
+  isLoadingMore,
 }) {
   return (
     <div className="conversation-controls">
@@ -28,6 +31,11 @@ function ConversationControls({
           onClick={onDelete}
         >
           {isDeleting ? "Deleting..." : "Delete conversation"}
+        </button>
+      )}
+      {hasMore && (
+        <button type="button" disabled={isLoadingMore} onClick={onLoadMore}>
+          {isLoadingMore ? "Loading..." : "Load more conversations"}
         </button>
       )}
     </div>

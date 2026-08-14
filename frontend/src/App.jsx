@@ -85,6 +85,9 @@ function App() {
   const [answerTags, setAnswerTags] = useState("");
   const [documentAnswer, setDocumentAnswer] = useState(null);
   const [conversations, setConversations] = useState([]);
+  const [hasMoreConversations, setHasMoreConversations] = useState(false);
+  const [isLoadingMoreConversations, setIsLoadingMoreConversations] =
+    useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState("");
   const [deletingConversationId, setDeletingConversationId] = useState(null);
   const [documentAnswerError, setDocumentAnswerError] = useState("");
@@ -249,6 +252,7 @@ function App() {
     if (!accessToken || !scopeId) {
       setConversations([]);
       setSelectedConversationId("");
+      setHasMoreConversations(false);
       return;
     }
     const loadConversations =
@@ -256,7 +260,10 @@ function App() {
         ? getKnowledgeBaseConversations
         : getDocumentConversations;
     loadConversations(accessToken, scopeId)
-      .then((data) => setConversations(data))
+      .then((data) => {
+        setConversations(data);
+        setHasMoreConversations(data.length === 100);
+      })
       .catch((error) => {
         if (error.status === 401) clearSession();
         else setDocumentAnswerError(error.message);
@@ -276,6 +283,37 @@ function App() {
     } finally {
       clearSession();
       setIsLoggingOut(false);
+    }
+  }
+
+  async function handleLoadMoreConversations() {
+    const scopeId =
+      answerScope === "knowledge-base"
+        ? selectedKnowledgeBaseId
+        : selectedDocumentId;
+    const loadConversations =
+      answerScope === "knowledge-base"
+        ? getKnowledgeBaseConversations
+        : getDocumentConversations;
+    setIsLoadingMoreConversations(true);
+    try {
+      const data = await loadConversations(
+        accessToken,
+        scopeId,
+        conversations.length,
+      );
+      setConversations((current) => [
+        ...current,
+        ...data.filter(
+          (item) =>
+            !current.some((conversation) => conversation.id === item.id),
+        ),
+      ]);
+      setHasMoreConversations(data.length === 100);
+    } catch (error) {
+      setDocumentAnswerError(error.message);
+    } finally {
+      setIsLoadingMoreConversations(false);
     }
   }
 
@@ -1165,6 +1203,9 @@ function App() {
                   }}
                   onDelete={handleDeleteConversation}
                   isDeleting={deletingConversationId !== null}
+                  hasMore={hasMoreConversations}
+                  onLoadMore={handleLoadMoreConversations}
+                  isLoadingMore={isLoadingMoreConversations}
                 />
                 <label htmlFor="document-question">Question</label>
                 <textarea
