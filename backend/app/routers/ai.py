@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -142,6 +142,8 @@ def stream_knowledge_base_answer(
 @router.get('/documents/{document_id}/conversations', response_model=list[ConversationResponse])
 def get_document_conversations(
     document_id: int,
+    limit: int = Query(default=100, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: UserORM = Depends(get_current_user),
 ):
@@ -157,6 +159,8 @@ def get_document_conversations(
     return get_document_conversations_service(
         user_id=current_user.id,
         document_id=document_id,
+        limit=limit,
+        offset=offset,
         db=db,
     )
 
@@ -164,6 +168,8 @@ def get_document_conversations(
 @router.get('/knowledge-bases/{knowledge_base_id}/conversations', response_model=list[ConversationResponse])
 def get_knowledge_base_conversations(
     knowledge_base_id: int,
+    limit: int = Query(default=100, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: UserORM = Depends(get_current_user),
 ):
@@ -176,5 +182,7 @@ def get_knowledge_base_conversations(
     return get_knowledge_base_conversations_service(
         user_id=current_user.id,
         knowledge_base_id=knowledge_base_id,
+        limit=limit,
+        offset=offset,
         db=db,
     )

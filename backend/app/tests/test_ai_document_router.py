@@ -70,6 +70,8 @@ def test_document_conversations_are_scoped_to_current_user(monkeypatch):
     assert get_document[0]["user_id"] == 1
     assert get_conversations[0]["user_id"] == 1
     assert get_conversations[0]["document_id"] == 8
+    assert get_conversations[0]["limit"] == 100
+    assert get_conversations[0]["offset"] == 0
     assert "db" in get_conversations[0]
 
 def test_document_answer_rejects_empty_question(monkeypatch):

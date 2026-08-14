@@ -135,6 +135,8 @@ def get_document_conversations_service(
     *,
     user_id: int,
     document_id: int,
+    limit: int = 100,
+    offset: int = 0,
     db: Session,
 ) -> list[ConversationORM]:
     return db.scalars(
@@ -145,11 +147,13 @@ def get_document_conversations_service(
         )
         .options(selectinload(ConversationORM.messages))
         .order_by(ConversationORM.updated_at.desc())
+        .limit(limit)
+        .offset(offset)
     ).all()
 
 
 def get_knowledge_base_conversations_service(
-    *, user_id: int, knowledge_base_id: int, db: Session
+    *, user_id: int, knowledge_base_id: int, limit: int = 100, offset: int = 0, db: Session
 ) -> list[ConversationORM]:
     return db.scalars(
         select(ConversationORM)
@@ -159,4 +163,6 @@ def get_knowledge_base_conversations_service(
         )
         .options(selectinload(ConversationORM.messages))
         .order_by(ConversationORM.updated_at.desc())
+        .limit(limit)
+        .offset(offset)
     ).all()
