@@ -480,6 +480,7 @@ function App() {
   async function handleUpload(event) {
     event.preventDefault();
     if (!documentFile) return;
+    const form = event.currentTarget;
     setIsUploadingDocument(true);
     setDocumentUploadError("");
     try {
@@ -497,7 +498,7 @@ function App() {
       await refreshAuditLogs(document.knowledge_base_id);
       setDocumentFile(null);
       setDocumentTags("");
-      event.currentTarget.reset();
+      form.reset();
     } catch (error) {
       setDocumentUploadError(error.message);
     } finally {
