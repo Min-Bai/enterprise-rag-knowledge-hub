@@ -6,7 +6,7 @@
 
 ## 知识库与文档
 
-每个知识库都属于一个用户。文档会上传到选定的知识库中，持久化保存后由 RQ Worker 后台处理，依次完成文本分块、向量嵌入和 Qdrant 索引。文档状态依次为 `uploaded`、`processing`、`ready` 或 `failed`。
+每个知识库都属于一个用户。文档会上传到选定的知识库中，持久化保存后由 Celery Worker 后台处理，依次完成文本分块、向量嵌入和 Qdrant 索引。文档状态依次为 `uploaded`、`processing`、`ready` 或 `failed`。
 
 ## RAG 回答
 
@@ -14,4 +14,4 @@
 
 ## 运维
 
-MySQL 保存关系型应用数据；Redis 提供 RQ 队列和限流；Qdrant 保存向量数据。`/health` 接口会检查 MySQL、Redis 和 Qdrant 是否就绪。
+MySQL 保存关系型应用数据；Redis 提供 Celery 队列和限流；Qdrant 保存向量数据。`/health` 接口会检查 MySQL、Redis 和 Qdrant 是否就绪。

@@ -50,18 +50,15 @@ from unittest.mock import Mock
 from backend.app.services import document_queue
 
 
-def test_enqueue_document_processing_uses_document_queue(monkeypatch):
-    queue = Mock()
-    monkeypatch.setattr(document_queue, "get_document_queue", lambda: queue)
+def test_enqueue_document_processing_sends_celery_task(monkeypatch):
+    task = Mock()
+    monkeypatch.setattr(document_queue, "process_document_task", task)
 
     document_queue.enqueue_document_processing(42)
 
-    queue.enqueue.assert_called_once_with(
-        document_queue.process_document,
-        42,
-        job_timeout="20m",
-        result_ttl=0,
-        failure_ttl=7 * 24 * 60 * 60,
+    task.apply_async.assert_called_once_with(
+        args=[42],
+        queue=document_queue.DOCUMENT_QUEUE_NAME,
     )
 
 def test_upload_document_rejects_rate_limited_user(monkeypatch):

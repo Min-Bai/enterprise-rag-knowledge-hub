@@ -17,15 +17,17 @@ if ! sudo docker compose ps --status running --services | grep -qx "worker"; the
 fi
 
 sudo docker compose exec -T worker python -c '
-from rq import Worker
-from backend.app.services.document_queue import get_document_queue
+from backend.app.celery_app import celery_app
+from backend.app.celery_app import DOCUMENT_QUEUE_NAME
+from backend.app.config import REDIS_URL
+from redis import Redis
 
-queue = get_document_queue()
-workers = Worker.all(connection=queue.connection)
+workers = celery_app.control.inspect(timeout=5).ping() or {}
 if not workers:
-    raise SystemExit("No RQ workers are registered")
+    raise SystemExit("No Celery workers are registered")
 print(f"registered workers: {len(workers)}")
-print(f"queued document jobs: {len(queue)}")
+redis = Redis.from_url(REDIS_URL)
+print(f"queued document jobs: {redis.llen(DOCUMENT_QUEUE_NAME)}")
 '
 
 echo

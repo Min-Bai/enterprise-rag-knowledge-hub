@@ -1,6 +1,6 @@
 # 企业级 RAG 知识库问答系统
 
-这是一个面向企业内部资料的知识库问答系统，采用 FastAPI、React、MySQL、Redis、RQ、Qdrant 和 Docker Compose 构建。系统支持私有文档处理、LangChain 递归文本切分、向量检索，以及带 PDF 页码引用的可信 RAG 回答。
+这是一个面向企业内部资料的知识库问答系统，采用 FastAPI、React、MySQL、Redis、Celery、Qdrant 和 Docker Compose 构建。系统支持私有文档处理、LangChain 递归文本切分、向量检索，以及带 PDF 页码引用的可信 RAG 回答。
 
 用户可以在一个知识库的全部就绪文档中提问，也可以将问题限定在单篇文档。LangChain 提示词模板会将检索到的参考资料与模型指令隔离后再发送给 DeepSeek；多轮对话始终绑定当前选择的知识库或文档。
 
@@ -20,7 +20,7 @@
 ### 文档处理流程
 
 ```text
-上传 PDF -> SHA-256 重复检查 -> uploaded -> Redis/RQ
+上传 PDF -> SHA-256 重复检查 -> uploaded -> Redis/Celery
     -> processing -> PDF 分块 -> 向量嵌入 -> Qdrant -> ready
                                               \-> failed -> 重试
 ```
@@ -50,7 +50,7 @@ FastAPI API ---- MySQL
     |               |
     |               +-- 用户、知识库、文档
     |
-    +-- Redis / RQ 队列 --> RQ Worker --> Qdrant
++-- Redis / Celery 队列 --> Celery Worker --> Qdrant
 ```
 
 文档状态流转：
@@ -71,9 +71,9 @@ FastAPI API ---- MySQL
 | --- | --- |
 | `frontend` | 由 Nginx 提供服务的 React 前端 |
 | `api` | FastAPI REST API 和 Alembic 数据库迁移 |
-| `worker` | RQ 文档后台处理进程 |
+| `worker` | Celery 文档后台处理进程 |
 | `mysql` | 持久化关系型数据 |
-| `redis` | RQ 队列和限流数据 |
+| `redis` | Celery 队列和限流数据 |
 | `qdrant` | 文档向量检索 |
 
 ## 配置
@@ -188,7 +188,21 @@ sudo bash scripts/check_production.sh
 sudo bash scripts/backup_mysql.sh
 ```
 
-生产检查会确认文档 Worker 容器正在运行，并输出已注册的 RQ Worker 数量和待处理文档任务数，随后检查 API 健康状态和备份。
+生产检查会确认 Celery 文档 Worker 容器正在运行，并输出已注册的 Celery Worker 数量和待处理文档任务数，随后检查 API 健康状态和备份。
+
+## 从 RQ 切换到 Celery
+
+首次部署包含 Celery 的版本前，应先停止旧 RQ Worker，并检查是否存在状态为 `uploaded` 的文档。旧 RQ 队列中的任务不会被 Celery 自动读取。使用下列命令先预览待迁移文档；确认旧 Worker 已停止后，再加上 `--execute` 将文档重新投递到 Celery：
+
+```bash
+sudo docker compose run --rm --no-deps api \
+  python scripts/requeue_uploaded_documents.py
+
+sudo docker compose run --rm --no-deps api \
+  python scripts/requeue_uploaded_documents.py --execute
+```
+
+该脚本应只在 RQ 到 Celery 的首次切换时执行一次。日常部署不需要运行它。
 
 应定期将最新备份恢复到临时数据库并比较表记录数量。单独的 `mysqldump` 成功并不能证明恢复一定成功。
 
