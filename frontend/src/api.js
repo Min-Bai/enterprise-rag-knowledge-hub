@@ -146,8 +146,9 @@ export async function uploadDocument(accessToken, file, knowledgeBaseId, tags) {
   return readJson(await fetch(`${API_PREFIX}/documents`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: formData }), 'Failed to upload document')
 }
 
-export async function getMyDocuments(accessToken, knowledgeBaseId) {
-  return readJson(await fetch(`${API_PREFIX}/documents?knowledge_base_id=${knowledgeBaseId}`, { headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to load documents')
+export async function getMyDocuments(accessToken, knowledgeBaseId, offset = 0, limit = 100) {
+  const params = new URLSearchParams({ knowledge_base_id: knowledgeBaseId, offset, limit })
+  return readJson(await fetch(`${API_PREFIX}/documents?${params}`, { headers: { Authorization: `Bearer ${accessToken}` } }), 'Failed to load documents')
 }
 
 export async function searchDocuments(accessToken, knowledgeBaseId, question, tags) {

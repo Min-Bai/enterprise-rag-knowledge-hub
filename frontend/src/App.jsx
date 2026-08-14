@@ -56,6 +56,8 @@ function App() {
   const [editKnowledgeBaseDescription, setEditKnowledgeBaseDescription] = useState('')
   const [deletingKnowledgeBaseId, setDeletingKnowledgeBaseId] = useState(null)
   const [documents, setDocuments] = useState([])
+  const [hasMoreDocuments, setHasMoreDocuments] = useState(false)
+  const [isLoadingMoreDocuments, setIsLoadingMoreDocuments] = useState(false)
   const [documentFile, setDocumentFile] = useState(null)
   const [documentTags, setDocumentTags] = useState('')
   const [documentUploadError, setDocumentUploadError] = useState('')
@@ -127,6 +129,7 @@ function App() {
   useEffect(() => {
     if (!accessToken || !selectedKnowledgeBaseId) {
       setDocuments([])
+      setHasMoreDocuments(false)
       return
     }
     let cancelled = false
@@ -135,6 +138,7 @@ function App() {
         const data = await getMyDocuments(accessToken, selectedKnowledgeBaseId)
         if (cancelled) return
         setDocuments(data)
+        setHasMoreDocuments(data.length === 100)
         setSelectedDocumentId((current) => data.some((document) => String(document.id) === current) ? current : String(data.find((document) => document.status === 'ready')?.id ?? ''))
       } catch (error) {
         if (error.status === 401) clearSession()
@@ -401,6 +405,15 @@ function App() {
     catch (error) { setDocumentUploadError(error.message) }
   }
 
+  async function handleLoadMoreDocuments() {
+    setIsLoadingMoreDocuments(true)
+    try {
+      const data = await getMyDocuments(accessToken, selectedKnowledgeBaseId, documents.length)
+      setDocuments((current) => [...current, ...data.filter((item) => !current.some((document) => document.id === item.id))])
+      setHasMoreDocuments(data.length === 100)
+    } catch (error) { setDocumentUploadError(error.message) } finally { setIsLoadingMoreDocuments(false) }
+  }
+
   async function handleSearch(event) {
     event.preventDefault()
     const question = searchQuestion.trim()
@@ -454,6 +467,7 @@ function App() {
       {documentUploadError && <p className="form-error">{documentUploadError}</p>}
       <section className="document-search" aria-label="Search document content"><h2>Search content</h2><form onSubmit={handleSearch}><label htmlFor="search-question">Search question</label><input id="search-question" value={searchQuestion} maxLength={300} placeholder="Find relevant policy content" onChange={(event) => setSearchQuestion(event.target.value)} /><label htmlFor="search-tags">Filter by tags</label><input id="search-tags" value={searchTags} maxLength={500} placeholder="HR, policy" onChange={(event) => setSearchTags(event.target.value)} /><button type="submit" disabled={isSearching || !selectedKnowledgeBaseId || !searchQuestion.trim()}>{isSearching ? 'Searching...' : 'Search documents'}</button></form>{searchError && <p className="form-error">{searchError}</p>}{searchResults.length > 0 && <ul className="document-search-results">{searchResults.map((result) => <li key={`${result.document_id}-${result.chunk_index}`}><div><strong>{result.filename}</strong><span>{result.page ? `Page ${result.page}` : 'Document content'} · relevance {Number(result.score).toFixed(2)}</span><p>{result.text}</p></div><button type="button" onClick={() => askAboutSearchResult(result.document_id)}>Ask about document</button></li>)}</ul>}{!isSearching && searchQuestion.trim() && searchResults.length === 0 && !searchError && <p>No matching content found.</p>}</section>
       {documents.length > 0 && <ul className="document-list" aria-label="Uploaded documents">{documents.map((document) => <li key={document.id} className="document-list-item"><div><strong>{document.filename}</strong><span className={`document-status ${document.status}`}>{document.status}</span>{document.tags?.length > 0 && <small className="document-tags">{document.tags.join(' · ')}</small>}{document.status === 'ready' && <small className="document-processing">{document.chunk_count} chunks{document.processed_at ? ` · indexed ${new Date(document.processed_at).toLocaleString()}` : ''}</small>}{document.error_message && <p className="document-error">{document.error_message}</p>}</div><div className="document-actions"><button type="button" onClick={() => handleDownloadDocument(document)}>Download</button>{canManageDocuments && <><button type="button" onClick={() => handleEditDocumentTags(document)}>Edit tags</button>{document.status === 'ready' && <button type="button" disabled={reindexingDocumentId !== null} onClick={() => handleReindexDocument(document.id)}>{reindexingDocumentId === document.id ? 'Reindexing...' : 'Reindex'}</button>}{document.status === 'failed' && <button type="button" className="retry-button" disabled={retryingDocumentId !== null} onClick={() => handleRetryDocument(document.id)}>{retryingDocumentId === document.id ? 'Retrying...' : 'Retry'}</button>}<button type="button" className="delete-button" disabled={deletingDocumentId !== null} onClick={() => handleDeleteDocument(document.id)}>{deletingDocumentId === document.id ? 'Deleting...' : 'Delete'}</button></>}</div></li>)}</ul>}
+      {hasMoreDocuments && <button type="button" disabled={isLoadingMoreDocuments} onClick={handleLoadMoreDocuments}>{isLoadingMoreDocuments ? 'Loading...' : 'Load more documents'}</button>}
       {documents.length === 0 ? <p>No documents uploaded yet.</p> : readyDocuments.length === 0 ? <p>No documents are ready for questions yet.</p> : <><form onSubmit={handleQuestion}><label htmlFor="answer-scope">Question scope</label><select id="answer-scope" value={answerScope} onChange={(event) => { setAnswerScope(event.target.value); setSelectedConversationId(''); setDocumentAnswer(null) }}><option value="knowledge-base">Entire knowledge base</option><option value="document">One document</option></select>{answerScope === 'document' && <><label htmlFor="document-select">Document</label><select id="document-select" value={selectedDocumentId} onChange={(event) => { setSelectedDocumentId(event.target.value); setDocumentAnswer(null) }}><option value="">Choose a ready document</option>{readyDocuments.map((document) => <option key={document.id} value={document.id}>{document.filename}</option>)}</select></>}{answerScope === 'knowledge-base' && <><label htmlFor="answer-tags">Filter by tags</label><input id="answer-tags" value={answerTags} maxLength={500} placeholder="HR, policy" onChange={(event) => setAnswerTags(event.target.value)} /></>}<div className="conversation-controls"><label htmlFor="conversation-select">Conversation</label><select id="conversation-select" value={selectedConversationId} onChange={(event) => { setSelectedConversationId(event.target.value); setDocumentAnswer(null) }}><option value="">New conversation</option>{conversations.map((conversation) => <option key={conversation.id} value={conversation.id}>{getConversationLabel(conversation)}</option>)}</select>{selectedConversationId && <button type="button" className="delete-button" disabled={deletingConversationId !== null} onClick={handleDeleteConversation}>{deletingConversationId ? 'Deleting...' : 'Delete conversation'}</button>}</div><label htmlFor="document-question">Question</label><textarea id="document-question" value={documentQuestion} maxLength={2000} placeholder="Ask about the selected knowledge base" onChange={(event) => setDocumentQuestion(event.target.value)} /><button type="submit" disabled={isAnsweringDocument || (answerScope === 'document' && !selectedDocumentId) || !documentQuestion.trim()}>{isAnsweringDocument ? 'Answering...' : 'Ask knowledge base'}</button></form>{selectedConversationId && conversations.find((item) => String(item.id) === selectedConversationId)?.messages.length > 0 && <div className="conversation-history">{conversations.find((item) => String(item.id) === selectedConversationId).messages.map((message) => <div key={message.id} className={`conversation-message ${message.role}`}><p><strong>{message.role === 'user' ? 'You' : 'Assistant'}:</strong> {message.content}</p>{message.role === 'assistant' && <>{message.sources?.length > 0 && <ul className="knowledge-sources" aria-label="Answer sources">{message.sources.map((source) => <li key={`${message.id}-${source.document_id}-${source.chunk_index}`}><span>{source.filename}{source.page ? ` - page ${source.page}` : ''} - chunk {source.chunk_index}</span>{readyDocuments.some((document) => document.id === source.document_id) && <button type="button" onClick={() => askAboutSource(source.document_id)}>Ask about source</button>}</li>)}</ul>}<div className="answer-feedback"><button type="button" onClick={() => handleFeedback(message.id, 'helpful')}>Helpful</button><button type="button" className="delete-button" onClick={() => handleFeedback(message.id, 'unhelpful')}>Not helpful</button>{message.feedback && <span>{message.feedback}</span>}</div></>}</div>)}</div>}</>}
       {documentAnswerError && <p className="form-error">{documentAnswerError}</p>}{documentAnswer && <div className="document-answer"><p>{documentAnswer.answer}</p>{documentAnswer.sources.length > 0 && <ul className="knowledge-sources" aria-label="Document sources">{documentAnswer.sources.map((source) => <li key={`${source.document_id}-${source.chunk_index}`}><span>{source.filename}{source.page ? ` - page ${source.page}` : ''} - chunk {source.chunk_index}</span>{readyDocuments.some((document) => document.id === source.document_id) && <button type="button" onClick={() => askAboutSource(source.document_id)}>Ask about source</button>}</li>)}</ul>}</div>}
     </section>}
