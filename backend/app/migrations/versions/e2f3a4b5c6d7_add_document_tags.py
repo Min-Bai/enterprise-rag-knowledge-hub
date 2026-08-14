@@ -17,8 +17,11 @@ depends_on = None
 def upgrade() -> None:
     op.add_column(
         "documents",
-        sa.Column("tags", sa.JSON(), nullable=False, server_default="[]"),
+        sa.Column("tags", sa.JSON(), nullable=True),
     )
+    op.execute("UPDATE documents SET tags = JSON_ARRAY() WHERE tags IS NULL")
+    with op.batch_alter_table("documents") as batch_op:
+        batch_op.alter_column("tags", existing_type=sa.JSON(), nullable=False)
 
 
 def downgrade() -> None:
