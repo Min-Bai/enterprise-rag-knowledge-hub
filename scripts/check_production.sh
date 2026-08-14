@@ -10,6 +10,25 @@ echo "== Docker Compose services =="
 sudo docker compose ps
 
 echo
+echo "== Document worker =="
+if ! sudo docker compose ps --status running --services | grep -qx "worker"; then
+  echo "Document worker is not running" >&2
+  exit 1
+fi
+
+sudo docker compose exec -T worker python -c '
+from rq import Worker
+from backend.app.services.document_queue import get_document_queue
+
+queue = get_document_queue()
+workers = Worker.all(connection=queue.connection)
+if not workers:
+    raise SystemExit("No RQ workers are registered")
+print(f"registered workers: {len(workers)}")
+print(f"queued document jobs: {len(queue)}")
+'
+
+echo
 echo "== API health =="
 curl --fail --silent --show-error http://localhost:8000/health
 echo

@@ -26,10 +26,14 @@ def test_create_list_update_and_delete_knowledge_base():
         assert create_response.status_code == 201
         knowledge_base = create_response.json()
         assert knowledge_base["name"] == "Engineering handbook"
+        assert knowledge_base["role"] == "owner"
 
         list_response = client.get("/knowledge-bases")
         assert list_response.status_code == 200
-        assert any(item["id"] == knowledge_base["id"] for item in list_response.json())
+        listed_knowledge_base = next(
+            item for item in list_response.json() if item["id"] == knowledge_base["id"]
+        )
+        assert listed_knowledge_base["role"] == "owner"
 
         update_response = client.patch(
             f"/knowledge-bases/{knowledge_base['id']}",
@@ -69,6 +73,8 @@ def test_delete_knowledge_base_with_documents_returns_409(monkeypatch):
         "backend.app.routers.knowledge_bases.delete_knowledge_base_service",
         raise_not_empty,
     )
+    monkeypatch.setattr("backend.app.routers.knowledge_bases.get_knowledge_base_service", lambda *_args, **_kwargs: SimpleNamespace(id=1))
+    monkeypatch.setattr("backend.app.routers.knowledge_bases.require_knowledge_base_role", lambda **_kwargs: "owner")
     try:
         response = client.delete("/knowledge-bases/1")
     finally:
@@ -76,3 +82,33 @@ def test_delete_knowledge_base_with_documents_returns_409(monkeypatch):
 
     assert response.status_code == 409
     assert "delete all documents" in response.json()["detail"]
+
+
+def test_audit_logs_require_knowledge_base_owner(monkeypatch):
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    monkeypatch.setattr("backend.app.routers.knowledge_bases.get_knowledge_base_service", lambda *_args, **_kwargs: SimpleNamespace(id=1))
+    monkeypatch.setattr("backend.app.routers.knowledge_bases.require_knowledge_base_role", lambda **_kwargs: "owner")
+    monkeypatch.setattr("backend.app.routers.knowledge_bases.get_knowledge_base_audit_logs", lambda **_kwargs: [])
+
+    try:
+        response = client.get("/knowledge-bases/1/audit-logs")
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_feedback_summary_requires_knowledge_base_owner(monkeypatch):
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    monkeypatch.setattr("backend.app.routers.knowledge_bases.get_knowledge_base_service", lambda *_args, **_kwargs: SimpleNamespace(id=1))
+    monkeypatch.setattr("backend.app.routers.knowledge_bases.require_knowledge_base_role", lambda **_kwargs: "owner")
+    monkeypatch.setattr("backend.app.routers.knowledge_bases.get_knowledge_base_feedback_summary", lambda **_kwargs: {"total_feedback": 0, "helpful_count": 0, "unhelpful_count": 0, "helpful_rate": None, "recent_unhelpful": []})
+
+    try:
+        response = client.get("/knowledge-bases/1/feedback-summary")
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 200
+    assert response.json()["total_feedback"] == 0

@@ -1,30 +1,30 @@
-import { useState } from 'react'
+import { useState } from "react";
 
 function LoginForm({ onLogin }) {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [message, setMessage] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event) {
-    event.preventDefault()
-    setIsSubmitting(true)
-    setMessage('')
+    event.preventDefault();
+    setIsSubmitting(true);
+    setMessage("");
 
     try {
-      await onLogin(username, password)
+      await onLogin(username, password);
     } catch (error) {
-      setMessage(error.message)
+      setMessage(error.message);
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
   }
 
   return (
     <section className="login-section" aria-labelledby="login-title">
-      <h2 id="login-title">Sign in</h2>
+      <h2 id="login-title">登录工作台</h2>
       <form className="login-form" onSubmit={handleSubmit}>
-        <label htmlFor="username">Username</label>
+        <label htmlFor="username">用户名</label>
         <input
           id="username"
           value={username}
@@ -32,7 +32,7 @@ function LoginForm({ onLogin }) {
           onChange={(event) => setUsername(event.target.value)}
           required
         />
-        <label htmlFor="password">Password</label>
+        <label htmlFor="password">密码</label>
         <input
           id="password"
           type="password"
@@ -42,12 +42,16 @@ function LoginForm({ onLogin }) {
           required
         />
         <button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Signing in...' : 'Sign in'}
+          {isSubmitting ? "正在登录..." : "登录"}
         </button>
       </form>
-      {message && <p className="login-message" role="alert">{message}</p>}
+      {message && (
+        <p className="login-message" role="alert">
+          {message}
+        </p>
+      )}
     </section>
-  )
+  );
 }
 
-export default LoginForm
+export default LoginForm;

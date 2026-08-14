@@ -26,6 +26,7 @@ def test_delete_document_removes_vectors_file_and_database_record(
     document = SimpleNamespace(
         id=8,
         user_id=1,
+        knowledge_base_id=1,
         storage_path=str(storage_path),
     )
     db = Mock()
@@ -35,6 +36,18 @@ def test_delete_document_removes_vectors_file_and_database_record(
     monkeypatch.setattr(
         "backend.app.services.documents.delete_document_vectors",
         delete_vectors_mock,
+    )
+    monkeypatch.setattr(
+        "backend.app.services.documents.get_document_service",
+        lambda **_kwargs: document,
+    )
+    monkeypatch.setattr(
+        "backend.app.services.documents.get_knowledge_base_service",
+        lambda *_args, **_kwargs: object(),
+    )
+    monkeypatch.setattr(
+        "backend.app.services.documents.require_knowledge_base_role",
+        lambda **_kwargs: "owner",
     )
 
     delete_document_service(
@@ -85,6 +98,7 @@ def test_delete_document_route_returns_204(monkeypatch):
         "backend.app.routers.documents.delete_document_service",
         delete_service_mock,
     )
+    monkeypatch.setattr("backend.app.routers.documents.write_audit_log", Mock())
 
     try:
         response = client.delete("/documents/8")
@@ -111,6 +125,7 @@ def test_delete_document_route_returns_404_when_not_found(monkeypatch):
         "backend.app.routers.documents.delete_document_service",
         raise_not_found,
     )
+    monkeypatch.setattr("backend.app.routers.documents.write_audit_log", Mock())
 
     try:
         response = client.delete("/documents/999")

@@ -23,11 +23,16 @@ from ..security import hash_password, verify_password
 from .knowledge_bases import get_default_knowledge_base_service
 
 
-def get_users_service(db: Session, is_active: bool | None = None):
+def get_users_service(
+    db: Session,
+    is_active: bool | None = None,
+    limit: int = 100,
+    offset: int = 0,
+):
     statement = select(UserORM).order_by(UserORM.id)
     if is_active is not None:
         statement = statement.where(UserORM.is_active == is_active)
-    return db.scalars(statement).all()
+    return db.scalars(statement.limit(limit).offset(offset)).all()
 
 
 def get_user_service(user_id: int, db: Session):
@@ -65,17 +70,30 @@ def update_user_service(user_id: int, user_update: UserUpdate, db: Session):
 
 
 def create_user_service(user: UserCreate, db: Session):
-    user = UserORM(username=user.username, email=user.email, password_hash=hash_password(user.password))
-    db.add(user)
+    return create_user_with_role_service(user=user, role="user", db=db)
+
+
+def create_admin_user_service(user: UserCreate, db: Session):
+    return create_user_with_role_service(user=user, role="admin", db=db)
+
+
+def create_user_with_role_service(*, user: UserCreate, role: str, db: Session):
+    new_user = UserORM(
+        username=user.username,
+        email=user.email,
+        password_hash=hash_password(user.password),
+        role=role,
+    )
+    db.add(new_user)
     try:
         db.flush()
-        get_default_knowledge_base_service(db, user.id)
+        get_default_knowledge_base_service(db, new_user.id)
         db.commit()
     except IntegrityError:
         db.rollback()
         raise DuplicateUsernameError('username already exists')
-    db.refresh(user)
-    return user
+    db.refresh(new_user)
+    return new_user
 
 
 def get_user_detail_service(user_id: int, db: Session):

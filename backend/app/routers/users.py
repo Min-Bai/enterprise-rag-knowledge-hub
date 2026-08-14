@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -30,7 +30,8 @@ from ..exceptions import (
     UserNotFoundError,
     IncorrectPasswordError,
 )
-from ..auth import get_current_user, require_admin
+from ..auth import get_current_user, get_optional_current_user, raise_unauthorized, require_admin
+from ..config import ALLOW_SELF_REGISTRATION
 from ..models.user import UserORM
 
 
@@ -106,7 +107,16 @@ def logout(
     )
 
 @router.post("", response_model=UserResponse)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+def create_user(
+    user: UserCreate,
+    current_user: UserORM | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+):
+    if not ALLOW_SELF_REGISTRATION:
+        if current_user is None:
+            raise_unauthorized("self registration is disabled")
+        if current_user.role != "admin":
+            raise HTTPException(status_code=403, detail="admin permission required")
     try:
         return create_user_service(user=user, db=db)
     except DuplicateUsernameError:
@@ -115,19 +125,35 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 @router.get("", response_model=list[UserResponse])
 def get_users(
     is_active: bool | None = None,
+    limit: int = Query(default=100, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    current_admin: UserORM = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    return get_users_service(db=db, is_active=is_active)
+    return get_users_service(
+        db=db,
+        is_active=is_active,
+        limit=limit,
+        offset=offset,
+    )
 
 @router.get("/{user_id}/detail", response_model=UserDetailResponse)
-def get_user_detail(user_id: int, db: Session = Depends(get_db)):
+def get_user_detail(
+    user_id: int,
+    current_admin: UserORM = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     try:
         return get_user_detail_service(user_id=user_id, db=db)
     except UserNotFoundError:
         raise HTTPException(status_code=404, detail="user not found")
 
 @router.get("/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(
+    user_id: int,
+    current_admin: UserORM = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     try:
         return get_user_service(user_id=user_id, db=db)
     except UserNotFoundError:

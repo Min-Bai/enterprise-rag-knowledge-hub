@@ -1,6 +1,8 @@
+from datetime import UTC, datetime
+
 from ..database import SessionLocal
 from ..models.document import DocumentORM
-from .document_parser import extract_pdf_text, split_text_into_chunks
+from .document_parser import split_pdf_into_chunks
 from .document_vectors import index_document_chunks
 from sqlalchemy import update
 
@@ -38,18 +40,23 @@ def process_document(document_id: int) -> None:
 
         document.status = "processing"
         document.error_message = None
+        document.chunk_count = 0
+        document.processed_at = None
         db.commit()
 
-        text = extract_pdf_text(document.storage_path)
-        chunks = split_text_into_chunks(text)
+        chunks = split_pdf_into_chunks(document.storage_path)
 
         index_document_chunks(
             document_id=document.id,
             user_id=document.user_id,
+            knowledge_base_id=document.knowledge_base_id,
+            tags=document.tags,
             chunks=chunks,
         )
 
         document.status = "ready"
+        document.chunk_count = len(chunks)
+        document.processed_at = datetime.now(UTC)
         db.commit()
 
     except Exception as error:
@@ -59,6 +66,8 @@ def process_document(document_id: int) -> None:
         if document is not None:
             document.status = "failed"
             document.error_message = str(error)[:50]
+            document.chunk_count = 0
+            document.processed_at = None
             db.commit()
 
     finally:

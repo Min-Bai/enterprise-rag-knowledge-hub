@@ -28,3 +28,4 @@ class KnowledgeBaseORM(Base):
         back_populates="knowledge_base",
         passive_deletes=True,
     )
+    members: Mapped[list["KnowledgeBaseMemberORM"]] = relationship(passive_deletes=True)

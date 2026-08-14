@@ -25,11 +25,12 @@ async def test_save_document_file_saves_valid_pdf(monkeypatch, tmp_path):
         headers={"content-type": "application/pdf"},
     )
 
-    storage_path = await document_storage.save_document_file(file)
+    storage_path, content_sha256 = await document_storage.save_document_file(file)
 
     saved_file = tmp_path / Path(storage_path).name
     assert saved_file.exists()
     assert saved_file.read_bytes() == b"%PDF-1.4 test content"
+    assert content_sha256 == "73caebc6e2aa8f9a7b950993208eb7ac8c380a5d8064d055735d899e8d730ec3"
 
 @pytest.mark.anyio
 @pytest.mark.parametrize(
@@ -80,5 +81,8 @@ async def test_save_document_file_rejects_oversized_pdf():
         headers={"content-type": "application/pdf"},
     )
 
-    with pytest.raises(ValueError, match="file size must not exceed 10 MB"):
+    with pytest.raises(
+        document_storage.DocumentTooLargeError,
+        match="file size must not exceed 10 MB",
+    ):
         await document_storage.save_document_file(file)

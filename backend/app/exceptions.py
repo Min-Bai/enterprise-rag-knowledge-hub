@@ -25,3 +25,15 @@ class DocumentNotFoundError(Exception):
 
 class DocumentRetryNotAllowedError(Exception):
     pass
+
+
+class DocumentReindexNotAllowedError(Exception):
+    pass
+
+
+class DuplicateDocumentError(Exception):
+    pass
+
+
+class DocumentTagUpdateNotAllowedError(Exception):
+    pass

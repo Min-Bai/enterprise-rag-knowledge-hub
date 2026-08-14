@@ -44,6 +44,15 @@ def get_current_user(
 
     return user
 
+
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> UserORM | None:
+    if credentials is None:
+        return None
+    return get_current_user(credentials=credentials, db=db)
+
 def require_admin(
     current_user: UserORM = Depends(get_current_user),
 ):

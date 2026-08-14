@@ -11,6 +11,9 @@ from backend.app.database import Base, engine
 from backend.app.models.user import UserORM
 from backend.app.models.document import DocumentORM
 from backend.app.models.knowledge_base import KnowledgeBaseORM
+from backend.app.models.conversation import ConversationMessageORM, ConversationORM
+from backend.app.models.knowledge_base_member import KnowledgeBaseMemberORM
+from backend.app.models.audit_log import AuditLogORM
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
