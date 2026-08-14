@@ -18,6 +18,17 @@ def test_required_environment_variable_must_not_be_empty(monkeypatch):
         config.get_required_env("JWT_SECRET_KEY")
 
 
+@pytest.mark.parametrize("value", ["short", "replace-this-with-a-long-random-secret"])
+def test_jwt_secret_rejects_unsafe_values(value):
+    with pytest.raises(RuntimeError, match="JWT_SECRET_KEY"):
+        config.validate_jwt_secret(value)
+
+
+def test_jwt_secret_accepts_a_long_random_value():
+    value = "a" * 32
+    assert config.validate_jwt_secret(value) == value
+
+
 @pytest.mark.parametrize(
     ("value", "expected"),
     [("true", True), ("FALSE", False)],

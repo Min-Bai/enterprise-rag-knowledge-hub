@@ -16,7 +16,13 @@ def get_required_env(name: str) -> str:
     return value
 
 
-JWT_SECRET_KEY = get_required_env("JWT_SECRET_KEY")
+def validate_jwt_secret(value: str) -> str:
+    if value == "replace-this-with-a-long-random-secret" or len(value) < 32:
+        raise RuntimeError("JWT_SECRET_KEY must be at least 32 characters and not use the example value")
+    return value
+
+
+JWT_SECRET_KEY = validate_jwt_secret(get_required_env("JWT_SECRET_KEY"))
 JWT_ALGORITHM = "HS256"
 
 jwt_expire_minutes_text = get_required_env("JWT_EXPIRE_MINUTES")
