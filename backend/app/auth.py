@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models.user import UserORM
 from .security import decode_access_token
+from .services.auth_sessions import get_v1_current_user
 
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -28,13 +29,18 @@ def get_current_user(
         raise_unauthorized("invalid token")
 
     try:
-        user_id, token_version = decode_access_token(
-    credentials.credentials
-)
+        user_id, token_version = decode_access_token(credentials.credentials)
+        user = db.get(UserORM, user_id)
     except ValueError:
-        raise_unauthorized("invalid or expired token")
-
-    user = db.get(UserORM, user_id)
+        # Transitional support keeps existing RAG routes usable while the
+        # browser migrates to the audience-bound v1 client token.
+        try:
+            user, _ = get_v1_current_user(
+                token=credentials.credentials, audience="client-api", db=db
+            )
+            return user
+        except HTTPException:
+            raise_unauthorized("invalid or expired token")
     if (
     user is None
     or not user.is_active

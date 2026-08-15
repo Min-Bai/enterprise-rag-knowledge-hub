@@ -32,3 +32,7 @@ class UserORM(Base):
         back_populates="owner",
         passive_deletes=True,
     )
+    auth_sessions: Mapped[list["AuthSessionORM"]] = relationship(
+        back_populates="user",
+        passive_deletes=True,
+    )

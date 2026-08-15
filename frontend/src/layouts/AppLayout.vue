@@ -7,7 +7,6 @@ import {
   LogOut,
   MessageSquareText,
   History,
-  Settings,
 } from "lucide-vue-next";
 import { useAuthStore } from "../stores/auth";
 
@@ -15,7 +14,7 @@ const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const activePath = computed(() =>
-  route.path.startsWith("/knowledge-bases") ? "/knowledge-bases" : route.path,
+  route.path.startsWith("/app/knowledge-bases") ? "/app/knowledge-bases" : route.path,
 );
 
 async function handleLogout() {
@@ -27,7 +26,7 @@ async function handleLogout() {
 <template>
   <div class="app-layout">
     <aside class="app-sidebar" aria-label="主导航">
-      <RouterLink class="brand" to="/chat" aria-label="企业知识助手首页">
+      <RouterLink class="brand" to="/app/chat" aria-label="企业知识助手首页">
         <span class="brand-mark"><BotMessageSquare :size="21" /></span>
         <span>企业知识助手</span>
       </RouterLink>
@@ -35,34 +34,25 @@ async function handleLogout() {
       <nav class="primary-nav" aria-label="工作区">
         <RouterLink
           class="nav-item"
-          :class="{ active: activePath === '/chat' }"
-          to="/chat"
+          :class="{ active: activePath === '/app/chat' }"
+          to="/app/chat"
         >
           <MessageSquareText :size="18" />
           智能问答
         </RouterLink>
         <RouterLink
           class="nav-item"
-          :class="{ active: activePath === '/conversations' }"
-          to="/conversations"
+          :class="{ active: activePath === '/app/conversations' }"
+          to="/app/conversations"
           ><History :size="18" />会话记录</RouterLink
         >
         <RouterLink
           class="nav-item"
-          :class="{ active: activePath === '/knowledge-bases' }"
-          to="/knowledge-bases"
+          :class="{ active: activePath === '/app/knowledge-bases' }"
+          to="/app/knowledge-bases"
         >
           <BookOpen :size="18" />
           知识库
-        </RouterLink>
-        <RouterLink
-          v-if="auth.isAdmin"
-          class="nav-item"
-          :class="{ active: activePath === '/settings' }"
-          to="/settings"
-        >
-          <Settings :size="18" />
-          系统设置
         </RouterLink>
       </nav>
 

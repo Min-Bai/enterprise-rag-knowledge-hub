@@ -16,9 +16,14 @@ if ! sudo docker compose ps --status running --services | grep -qx "worker"; the
   exit 1
 fi
 
+if ! sudo docker compose ps --status running --services | grep -qx "beat"; then
+  echo "Celery Beat is not running" >&2
+  exit 1
+fi
+
 sudo docker compose exec -T worker python -c '
 from backend.app.celery_app import celery_app
-from backend.app.celery_app import DOCUMENT_QUEUE_NAME
+from backend.app.celery_app import DOCUMENT_DEFAULT_QUEUE
 from backend.app.config import REDIS_URL
 from redis import Redis
 
@@ -27,7 +32,7 @@ if not workers:
     raise SystemExit("No Celery workers are registered")
 print(f"registered workers: {len(workers)}")
 redis = Redis.from_url(REDIS_URL)
-print(f"queued document jobs: {redis.llen(DOCUMENT_QUEUE_NAME)}")
+print(f"queued document jobs: {redis.llen(DOCUMENT_DEFAULT_QUEUE)}")
 '
 
 echo

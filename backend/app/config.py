@@ -25,6 +25,18 @@ def validate_jwt_secret(value: str) -> str:
 JWT_SECRET_KEY = validate_jwt_secret(get_required_env("JWT_SECRET_KEY"))
 JWT_ALGORITHM = "HS256"
 
+# The legacy token configuration remains available while the v1 APIs migrate
+# clients to audience-bound access/refresh tokens.
+CLIENT_ACCESS_EXPIRE_MINUTES = int(getenv("CLIENT_ACCESS_EXPIRE_MINUTES", "15"))
+ADMIN_ACCESS_EXPIRE_MINUTES = int(getenv("ADMIN_ACCESS_EXPIRE_MINUTES", "15"))
+CLIENT_REFRESH_EXPIRE_DAYS = int(getenv("CLIENT_REFRESH_EXPIRE_DAYS", "14"))
+ADMIN_REFRESH_EXPIRE_DAYS = int(getenv("ADMIN_REFRESH_EXPIRE_DAYS", "1"))
+APP_ENV = getenv("APP_ENV", "development").lower()
+AUTH_COOKIE_SECURE = getenv("AUTH_COOKIE_SECURE", "false").lower() == "true"
+
+if APP_ENV == "production" and not AUTH_COOKIE_SECURE:
+    raise RuntimeError("AUTH_COOKIE_SECURE must be true in production")
+
 jwt_expire_minutes_text = get_required_env("JWT_EXPIRE_MINUTES")
 
 try:
