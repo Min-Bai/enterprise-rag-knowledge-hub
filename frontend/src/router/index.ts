@@ -68,7 +68,9 @@ export const router = createRouter({
     {
       path: "/app/knowledge-bases/:id",
       alias: "/knowledge-bases/:id",
+      name: "knowledge-base-overview",
       component: () => import("../views/KnowledgeBaseOverviewView.vue"),
+      meta: { requiresAuth: true },
     },
     {
       path: "/app/knowledge-bases/:id/documents",

@@ -77,6 +77,14 @@ function roleLabel(role: KnowledgeBase["role"]) {
   return { owner: "所有者", editor: "编辑者", viewer: "只读成员" }[role];
 }
 
+function rolePermission(role: KnowledgeBase["role"]) {
+  return {
+    owner: "当前权限：所有者，可管理成员、文档与检索测试。",
+    editor: "当前权限：编辑者，可上传、编辑、删除文档和执行检索测试。",
+    viewer: "当前权限：查看者，可浏览、检索和问答，不能修改文档或成员。",
+  }[role];
+}
+
 onMounted(load);
 </script>
 
@@ -85,7 +93,7 @@ onMounted(load);
     <section class="page-shell" aria-labelledby="knowledge-base-overview-title">
       <header class="page-header">
         <div>
-          <RouterLink class="back-link" to="/knowledge-bases">
+          <RouterLink class="back-link" to="/app/knowledge-bases">
             <ArrowLeft :size="15" /> 返回知识库列表
           </RouterLink>
           <p class="eyebrow">知识库概览</p>
@@ -95,7 +103,7 @@ onMounted(load);
           <p>{{ knowledgeBase?.description || "暂无描述。" }}</p>
         </div>
         <div class="page-header-actions" v-if="knowledgeBase">
-          <RouterLink :to="`/knowledge-bases/${id}/documents`">
+          <RouterLink :to="`/app/knowledge-bases/${id}/documents`">
             <el-button type="primary"
               ><FileText :size="16" />管理文档</el-button
             >
@@ -159,6 +167,7 @@ onMounted(load);
               统计基于当前接口返回的最多 100
               份文档，后端暂未提供知识库聚合总数接口。
             </p>
+            <p class="role-permission">{{ rolePermission(knowledgeBase.role) }}</p>
           </section>
 
           <section class="table-surface overview-actions">
@@ -168,7 +177,7 @@ onMounted(load);
                 <h2>进入工作区</h2>
               </div>
             </div>
-            <RouterLink :to="`/knowledge-bases/${id}/documents`">
+            <RouterLink :to="`/app/knowledge-bases/${id}/documents`">
               <el-button plain><Upload :size="16" />上传或管理文档</el-button>
             </RouterLink>
             <RouterLink
@@ -176,13 +185,13 @@ onMounted(load);
                 knowledgeBase.role === 'owner' ||
                 knowledgeBase.role === 'editor'
               "
-              :to="`/knowledge-bases/${id}/retrieval-test`"
+              :to="`/app/knowledge-bases/${id}/retrieval-test`"
             >
               <el-button plain><Search :size="16" />检索质量测试</el-button>
             </RouterLink>
             <RouterLink
               v-if="knowledgeBase.role === 'owner'"
-              :to="`/knowledge-bases/${id}/access`"
+              :to="`/app/knowledge-bases/${id}/access`"
             >
               <el-button plain><Shield :size="16" />成员与权限</el-button>
             </RouterLink>
@@ -197,7 +206,7 @@ onMounted(load);
             </div>
             <RouterLink
               class="table-link"
-              :to="`/knowledge-bases/${id}/documents`"
+              :to="`/app/knowledge-bases/${id}/documents`"
             >
               查看全部文档
             </RouterLink>

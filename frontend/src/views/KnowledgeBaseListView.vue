@@ -188,7 +188,7 @@ onMounted(load);
             ><template #default="{ row }"
               ><RouterLink
                 class="table-link"
-                :to="`/knowledge-bases/${row.id}/documents`"
+                :to="`/app/knowledge-bases/${row.id}`"
                 >{{ row.name }}</RouterLink
               >
               <p v-if="row.description" class="table-secondary">
@@ -228,7 +228,7 @@ onMounted(load);
               ><el-button
                 link
                 type="primary"
-                @click="$router.push(`/knowledge-bases/${row.id}/documents`)"
+                @click="$router.push(`/app/knowledge-bases/${row.id}/documents`)"
                 >文档</el-button
               ><el-dropdown v-if="row.role === 'owner'"
                 ><button
@@ -243,7 +243,7 @@ onMounted(load);
                     ><el-dropdown-item
                       ><RouterLink
                         class="menu-link"
-                        :to="`/knowledge-bases/${row.id}/access`"
+                        :to="`/app/knowledge-bases/${row.id}/access`"
                         >成员权限</RouterLink
                       ></el-dropdown-item
                     ><el-dropdown-item divided @click="remove(row)"

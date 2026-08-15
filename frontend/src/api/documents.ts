@@ -47,6 +47,18 @@ export function reindexDocument(accessToken: string, id: number) {
   );
 }
 
+export function reindexDocuments(accessToken: string, ids: number[]) {
+  return request<DocumentItem[]>(
+    "/documents/reindex",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ document_ids: ids }),
+    },
+    accessToken,
+  );
+}
+
 export function deleteDocument(accessToken: string, id: number) {
   return request<void>(`/documents/${id}`, { method: "DELETE" }, accessToken);
 }
