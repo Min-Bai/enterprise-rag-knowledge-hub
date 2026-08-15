@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox, genFileId } from "element-plus";
 import type { UploadFile, UploadInstance, UploadRawFile } from "element-plus";
-import { RefreshCw, Search, Trash2, Upload } from "lucide-vue-next";
+import { ArrowLeft, RefreshCw, Search, Trash2, Upload } from "lucide-vue-next";
 import {
   deleteDocument,
   downloadDocument,
@@ -316,6 +316,9 @@ onMounted(load);
     ><section class="page-shell" aria-labelledby="documents-title">
       <header class="page-header">
         <div>
+          <RouterLink class="back-link" :to="`/app/knowledge-bases/${knowledgeBaseId}`">
+            <ArrowLeft :size="15" /> 返回知识库概览
+          </RouterLink>
           <p class="eyebrow">知识库文档</p>
           <h1 id="documents-title">{{ knowledgeBaseName }}</h1>
           <p>上传后将由后台异步解析和建立索引。</p>

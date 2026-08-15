@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { ElMessage } from "element-plus";
-import { UserPlus } from "lucide-vue-next";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { ArrowLeft, UserPlus } from "lucide-vue-next";
 import {
   addKnowledgeBaseMember,
   getKnowledgeBaseMembers,
@@ -71,6 +71,29 @@ async function remove(member: KnowledgeBaseMember) {
     );
   }
 }
+async function changeRole(member: KnowledgeBaseMember, role: "editor" | "viewer") {
+  if (!auth.token || member.role === role) return;
+  try {
+    await ElMessageBox.confirm(
+      `确认将 ${member.username} 的权限调整为${role === "editor" ? "编辑者" : "只读成员"}吗？`,
+      "变更成员权限",
+      { confirmButtonText: "确认", cancelButtonText: "取消", type: "warning" },
+    );
+    saving.value = true;
+    const updated = await addKnowledgeBaseMember(auth.token, id.value, {
+      username: member.username,
+      role,
+    });
+    Object.assign(member, updated);
+    ElMessage.success("成员权限已更新");
+  } catch (caught) {
+    if (caught !== "cancel" && caught !== "close") {
+      ElMessage.error(caught instanceof Error ? caught.message : "更新成员权限失败，请稍后重试。");
+    }
+  } finally {
+    saving.value = false;
+  }
+}
 function roleLabel(role: KnowledgeBaseMember["role"]) {
   return { owner: "所有者", editor: "编辑者", viewer: "只读成员" }[role];
 }
@@ -81,6 +104,9 @@ onMounted(load);
     ><section class="page-shell">
       <header class="page-header">
         <div>
+          <RouterLink class="back-link" :to="`/app/knowledge-bases/${id}`">
+            <ArrowLeft :size="15" /> 返回知识库概览
+          </RouterLink>
           <p class="eyebrow">知识库协作</p>
           <h1>成员与权限</h1>
           <p>
@@ -108,12 +134,20 @@ onMounted(load);
             prop="username"
             label="成员"
             min-width="220"
-          /><el-table-column label="角色" width="150"
-            ><template #default="{ row }"
-              ><el-tag effect="plain">{{
-                roleLabel(row.role)
-              }}</el-tag></template
-            ></el-table-column
+          /><el-table-column label="角色" width="180"
+            ><template #default="{ row }">
+              <el-tag v-if="row.role === 'owner'" effect="plain">{{ roleLabel(row.role) }}</el-tag>
+              <el-select
+                v-else
+                :model-value="row.role"
+                :disabled="saving"
+                aria-label="成员权限"
+                @change="changeRole(row, $event as 'editor' | 'viewer')"
+              >
+                <el-option label="编辑者" value="editor" />
+                <el-option label="只读成员" value="viewer" />
+              </el-select>
+            </template></el-table-column
           ><el-table-column label="操作" width="120"
             ><template #default="{ row }"
               ><el-popconfirm

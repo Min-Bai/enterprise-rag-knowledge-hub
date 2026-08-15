@@ -56,10 +56,16 @@ def update_user_service(user_id: int, user_update: UserUpdate, db: Session):
     if all(value is None for value in (user_update.username, user_update.email, user_update.is_active)):
         raise EmptyUserUpdateError('provide at least one field to update')
     user = get_user_service(user_id, db)
+    active_status_changed = (
+        user_update.is_active is not None
+        and user.is_active != user_update.is_active
+    )
     for field in ('username', 'email', 'is_active'):
         value = getattr(user_update, field)
         if value is not None:
             setattr(user, field, value)
+    if active_status_changed:
+        user.token_version += 1
     try:
         db.commit()
     except IntegrityError:

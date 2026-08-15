@@ -35,13 +35,13 @@ export const router = createRouter({
     {
       path: "/admin/jobs",
       name: "admin-jobs",
-      component: () => import("../views/AdminOperationsView.vue"),
+      component: () => import("../views/AdminJobsView.vue"),
       meta: { requiresAuth: true, adminOnly: true },
     },
     {
       path: "/admin/analytics",
       name: "admin-analytics",
-      component: () => import("../views/AdminOperationsView.vue"),
+      component: () => import("../views/AdminAnalyticsView.vue"),
       meta: { requiresAuth: true, adminOnly: true },
     },
     {
