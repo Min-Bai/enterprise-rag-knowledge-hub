@@ -98,6 +98,7 @@ class UserProfileUpdate(StrictRequestSchema):
 
         return value.strip()
 
+
     @field_validator("display_name", "avatar_url", "bio")
     @classmethod
     def normalize_optional_text(cls, value):
@@ -109,3 +110,20 @@ class UserProfileUpdate(StrictRequestSchema):
         if value is not None and not value.startswith(("https://", "http://")):
             raise ValueError("avatar_url must be an http or https URL")
         return value
+
+
+class InvitationCreate(StrictRequestSchema):
+    email: str = Field(min_length=3, max_length=100)
+    expires_in_hours: int = Field(default=168, ge=1, le=720)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value):
+        email = value.strip().lower()
+        if "@" not in email or email.startswith("@") or email.endswith("@"):
+            raise ValueError("email must be valid")
+        return email
+
+
+class InvitationAccept(UserCreate):
+    invitation_token: str = Field(min_length=20, max_length=200)

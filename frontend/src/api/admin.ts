@@ -22,6 +22,11 @@ export function createAdminUser(token: string, payload: { username: string; emai
 export function setUserRole(token: string, id: number, role: UserRole) { return adminRequest<User>(`/users/${id}/role`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ role }) }); }
 export function setUserStatus(token: string, id: number, is_active: boolean) { return adminRequest<User>(`/users/${id}/status`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ is_active }) }); }
 export function deleteAdminUser(token: string, id: number) { return adminRequest<void>(`/users/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }); }
+export interface UserInvitation { id: string; email: string; expires_at: string; accepted_at: string | null; revoked_at: string | null; created_at: string; created_by_user_id: number | null; }
+export interface CreatedUserInvitation extends UserInvitation { invitation_token: string; }
+export function getUserInvitations(token: string) { return adminRequest<UserInvitation[]>("/invitations", { headers: { Authorization: `Bearer ${token}` } }); }
+export function createUserInvitation(token: string, payload: { email: string; expires_in_hours: number }) { return adminRequest<CreatedUserInvitation>("/invitations", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) }); }
+export function revokeUserInvitation(token: string, id: string) { return adminRequest<void>(`/invitations/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }); }
 export function getOverview(token: string) { return adminRequest<{ users: number; knowledge_bases: number; documents: number; ready_documents: number }>("/analytics/overview", { headers: { Authorization: `Bearer ${token}` } }); }
 export function getWorkerStatus(token: string) { return adminRequest<{ registered_workers: string[]; active_tasks: number; reserved_tasks: number }>("/operations/worker-status", { headers: { Authorization: `Bearer ${token}` } }); }
 export interface AdminJob { id: number; filename: string; status: string; error_message: string | null; created_at: string; knowledge_base_id: number; }

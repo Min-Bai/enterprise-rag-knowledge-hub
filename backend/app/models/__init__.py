@@ -5,6 +5,7 @@ from .conversation import ConversationMessageORM, ConversationORM
 from .knowledge_base_member import KnowledgeBaseMemberORM
 from .audit_log import AuditLogORM
 from .auth_session import AuthSessionORM
+from .user_invitation import UserInvitationORM
 
 __all__ = [
     "ConversationMessageORM",
@@ -15,4 +16,5 @@ __all__ = [
     "KnowledgeBaseORM",
     "KnowledgeBaseMemberORM",
     "UserORM",
+    "UserInvitationORM",
 ]

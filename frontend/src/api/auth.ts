@@ -45,6 +45,13 @@ export function register(payload: { username: string; email?: string; password: 
   });
 }
 
+export function acceptInvitation(payload: { username: string; email: string; password: string; invitation_token: string }) {
+  return v1Request<User>("/auth/accept-invitation", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function getCurrentUser(accessToken: string) {
   return v1Request<User>("/me", {
     headers: { Authorization: `Bearer ${accessToken}` },
