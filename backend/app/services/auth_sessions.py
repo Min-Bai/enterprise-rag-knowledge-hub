@@ -71,14 +71,16 @@ def set_refresh_cookie(response: Response, refresh: str, audience: str) -> str:
     csrf = create_session_identifier()
     response.set_cookie(_cookie_name(audience), refresh, httponly=True, secure=AUTH_COOKIE_SECURE,
                         samesite="lax", path=_cookie_path(audience), max_age=_refresh_days(audience) * 86400)
+    # The refresh token stays scoped to its auth endpoint. The companion CSRF
+    # value must be readable by the SPA after a page reload, including on /app.
     response.set_cookie(f"{_cookie_name(audience)}_csrf", csrf, httponly=False, secure=AUTH_COOKIE_SECURE,
-                        samesite="lax", path=_cookie_path(audience), max_age=_refresh_days(audience) * 86400)
+                        samesite="lax", path="/", max_age=_refresh_days(audience) * 86400)
     return csrf
 
 
 def clear_refresh_cookie(response: Response, audience: str) -> None:
     response.delete_cookie(_cookie_name(audience), path=_cookie_path(audience))
-    response.delete_cookie(f"{_cookie_name(audience)}_csrf", path=_cookie_path(audience))
+    response.delete_cookie(f"{_cookie_name(audience)}_csrf", path="/")
 
 
 def rotate_session(*, request: Request, audience: str, db: Session) -> tuple[dict[str, object], str]:
