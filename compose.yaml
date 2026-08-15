@@ -125,6 +125,13 @@ services:
         max-file: "3"
     volumes:
       - enterprise-rag-qdrant-data:/qdrant/storage
+    healthcheck:
+      # The upstream image has Bash but not curl/wget. A TCP probe prevents
+      # a false unhealthy state while API readiness verifies Qdrant's API.
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   frontend:
     build:
