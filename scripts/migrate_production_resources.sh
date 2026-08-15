@@ -6,7 +6,7 @@ source_dir="${SOURCE_DIR:-$HOME/todo-api}"
 target_dir="${TARGET_DIR:-$HOME/enterprise-rag-knowledge-hub}"
 backup_dir="${BACKUP_DIR:-$HOME/backups/enterprise-rag}"
 source_env=""
-target_env="$target_dir/backend/app/.env"
+target_env="$target_dir/.env"
 old_project="todo-api"
 completed=false
 
@@ -35,7 +35,7 @@ restore_previous_deployment() {
 
 trap restore_previous_deployment ERR
 
-for candidate in "$source_dir/backend/app/.env" "$source_dir/python_practice/day57/.env"; do
+for candidate in "$source_dir/.env" "$source_dir/backend/app/.env" "$source_dir/python_practice/day57/.env"; do
   if [[ -f "$candidate" ]]; then
     source_env="$candidate"
     break

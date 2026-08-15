@@ -2,6 +2,8 @@
 
 `backend/app` 是企业级 RAG 知识库问答系统的 FastAPI 后端应用。
 
+应用配置统一放在仓库根目录 `.env`；从根目录 `.env.example` 创建本地配置。`backend/app/.env` 仅在旧部署迁移期间兼容读取。
+
 ```text
 backend/app/
 |- main.py                 FastAPI 应用入口

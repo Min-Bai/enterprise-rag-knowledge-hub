@@ -51,7 +51,7 @@ sudo bash scripts/backup_mysql.sh
 
 ## 安全操作
 
-- `backend/app/.env` 必须排除在 Git 之外；MySQL 应用账户和 root 账户必须使用不同密码。
+- 根目录 `.env` 必须排除在 Git 之外；MySQL 应用账户和 root 账户必须使用不同密码。旧部署会由 `scripts/deploy_enterprise_rag.sh` 自动迁移 `backend/app/.env` 到根目录。
 - 默认禁止自助注册。使用 `scripts/create_admin.py` 创建首个管理员；确认身份后使用 `scripts/promote_user.py` 提升已有用户。
 - 不要将 MySQL 暴露到公网。数据库管理访问应通过 SSH 隧道完成。
 # Enterprise RAG operations

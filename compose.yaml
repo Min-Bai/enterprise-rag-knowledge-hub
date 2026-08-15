@@ -10,7 +10,7 @@ services:
         max-size: "10m"
         max-file: "3"
     env_file:
-      - backend/app/.env
+      - .env
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
@@ -36,7 +36,7 @@ services:
         max-size: "10m"
         max-file: "3"
     env_file:
-      - backend/app/.env
+      - .env
     ports:
       - "8000:8000"
     environment:
@@ -78,7 +78,7 @@ services:
         max-size: "10m"
         max-file: "3"
     env_file:
-      - backend/app/.env
+      - .env
     environment:
       HF_HOME: /app/model-cache
       HF_ENDPOINT: https://hf-mirror.com
@@ -103,7 +103,7 @@ services:
     image: enterprise-rag-api:1
     restart: unless-stopped
     env_file:
-      - backend/app/.env
+      - .env
     environment:
       QDRANT_URL: http://qdrant:6333
     depends_on:
@@ -117,7 +117,7 @@ services:
     profiles: ["operations"]
     restart: unless-stopped
     env_file:
-      - backend/app/.env
+      - .env
     depends_on:
       redis:
         condition: service_healthy

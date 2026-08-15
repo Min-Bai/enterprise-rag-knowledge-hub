@@ -2,9 +2,14 @@
 set -euo pipefail
 
 project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-env_file="$project_dir/backend/app/.env"
+env_file="$project_dir/.env"
+legacy_env_file="$project_dir/backend/app/.env"
 backup_dir="${BACKUP_DIR:-$HOME/backups/enterprise-rag}"
 retention_days="${BACKUP_RETENTION_DAYS:-7}"
+
+if [[ ! -f "$env_file" && -f "$legacy_env_file" ]]; then
+  env_file="$legacy_env_file"
+fi
 
 if [[ ! -f "$env_file" ]]; then
   echo "Missing environment file: $env_file" >&2
