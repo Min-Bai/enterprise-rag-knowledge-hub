@@ -89,7 +89,7 @@ FastAPI API ---- MySQL
 
 ## 配置
 
-将 `backend/app/.env.example` 复制为 `backend/app/.env`，然后填写真实的密钥和密码。不要提交 `.env` 文件。
+将根目录 `.env.example` 复制为根目录 `.env`，然后填写真实的密钥和密码。不要提交 `.env` 文件。前端开发代理可选配置位于 `frontend/.env.example`，复制为 `frontend/.env.local` 后按需修改。
 
 生产数据库必填配置：
 
@@ -183,7 +183,7 @@ python scripts/evaluate_retrieval.py path/to/retrieval_cases.json --k 3 \
 
 ```bash
 set -a
-source backend/app/.env
+source .env
 set +a
 
 sudo docker compose exec -T -e MYSQL_PWD="$MYSQL_PASSWORD" mysql \

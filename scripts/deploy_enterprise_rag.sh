@@ -19,6 +19,19 @@ commit="$(git rev-parse --short HEAD)"
 message="$(git log -1 --pretty=%s)"
 echo "Deploying commit $commit: $message"
 
+# The repository now standardizes on a root .env. Migrate the prior location
+# once on existing servers without exposing values through Git or logs.
+if [[ ! -f .env && -f backend/app/.env ]]; then
+  cp backend/app/.env .env
+  chmod 600 .env
+  echo "Migrated legacy backend/app/.env to .env"
+fi
+
+if [[ ! -f .env ]]; then
+  echo "Missing environment file: $project_dir/.env" >&2
+  exit 1
+fi
+
 sudo docker compose up -d --build api worker beat frontend
 
 for attempt in {1..12}; do

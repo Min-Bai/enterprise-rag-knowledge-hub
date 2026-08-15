@@ -4,6 +4,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(PROJECT_ROOT / ".env")
+# Keep an existing deployment working for one release while deploy scripts move
+# the former backend/app/.env file to the repository root.
 load_dotenv(Path(__file__).with_name(".env"))
 
 
