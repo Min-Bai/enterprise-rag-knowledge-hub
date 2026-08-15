@@ -21,6 +21,26 @@ textarea,
 select {
   font: inherit;
 }
+a {
+  color: inherit;
+  text-decoration: none;
+}
+a[href],
+[role="button"],
+.el-button,
+.el-dropdown__item,
+.el-select__wrapper,
+.el-checkbox,
+.el-radio,
+.el-switch {
+  cursor: pointer;
+}
+button:disabled,
+.el-button.is-disabled,
+.el-select.is-disabled .el-select__wrapper,
+.el-switch.is-disabled {
+  cursor: not-allowed;
+}
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -662,6 +682,40 @@ textarea:focus-visible {
 .login-submit {
   width: 100%;
 }
+.login-return-link {
+  color: var(--color-accent);
+  display: inline-block;
+  font-size: 13px;
+  margin-top: var(--space-5);
+}
+.login-return-link:hover { color: var(--color-accent-hover); text-decoration: underline; }
+.admin-login-page { background: #edf4ef; }
+.admin-page { display: grid; gap: var(--space-5); }
+.admin-page .page-header { margin-bottom: 0; }
+.admin-toolbar { align-items: center; flex-wrap: wrap; }
+.admin-toolbar .el-input { flex: 1 1 280px; }
+.admin-toolbar .el-select { width: 150px; }
+.admin-users-table { min-width: 880px; }
+.operation-metrics { margin-bottom: 0; }
+.metric-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.metric-grid article {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+  display: grid;
+  gap: var(--space-2);
+  min-height: 112px;
+  padding: var(--space-5);
+}
+.metric-grid span,
+.section-caption { color: var(--color-text-muted); font-size: 13px; }
+.metric-grid strong { color: var(--color-text); font-size: 27px; line-height: 1.2; overflow-wrap: anywhere; }
+.admin-audit-table { overflow-x: auto; }
 .form-alert {
   margin-bottom: var(--space-4);
 }
@@ -894,6 +948,7 @@ textarea:focus-visible {
   .overview-grid {
     grid-template-columns: 1fr;
   }
+  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .composer-actions {
     gap: var(--space-3);
   }
@@ -925,4 +980,5 @@ textarea:focus-visible {
   .overview-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .admin-toolbar .el-select { width: calc(50% - var(--space-2)); }
 }

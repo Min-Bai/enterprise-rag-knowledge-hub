@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
-import { Search } from "lucide-vue-next";
+import { ArrowLeft, Search } from "lucide-vue-next";
 import { getDocuments, searchDocuments } from "../api/documents";
 import { getKnowledgeBases } from "../api/knowledgeBases";
 import AppEmpty from "../components/common/AppEmpty.vue";
@@ -61,6 +61,9 @@ async function search() {
     ><section class="page-shell" aria-labelledby="retrieval-title">
       <header class="page-header">
         <div>
+          <RouterLink class="back-link" :to="`/app/knowledge-bases/${knowledgeBaseId}`">
+            <ArrowLeft :size="15" /> 返回知识库概览
+          </RouterLink>
           <p class="eyebrow">知识库质量</p>
           <h1 id="retrieval-title">检索测试</h1>
           <p>仅用于验证知识库的召回结果，不会生成 AI 回答。</p>
