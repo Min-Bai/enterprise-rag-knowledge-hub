@@ -34,6 +34,17 @@ export function login(username: string, password: string) {
   });
 }
 
+export function getRegistrationStatus() {
+  return v1Request<{ enabled: boolean }>("/auth/registration-status");
+}
+
+export function register(payload: { username: string; email?: string; password: string }) {
+  return v1Request<User>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function getCurrentUser(accessToken: string) {
   return v1Request<User>("/me", {
     headers: { Authorization: `Bearer ${accessToken}` },

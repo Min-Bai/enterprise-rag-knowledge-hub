@@ -33,6 +33,7 @@ ERROR_CODE_BY_DETAIL = {
     "processing documents cannot have tags updated": "DOCUMENT_TAGS_LOCKED",
     "rate limit service unavailable": "RATE_LIMIT_SERVICE_UNAVAILABLE",
     "too many login attempts": "LOGIN_RATE_LIMITED",
+    "self registration is disabled": "REGISTRATION_DISABLED",
     "user is inactive": "USER_INACTIVE",
     "user not found": "USER_NOT_FOUND",
     "username already exists": "USERNAME_ALREADY_EXISTS",

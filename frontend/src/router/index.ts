@@ -45,6 +45,11 @@ export const router = createRouter({
       meta: { requiresAuth: true, adminOnly: true },
     },
     {
+      path: "/register",
+      name: "register",
+      component: () => import("../views/RegisterView.vue"),
+    },
+    {
       path: "/admin/profile",
       name: "admin-profile",
       component: () => import("../views/AdminProfileView.vue"),
