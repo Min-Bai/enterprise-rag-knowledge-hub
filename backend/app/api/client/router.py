@@ -10,7 +10,9 @@ from ...config import ALLOW_SELF_REGISTRATION
 from ...exceptions import DuplicateUsernameError, InvalidCredentialsError, UserInactiveError
 from ...models.user import UserORM
 from ...models.user_invitation import UserInvitationORM
-from ...schemas.user import InvitationAccept, UserCreate, UserLogin, UserResponse
+from ...models.password_reset import PasswordResetORM
+from ...schemas.user import InvitationAccept, PasswordResetConfirm, UserCreate, UserLogin, UserResponse
+from ...security import hash_password
 from ...services.audit_logs import write_audit_log
 from ...services.auth_sessions import clear_refresh_cookie, issue_session, revoke_session, rotate_session, set_refresh_cookie
 from ...services.users import create_user_service, login_user_service
@@ -85,6 +87,43 @@ def accept_invitation(
     )
     db.commit()
     return ok(UserResponse.model_validate(user, from_attributes=True))
+
+
+@router.post("/auth/reset-password", status_code=204)
+def reset_password(
+    payload: PasswordResetConfirm,
+    _: None = Depends(enforce_login_rate_limit),
+    db: Session = Depends(get_db),
+):
+    token_hash = sha256(payload.reset_token.encode("utf-8")).hexdigest()
+    reset = db.scalar(
+        select(PasswordResetORM)
+        .where(PasswordResetORM.token_hash == token_hash)
+        .with_for_update()
+    )
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if reset is None or reset.used_at is not None or reset.revoked_at is not None:
+        raise HTTPException(status_code=400, detail="password reset is invalid")
+    if reset.expires_at < now:
+        raise HTTPException(status_code=400, detail="password reset has expired")
+    user = db.get(UserORM, reset.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=400, detail="password reset is invalid")
+
+    user.password_hash = hash_password(payload.new_password)
+    user.token_version += 1
+    reset.used_at = now
+    write_audit_log(
+        actor_user_id=user.id,
+        action="client.password_reset.completed",
+        target_type="password_reset",
+        target_id=None,
+        knowledge_base_id=None,
+        details={"password_reset_id": reset.id},
+        db=db,
+        commit=False,
+    )
+    db.commit()
 
 
 @router.post("/auth/login")

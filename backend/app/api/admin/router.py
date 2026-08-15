@@ -3,7 +3,7 @@ from hashlib import sha256
 from secrets import token_urlsafe
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from ...database import get_db
@@ -13,7 +13,8 @@ from ...models.audit_log import AuditLogORM
 from ...models.document import DocumentORM
 from ...models.knowledge_base import KnowledgeBaseORM
 from ...models.user_invitation import UserInvitationORM
-from ...schemas.user import AdminUserCreate, InvitationCreate, PasswordChange, UserLogin, UserProfileUpdate, UserResponse, UserRoleUpdate, UserUpdate
+from ...models.password_reset import PasswordResetORM
+from ...schemas.user import AdminUserCreate, InvitationCreate, PasswordChange, PasswordResetLinkCreate, UserLogin, UserProfileUpdate, UserResponse, UserRoleUpdate, UserUpdate
 from ...services.auth_sessions import clear_refresh_cookie, issue_session, revoke_session, rotate_session, set_refresh_cookie
 from ...services.users import change_password_service, create_user_with_role_service, delete_user_service, login_user_service, update_my_profile_service, update_user_role_service, update_user_service
 from ...services.audit_logs import write_audit_log
@@ -148,6 +149,52 @@ def delete_user(user_id: int, db: Session = Depends(get_db), admin: UserORM = De
         raise HTTPException(status_code=404, detail="user not found")
     write_audit_log(actor_user_id=admin.id, action="admin.user.deleted", target_type="user", target_id=user_id,
                     knowledge_base_id=None, details=None, db=db)
+
+
+@router.post("/users/{user_id}/password-reset", status_code=201)
+def create_password_reset_link(
+    user_id: int,
+    payload: PasswordResetLinkCreate,
+    db: Session = Depends(get_db),
+    admin: UserORM = Depends(require_admin_user),
+):
+    user = db.get(UserORM, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="user not found")
+    if not user.is_active:
+        raise HTTPException(status_code=409, detail="inactive user cannot reset password")
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    db.execute(
+        update(PasswordResetORM)
+        .where(
+            PasswordResetORM.user_id == user.id,
+            PasswordResetORM.used_at.is_(None),
+            PasswordResetORM.revoked_at.is_(None),
+        )
+        .values(revoked_at=now)
+    )
+    token = token_urlsafe(32)
+    reset = PasswordResetORM(
+        user_id=user.id,
+        created_by_user_id=admin.id,
+        token_hash=sha256(token.encode("utf-8")).hexdigest(),
+        expires_at=now + timedelta(hours=payload.expires_in_hours),
+    )
+    db.add(reset)
+    db.flush()
+    write_audit_log(
+        actor_user_id=admin.id,
+        action="admin.password_reset.created",
+        target_type="password_reset",
+        target_id=None,
+        knowledge_base_id=None,
+        details={"password_reset_id": reset.id, "user_id": user.id},
+        db=db,
+        commit=False,
+    )
+    db.commit()
+    return ok({"expires_at": reset.expires_at, "reset_token": token})
 
 
 def _invitation_response(invitation: UserInvitationORM) -> dict:
