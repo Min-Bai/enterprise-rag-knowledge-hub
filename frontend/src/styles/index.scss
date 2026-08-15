@@ -14,12 +14,20 @@ body {
   color: var(--color-text);
   font-family: Inter, "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
   font-size: 14px;
+  caret-color: transparent;
 }
 button,
 input,
 textarea,
 select {
   font: inherit;
+}
+input,
+textarea,
+select,
+.el-input__inner,
+.el-textarea__inner {
+  caret-color: auto;
 }
 a {
   color: inherit;

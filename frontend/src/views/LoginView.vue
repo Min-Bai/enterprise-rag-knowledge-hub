@@ -56,6 +56,7 @@ async function submit() {
           >登录</el-button
         >
       </el-form>
+      <RouterLink class="login-return-link" to="/admin/login">管理员登录</RouterLink>
     </section>
   </main>
 </template>

@@ -32,6 +32,12 @@ function submit() {
   question.value = "";
 }
 
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  submit();
+}
+
 watch(
   () => props.selectedKnowledgeBaseId,
   () => {
@@ -78,10 +84,10 @@ watch(
       show-word-limit
       placeholder="输入问题，例如：差旅报销的审批流程是什么？"
       aria-label="问题"
-      @keydown.ctrl.enter.prevent="submit"
+      @keydown="handleKeydown"
     />
     <div class="composer-actions">
-      <span>回答会附带可追溯来源</span
+      <span>Enter 发送，Shift+Enter 换行</span
       ><el-button v-if="isAnswering" type="danger" plain @click="emit('stop')"
         ><Square :size="15" />停止生成</el-button
       ><el-button

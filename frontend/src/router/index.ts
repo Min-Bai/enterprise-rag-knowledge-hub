@@ -45,6 +45,12 @@ export const router = createRouter({
       meta: { requiresAuth: true, adminOnly: true },
     },
     {
+      path: "/admin/profile",
+      name: "admin-profile",
+      component: () => import("../views/AdminProfileView.vue"),
+      meta: { requiresAuth: true, adminOnly: true },
+    },
+    {
       path: "/app/chat",
       alias: "/chat",
       name: "chat",
