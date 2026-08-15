@@ -19,7 +19,7 @@ commit="$(git rev-parse --short HEAD)"
 message="$(git log -1 --pretty=%s)"
 echo "Deploying commit $commit: $message"
 
-sudo docker compose up -d --build api worker frontend
+sudo docker compose up -d --build api worker beat frontend
 
 for attempt in {1..12}; do
   if curl -fsS http://localhost:8000/health; then

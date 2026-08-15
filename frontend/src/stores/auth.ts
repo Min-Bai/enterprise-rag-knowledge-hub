@@ -1,23 +1,32 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
-import { getCurrentUser, login, logout } from "../api/auth";
+import { getCurrentUser, login, logout, refresh } from "../api/auth";
 import type { User } from "../types/api";
 
-const TOKEN_KEY = "enterprise_rag_access_token";
-
 export const useAuthStore = defineStore("auth", () => {
-  const token = ref<string | null>(sessionStorage.getItem(TOKEN_KEY));
+  const token = ref<string | null>(null);
+  const csrfToken = ref<string | null>(null);
   const user = ref<User | null>(null);
   const isLoading = ref(false);
   const isAuthenticated = computed(() => Boolean(token.value && user.value));
   const isAdmin = computed(() => user.value?.role === "admin");
+  let restorePromise: Promise<void> | null = null;
+
+  function readCsrfCookie() {
+    const prefix = "rag_client_refresh_csrf=";
+    return document.cookie
+      .split(";")
+      .map((item) => item.trim())
+      .find((item) => item.startsWith(prefix))
+      ?.slice(prefix.length) ?? null;
+  }
 
   async function signIn(username: string, password: string) {
     isLoading.value = true;
     try {
       const result = await login(username, password);
       token.value = result.access_token;
-      sessionStorage.setItem(TOKEN_KEY, result.access_token);
+      csrfToken.value = result.csrf_token;
       user.value = await getCurrentUser(result.access_token);
     } finally {
       isLoading.value = false;
@@ -25,17 +34,25 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function restoreSession() {
-    if (!token.value || user.value) return;
-    try {
-      user.value = await getCurrentUser(token.value);
-    } catch {
-      clearSession();
-    }
+    if (user.value || restorePromise) return restorePromise;
+    restorePromise = (async () => {
+      try {
+        const result = await refresh(csrfToken.value ?? readCsrfCookie() ?? "");
+        token.value = result.access_token;
+        csrfToken.value = result.csrf_token;
+        user.value = await getCurrentUser(result.access_token);
+      } catch {
+        clearSession();
+      } finally {
+        restorePromise = null;
+      }
+    })();
+    return restorePromise;
   }
 
   async function signOut() {
     try {
-      if (token.value) await logout(token.value);
+      if (token.value) await logout(token.value, csrfToken.value ?? "");
     } finally {
       clearSession();
     }
@@ -43,12 +60,13 @@ export const useAuthStore = defineStore("auth", () => {
 
   function clearSession() {
     token.value = null;
+    csrfToken.value = null;
     user.value = null;
-    sessionStorage.removeItem(TOKEN_KEY);
   }
 
   return {
     token,
+    csrfToken,
     user,
     isLoading,
     isAuthenticated,

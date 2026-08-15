@@ -96,7 +96,34 @@ services:
         condition: service_started
     command: >
       celery -A backend.app.celery_app:celery_app worker
-      --loglevel=INFO --queues=document-processing --concurrency=1
+      --loglevel=INFO --queues=document.high,document.default,evaluation,maintenance --concurrency=1
+
+  beat:
+    build: .
+    image: enterprise-rag-api:1
+    restart: unless-stopped
+    env_file:
+      - backend/app/.env
+    environment:
+      QDRANT_URL: http://qdrant:6333
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: celery -A backend.app.celery_app:celery_app beat --loglevel=INFO
+
+  flower:
+    build: .
+    image: enterprise-rag-api:1
+    profiles: ["operations"]
+    restart: unless-stopped
+    env_file:
+      - backend/app/.env
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:5555:5555"
+    command: celery -A backend.app.celery_app:celery_app flower --port=5555
 
   redis:
     image: docker.m.daocloud.io/library/redis:7-alpine
@@ -125,6 +152,11 @@ services:
         max-file: "3"
     volumes:
       - enterprise-rag-qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:6333/healthz >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   frontend:
     build:

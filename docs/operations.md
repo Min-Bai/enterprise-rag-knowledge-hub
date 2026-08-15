@@ -54,3 +54,25 @@ sudo bash scripts/backup_mysql.sh
 - `backend/app/.env` 必须排除在 Git 之外；MySQL 应用账户和 root 账户必须使用不同密码。
 - 默认禁止自助注册。使用 `scripts/create_admin.py` 创建首个管理员；确认身份后使用 `scripts/promote_user.py` 提升已有用户。
 - 不要将 MySQL 暴露到公网。数据库管理访问应通过 SSH 隧道完成。
+# Enterprise RAG operations
+
+## Authentication configuration
+
+Set `APP_ENV=production` and `AUTH_COOKIE_SECURE=true` in production. The v1 APIs issue
+short-lived Bearer access tokens and keep refresh tokens only in HttpOnly cookies. Never copy
+refresh cookies, JWTs, or `.env` values into tickets, browser storage, or logs.
+
+## API boundaries
+
+- Client API and documentation: `/api/v1/client`, `/api/v1/client/docs`, `/openapi/client.json`
+- Admin API and documentation: `/api/v1/admin`, `/api/v1/admin/docs`, `/openapi/admin.json`
+- Liveness: `/health/live`; readiness: `/health/ready`
+
+`flower` is an optional operations profile and binds only to `127.0.0.1:5555`:
+
+```bash
+docker compose --profile operations up -d flower
+```
+
+Do not expose Flower through a public port. Use a private tunnel or reverse proxy with explicit
+administrator authentication when operational access is required.
