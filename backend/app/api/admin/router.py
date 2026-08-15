@@ -3,14 +3,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ...database import get_db
-from ...exceptions import DuplicateUsernameError, InvalidCredentialsError, UserInactiveError, UserNotFoundError
+from ...exceptions import DuplicateUsernameError, EmptyUserUpdateError, IncorrectPasswordError, InvalidCredentialsError, UserInactiveError, UserNotFoundError
 from ...models.user import UserORM
 from ...models.audit_log import AuditLogORM
 from ...models.document import DocumentORM
 from ...models.knowledge_base import KnowledgeBaseORM
-from ...schemas.user import AdminUserCreate, UserLogin, UserResponse, UserRoleUpdate, UserUpdate
+from ...schemas.user import AdminUserCreate, PasswordChange, UserLogin, UserProfileUpdate, UserResponse, UserRoleUpdate, UserUpdate
 from ...services.auth_sessions import clear_refresh_cookie, issue_session, revoke_session, rotate_session, set_refresh_cookie
-from ...services.users import create_user_with_role_service, delete_user_service, login_user_service, update_user_role_service, update_user_service
+from ...services.users import change_password_service, create_user_with_role_service, delete_user_service, login_user_service, update_my_profile_service, update_user_role_service, update_user_service
 from ...services.audit_logs import write_audit_log
 from ...celery_app import celery_app
 from ..common.response import ok
@@ -57,6 +57,25 @@ def logout(request: Request, response: Response, user: UserORM = Depends(require
 @router.get("/me")
 def me(user: UserORM = Depends(require_admin_user)):
     return ok(UserResponse.model_validate(user, from_attributes=True))
+
+
+@router.patch("/me")
+def update_me(payload: UserProfileUpdate, db: Session = Depends(get_db), user: UserORM = Depends(require_admin_user)):
+    try:
+        updated = update_my_profile_service(current_user=user, profile_update=payload, db=db)
+    except DuplicateUsernameError:
+        raise HTTPException(status_code=409, detail="username already exists")
+    except EmptyUserUpdateError:
+        raise HTTPException(status_code=422, detail="provide at least one field to update")
+    return ok(UserResponse.model_validate(updated, from_attributes=True))
+
+
+@router.patch("/me/password", status_code=204)
+def change_me_password(payload: PasswordChange, db: Session = Depends(get_db), user: UserORM = Depends(require_admin_user)):
+    try:
+        change_password_service(current_user=user, password_change=payload, db=db)
+    except IncorrectPasswordError:
+        raise HTTPException(status_code=400, detail="old password is incorrect")
 
 
 @router.get("/users")

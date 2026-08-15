@@ -15,5 +15,6 @@ export const useAdminAuthStore = defineStore("adminAuth", () => {
   async function restoreSession() { if (user.value || restorePromise) return restorePromise; restorePromise = (async () => { try { const result = await adminRefresh(csrfToken.value ?? csrfFromCookie()); token.value = result.access_token; csrfToken.value = result.csrf_token; user.value = await adminMe(result.access_token); } catch { clearSession(); } finally { restorePromise = null; } })(); return restorePromise; }
   async function signOut() { try { if (token.value) await adminLogout(token.value, csrfToken.value ?? csrfFromCookie()); } finally { clearSession(); } }
   function clearSession() { token.value = null; csrfToken.value = null; user.value = null; }
-  return { token, csrfToken, user, isLoading, isAuthenticated, signIn, signOut, restoreSession, clearSession };
+  function updateCurrentUser(updated: User) { user.value = updated; }
+  return { token, csrfToken, user, isLoading, isAuthenticated, signIn, signOut, restoreSession, clearSession, updateCurrentUser };
 });
