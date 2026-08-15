@@ -1,5 +1,16 @@
 # 企业级 RAG 知识库问答系统
 
+> FastAPI + Vue 3 + MySQL + Redis + Celery + Qdrant + DeepSeek
+
+## API 与工作区
+
+- 用户工作台：`/app/chat`
+- 管理工作台：`/admin/users`
+- Client API：`/api/v1/client`，文档：`/api/v1/client/docs`
+- Admin API：`/api/v1/admin`，文档：`/api/v1/admin/docs`
+
+新版认证使用短期 Access Token 和 HttpOnly Refresh Cookie。两个 API 使用不同 audience，用户令牌不能调用管理端接口，刷新令牌不会被写入浏览器存储。
+
 这是一个面向企业内部资料的知识库问答系统，采用 FastAPI、React、MySQL、Redis、Celery、Qdrant 和 Docker Compose 构建。系统支持私有文档处理、LangChain 递归文本切分、向量检索，以及带 PDF 页码引用的可信 RAG 回答。
 
 用户可以在一个知识库的全部就绪文档中提问，也可以将问题限定在单篇文档。LangChain 提示词模板会将检索到的参考资料与模型指令隔离后再发送给 DeepSeek；多轮对话始终绑定当前选择的知识库或文档。

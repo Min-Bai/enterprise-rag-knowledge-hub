@@ -15,46 +15,76 @@ declare module "vue-router" {
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: "/", redirect: "/chat" },
+    { path: "/", redirect: "/app/chat" },
     {
       path: "/login",
       name: "login",
       component: () => import("../views/LoginView.vue"),
     },
     {
-      path: "/chat",
+      path: "/admin/login",
+      name: "admin-login",
+      component: () => import("../views/AdminLoginView.vue"),
+    },
+    {
+      path: "/admin/users",
+      name: "admin-users",
+      component: () => import("../views/AdminUsersView.vue"),
+      meta: { requiresAuth: true, adminOnly: true },
+    },
+    {
+      path: "/admin/jobs",
+      name: "admin-jobs",
+      component: () => import("../views/AdminOperationsView.vue"),
+      meta: { requiresAuth: true, adminOnly: true },
+    },
+    {
+      path: "/admin/analytics",
+      name: "admin-analytics",
+      component: () => import("../views/AdminOperationsView.vue"),
+      meta: { requiresAuth: true, adminOnly: true },
+    },
+    {
+      path: "/app/chat",
+      alias: "/chat",
       name: "chat",
       component: () => import("../views/ChatView.vue"),
       meta: { requiresAuth: true },
     },
     {
-      path: "/conversations",
+      path: "/app/conversations",
+      alias: "/conversations",
       name: "conversations",
       component: () => import("../views/ConversationListView.vue"),
       meta: { requiresAuth: true },
     },
     {
-      path: "/knowledge-bases",
+      path: "/app/knowledge-bases",
+      alias: "/knowledge-bases",
       name: "knowledge-bases",
       component: () => import("../views/KnowledgeBaseListView.vue"),
       meta: { requiresAuth: true },
     },
     {
-      path: "/knowledge-bases/:id",
+      path: "/app/knowledge-bases/:id",
+      alias: "/knowledge-bases/:id",
       component: () => import("../views/KnowledgeBaseOverviewView.vue"),
     },
     {
-      path: "/knowledge-bases/:id/documents",
+      path: "/app/knowledge-bases/:id/documents",
+      alias: "/knowledge-bases/:id/documents",
       component: () => import("../views/DocumentListView.vue"),
       meta: { requiresAuth: true },
     },
     {
-      path: "/knowledge-bases/:id/retrieval-test",
+      path: "/app/knowledge-bases/:id/retrieval-test",
+      alias: "/knowledge-bases/:id/retrieval-test",
       component: () => import("../views/RetrievalTestView.vue"),
       meta: { requiresAuth: true, knowledgeBaseManagerOnly: true },
     },
     {
-      path: "/knowledge-bases/:id/access",
+      path: "/app/knowledge-bases/:id/access",
+      alias: "/knowledge-bases/:id/access",
       component: () => import("../views/KnowledgeBaseAccessView.vue"),
       meta: { requiresAuth: true, knowledgeBaseOwnerOnly: true },
     },
@@ -64,11 +94,19 @@ export const router = createRouter({
       component: () => import("../views/SettingsView.vue"),
       meta: { requiresAuth: true, adminOnly: true },
     },
-    { path: "/:pathMatch(.*)*", redirect: "/chat" },
+    { path: "/:pathMatch(.*)*", redirect: "/app/chat" },
   ],
 });
 
 router.beforeEach(async (to) => {
+  if (to.path.startsWith("/admin")) {
+    const { useAdminAuthStore } = await import("../stores/adminAuth");
+    const adminAuth = useAdminAuthStore(pinia);
+    await adminAuth.restoreSession();
+    if (to.name === "admin-login" && adminAuth.isAuthenticated) return { name: "admin-users" };
+    if (to.name !== "admin-login" && !adminAuth.isAuthenticated) return { name: "admin-login" };
+    return true;
+  }
   const auth = useAuthStore(pinia);
   await auth.restoreSession();
   if (to.meta.requiresAuth && !auth.isAuthenticated) return { name: "login" };

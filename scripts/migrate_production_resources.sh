@@ -195,7 +195,7 @@ sudo install -m 755 "$target_dir/scripts/deploy_enterprise_rag.sh" \
   "$HOME/deploy-enterprise-rag.sh"
 
 echo "Starting Enterprise RAG services"
-sudo docker compose up -d --build api worker frontend
+sudo docker compose up -d --build api worker beat frontend
 
 for attempt in {1..12}; do
   if curl -fsS http://localhost:8000/health; then
