@@ -106,6 +106,10 @@ def get_user_detail_service(user_id: int, db: Session):
     return get_user_service(user_id, db)
 
 
+def get_public_user_profile_service(user_id: int, db: Session):
+    return get_user_service(user_id, db)
+
+
 def login_user_service(user_login: UserLogin, db: Session):
     user = db.scalar(select(UserORM).where(UserORM.username == user_login.username))
     if user is None or not verify_password(user_login.password, user.password_hash):

@@ -24,6 +24,9 @@ class UserResponse(BaseModel):
     email: str | None = None
     is_active: bool
     role: str
+    display_name: str | None = None
+    avatar_url: str | None = None
+    bio: str | None = None
 
 
 class UserUpdate(StrictRequestSchema):
@@ -51,6 +54,14 @@ class UserDetailResponse(BaseModel):
     role: str
 
 
+class PublicUserProfile(BaseModel):
+    id: int
+    username: str
+    display_name: str | None = None
+    avatar_url: str | None = None
+    bio: str | None = None
+
+
 class UserLogin(StrictRequestSchema):
     username: str
     password: str
@@ -72,6 +83,9 @@ class AdminUserCreate(UserCreate):
 class UserProfileUpdate(StrictRequestSchema):
     username: str | None = Field(default=None, min_length=1, max_length=50)
     email: str | None = None
+    display_name: str | None = Field(default=None, max_length=80)
+    avatar_url: str | None = Field(default=None, max_length=500)
+    bio: str | None = Field(default=None, max_length=280)
 
     @field_validator("username")
     @classmethod
@@ -83,3 +97,15 @@ class UserProfileUpdate(StrictRequestSchema):
             raise ValueError("username cannot be empty")
 
         return value.strip()
+
+    @field_validator("display_name", "avatar_url", "bio")
+    @classmethod
+    def normalize_optional_text(cls, value):
+        return value.strip() if value else None
+
+    @field_validator("avatar_url")
+    @classmethod
+    def validate_avatar_url(cls, value):
+        if value is not None and not value.startswith(("https://", "http://")):
+            raise ValueError("avatar_url must be an http or https URL")
+        return value

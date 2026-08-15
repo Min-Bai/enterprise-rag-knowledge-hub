@@ -64,6 +64,10 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = null;
   }
 
+  function updateCurrentUser(updated: User) {
+    user.value = updated;
+  }
+
   return {
     token,
     csrfToken,
@@ -75,5 +79,6 @@ export const useAuthStore = defineStore("auth", () => {
     signOut,
     restoreSession,
     clearSession,
+    updateCurrentUser,
   };
 });
