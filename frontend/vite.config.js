@@ -9,6 +9,10 @@ export default defineConfig(({ mode }) => {
     plugins: [vue()],
     server: {
       proxy: {
+        "/api/v1": {
+          target: apiTarget,
+          changeOrigin: true,
+        },
         "/api": {
           target: apiTarget,
           changeOrigin: true,
