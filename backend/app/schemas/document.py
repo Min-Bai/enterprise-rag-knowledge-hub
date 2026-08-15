@@ -29,6 +29,21 @@ class DocumentTagsUpdateRequest(BaseModel):
         return normalize_document_tags(value)
 
 
+class DocumentBatchReindexRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    document_ids: list[int] = Field(min_length=1, max_length=100)
+
+    @field_validator("document_ids")
+    @classmethod
+    def validate_document_ids(cls, value: list[int]) -> list[int]:
+        if any(document_id <= 0 for document_id in value):
+            raise ValueError("document ids must be positive")
+        if len(value) != len(set(value)):
+            raise ValueError("document ids must be unique")
+        return value
+
+
 class DocumentChunkResponse(BaseModel):
     document_id: int
     filename: str

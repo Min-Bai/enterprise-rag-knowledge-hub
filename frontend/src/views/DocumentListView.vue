@@ -8,6 +8,7 @@ import {
   downloadDocument,
   getDocuments,
   reindexDocument,
+  reindexDocuments,
   retryDocument,
   updateDocumentTags,
   uploadDocument,
@@ -50,6 +51,13 @@ const knowledgeBaseName = ref("加载中");
 const availableTags = computed(() =>
   [...new Set(documents.value.flatMap((document) => document.tags))].sort(),
 );
+function rolePermission(role: "owner" | "editor" | "viewer") {
+  return {
+    owner: "当前权限：所有者，可管理成员、文档与检索测试。",
+    editor: "当前权限：编辑者，可上传、编辑、删除文档和执行检索测试。",
+    viewer: "当前权限：查看者，可浏览、检索和问答，不能修改文档。",
+  }[role];
+}
 const filteredDocuments = computed(() =>
   documents.value.filter(
     (document) =>
@@ -62,6 +70,9 @@ const filteredDocuments = computed(() =>
       (tagFilter.value.length === 0 ||
         tagFilter.value.every((tag) => document.tags.includes(tag))),
   ),
+);
+const selectedReadyDocuments = computed(() =>
+  selectedDocuments.value.filter((document) => document.status === "ready"),
 );
 async function load() {
   if (!auth.token) return;
@@ -226,6 +237,28 @@ async function removeSelected() {
   if (outcomes.some((outcome) => !outcome))
     ElMessage.warning("部分文档删除失败，请稍后重试。");
 }
+async function reindexSelected() {
+  if (!auth.token || !selectedReadyDocuments.value.length) return;
+  const items = [...selectedReadyDocuments.value];
+  try {
+    await ElMessageBox.confirm(
+      `将重新建立 ${items.length} 份已就绪文档的索引。原有向量会替换，文档将在后台重新处理。`,
+      "批量重建索引",
+      { confirmButtonText: "重建索引", cancelButtonText: "取消", type: "warning" },
+    );
+  } catch {
+    return;
+  }
+  try {
+    const updated = await reindexDocuments(auth.token, items.map((item) => item.id));
+    const updatedById = new Map(updated.map((item) => [item.id, item]));
+    documents.value = documents.value.map((item) => updatedById.get(item.id) ?? item);
+    selectedDocuments.value = [];
+    ElMessage.success(`已将 ${updated.length} 份文档加入索引队列`);
+  } catch (caught) {
+    ElMessage.error(caught instanceof Error ? caught.message : "批量重建索引失败，请稍后重试。");
+  }
+}
 function selectFile(uploadFile: UploadFile) {
   const selectedFile = uploadFile.raw;
   if (!selectedFile) return;
@@ -286,6 +319,9 @@ onMounted(load);
           <p class="eyebrow">知识库文档</p>
           <h1 id="documents-title">{{ knowledgeBaseName }}</h1>
           <p>上传后将由后台异步解析和建立索引。</p>
+          <p v-if="knowledgeBaseRole" class="role-permission">
+            {{ rolePermission(knowledgeBaseRole) }}
+          </p>
         </div>
         <div class="page-header-actions">
           <el-button :loading="loading" @click="load"
@@ -335,6 +371,12 @@ onMounted(load);
               :key="tag"
               :label="tag"
               :value="tag" /></el-select
+          ><el-button
+            v-if="canManage && selectedReadyDocuments.length"
+            type="primary"
+            plain
+            @click="reindexSelected"
+            ><RefreshCw :size="16" />重建索引 {{ selectedReadyDocuments.length }} 项</el-button
           ><el-button
             v-if="canManage && selectedDocuments.length"
             type="danger"

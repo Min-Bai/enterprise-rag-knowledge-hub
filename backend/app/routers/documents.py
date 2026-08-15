@@ -7,6 +7,7 @@ from ..database import get_db
 from ..models.user import UserORM
 from ..schemas.document import (
     DocumentResponse,
+    DocumentBatchReindexRequest,
     DocumentSearchRequest,
     DocumentSearchResponse,
     DocumentTagsUpdateRequest,
@@ -23,6 +24,7 @@ from ..services.documents import (
     get_document_service,
     get_ready_documents_service,
     reindex_document_service,
+    batch_reindex_documents_service,
     retry_document_service,
     update_document_tags_service,
 )
@@ -160,6 +162,42 @@ def search_documents(
         for chunk in chunks
     ]
     return {"items": items}
+
+@router.post(
+    "/reindex",
+    response_model=list[DocumentResponse],
+)
+def batch_reindex_documents(
+    payload: DocumentBatchReindexRequest,
+    current_user: UserORM = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        documents = batch_reindex_documents_service(
+            document_ids=payload.document_ids,
+            user_id=current_user.id,
+            db=db,
+        )
+    except DocumentNotFoundError:
+        raise HTTPException(status_code=404, detail="document not found")
+    except DocumentReindexNotAllowedError:
+        raise HTTPException(status_code=409, detail="only ready documents can be reindexed")
+    except KnowledgeBaseAccessDeniedError:
+        raise HTTPException(status_code=403, detail="knowledge base editor access required")
+
+    for document in documents:
+        enqueue_document_processing(document.id)
+        write_audit_log(
+            actor_user_id=current_user.id,
+            action="document.reindexed",
+            target_type="document",
+            target_id=document.id,
+            knowledge_base_id=document.knowledge_base_id,
+            details={"batch": True},
+            db=db,
+        )
+    return documents
+
 
 @router.post(
     "/{document_id}/reindex",

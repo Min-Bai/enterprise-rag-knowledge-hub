@@ -9,22 +9,22 @@ const route = useRoute();
 const tabs = computed(() => [
   {
     label: "概览",
-    path: `/knowledge-bases/${props.knowledgeBaseId}`,
+    path: `/app/knowledge-bases/${props.knowledgeBaseId}`,
   },
   {
     label: "文档管理",
-    path: `/knowledge-bases/${props.knowledgeBaseId}/documents`,
+    path: `/app/knowledge-bases/${props.knowledgeBaseId}/documents`,
   },
   {
     label: "检索测试",
-    path: `/knowledge-bases/${props.knowledgeBaseId}/retrieval-test`,
+    path: `/app/knowledge-bases/${props.knowledgeBaseId}/retrieval-test`,
     hidden: props.role === "viewer",
   },
   ...(props.role === "owner"
     ? [
         {
           label: "成员权限",
-          path: `/knowledge-bases/${props.knowledgeBaseId}/access`,
+          path: `/app/knowledge-bases/${props.knowledgeBaseId}/access`,
         },
       ]
     : []),
@@ -37,7 +37,7 @@ const visibleTabs = computed(() => tabs.value.filter((tab) => !tab.hidden));
       v-for="tab in visibleTabs"
       :key="tab.path"
       :to="tab.path"
-      :class="{ active: route.path === tab.path }"
+      :class="{ active: route.path === tab.path || route.path === tab.path.replace('/app', '') }"
       >{{ tab.label }}</RouterLink
     >
   </nav>

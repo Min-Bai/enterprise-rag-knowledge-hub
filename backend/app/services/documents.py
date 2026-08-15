@@ -178,6 +178,40 @@ def reindex_document_service(
     return document
 
 
+def batch_reindex_documents_service(
+    document_ids: list[int],
+    user_id: int,
+    db: Session,
+) -> list[DocumentORM]:
+    documents = db.scalars(
+        select(DocumentORM).where(DocumentORM.id.in_(document_ids))
+    ).all()
+    if len(documents) != len(document_ids):
+        raise DocumentNotFoundError
+
+    for document in documents:
+        knowledge_base = get_knowledge_base_service(db, document.knowledge_base_id, user_id)
+        require_knowledge_base_role(
+            knowledge_base=knowledge_base,
+            user_id=user_id,
+            db=db,
+            allowed_roles={"owner", "editor"},
+        )
+        if document.status != "ready":
+            raise DocumentReindexNotAllowedError
+
+    for document in documents:
+        delete_document_vectors(document_id=document.id, user_id=document.user_id)
+        document.status = "uploaded"
+        document.error_message = None
+        document.chunk_count = 0
+        document.processed_at = None
+    db.commit()
+    for document in documents:
+        db.refresh(document)
+    return documents
+
+
 def update_document_tags_service(
     document_id: int,
     user_id: int,

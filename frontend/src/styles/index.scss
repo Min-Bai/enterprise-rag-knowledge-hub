@@ -616,6 +616,7 @@ textarea:focus-visible {
 }
 .knowledge-tabs a {
   color: var(--color-text-muted);
+  cursor: pointer;
   padding: var(--space-3) 0;
   text-decoration: none;
   white-space: nowrap;
@@ -672,6 +673,12 @@ textarea:focus-visible {
   gap: var(--space-1);
   margin-bottom: var(--space-4);
   text-decoration: none;
+  cursor: pointer;
+}
+.table-link,
+.menu-link,
+.overview-actions a {
+  cursor: pointer;
 }
 .back-link:hover {
   color: var(--color-accent);
@@ -724,6 +731,12 @@ textarea:focus-visible {
   font-size: 12px;
   line-height: 1.6;
   margin: var(--space-5) 0 0;
+}
+.role-permission {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: var(--space-3) 0 0;
 }
 .overview-actions {
   display: flex;
