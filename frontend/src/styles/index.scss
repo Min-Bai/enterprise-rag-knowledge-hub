@@ -115,6 +115,9 @@ textarea:focus-visible {
   padding: var(--space-4) var(--space-2) 0;
 }
 .account-summary {
+  background: transparent;
+  border: 0;
+  color: inherit;
   display: grid;
   grid-template-columns: 28px 1fr;
   column-gap: var(--space-2);
@@ -681,6 +684,22 @@ textarea:focus-visible {
 }
 .login-submit {
   width: 100%;
+}
+.account-menu-trigger {
+  cursor: pointer;
+  padding: var(--space-2);
+  text-align: left;
+  width: 100%;
+}
+.account-menu-trigger:hover,
+.account-menu-trigger:focus-visible {
+  background: rgb(255 255 255 / 8%);
+  border-radius: var(--radius-sm);
+}
+.el-dropdown-menu__item {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
 }
 .login-return-link {
   color: var(--color-accent);
