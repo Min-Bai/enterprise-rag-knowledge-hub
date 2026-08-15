@@ -175,3 +175,27 @@ def test_reindex_route_requeues_ready_document(monkeypatch):
 
     assert response.status_code == 200
     enqueue.assert_called_once_with(8)
+
+
+def test_batch_reindex_route_requeues_every_ready_document(monkeypatch):
+    documents = [
+        SimpleNamespace(id=8, knowledge_base_id=1, filename="first.pdf", status="uploaded", error_message=None, created_at=datetime.now()),
+        SimpleNamespace(id=9, knowledge_base_id=1, filename="second.pdf", status="uploaded", error_message=None, created_at=datetime.now()),
+    ]
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1)
+    monkeypatch.setattr(
+        "backend.app.routers.documents.batch_reindex_documents_service",
+        Mock(return_value=documents),
+    )
+    enqueue = Mock()
+    monkeypatch.setattr("backend.app.routers.documents.enqueue_document_processing", enqueue)
+    monkeypatch.setattr("backend.app.routers.documents.write_audit_log", Mock())
+
+    try:
+        response = client.post("/documents/reindex", json={"document_ids": [8, 9]})
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json()] == [8, 9]
+    assert enqueue.call_args_list == [((8,), {}), ((9,), {})]
