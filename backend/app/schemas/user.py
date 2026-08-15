@@ -65,6 +65,10 @@ class UserRoleUpdate(StrictRequestSchema):
     role: Literal["user", "admin"]
 
 
+class AdminUserCreate(UserCreate):
+    role: Literal["user", "admin"] = "user"
+
+
 class UserProfileUpdate(StrictRequestSchema):
     username: str | None = Field(default=None, min_length=1, max_length=50)
     email: str | None = None

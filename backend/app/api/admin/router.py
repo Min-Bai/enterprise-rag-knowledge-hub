@@ -3,14 +3,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ...database import get_db
-from ...exceptions import InvalidCredentialsError, UserInactiveError, UserNotFoundError
+from ...exceptions import DuplicateUsernameError, InvalidCredentialsError, UserInactiveError, UserNotFoundError
 from ...models.user import UserORM
 from ...models.audit_log import AuditLogORM
 from ...models.document import DocumentORM
 from ...models.knowledge_base import KnowledgeBaseORM
-from ...schemas.user import UserLogin, UserResponse, UserRoleUpdate, UserUpdate
+from ...schemas.user import AdminUserCreate, UserLogin, UserResponse, UserRoleUpdate, UserUpdate
 from ...services.auth_sessions import clear_refresh_cookie, issue_session, revoke_session, rotate_session, set_refresh_cookie
-from ...services.users import login_user_service, update_user_role_service, update_user_service
+from ...services.users import create_user_with_role_service, delete_user_service, login_user_service, update_user_role_service, update_user_service
 from ...services.audit_logs import write_audit_log
 from ...celery_app import celery_app
 from ..common.response import ok
@@ -74,8 +74,21 @@ def users(limit: int = 20, cursor: int | None = None, db: Session = Depends(get_
     }})
 
 
+@router.post("/users", status_code=201)
+def create_user(payload: AdminUserCreate, db: Session = Depends(get_db), admin: UserORM = Depends(require_admin_user)):
+    try:
+        user = create_user_with_role_service(user=payload, role=payload.role, db=db)
+    except DuplicateUsernameError:
+        raise HTTPException(status_code=409, detail="username already exists")
+    write_audit_log(actor_user_id=admin.id, action="admin.user.created", target_type="user", target_id=user.id,
+                    knowledge_base_id=None, details={"role": user.role}, db=db)
+    return ok(UserResponse.model_validate(user, from_attributes=True))
+
+
 @router.patch("/users/{user_id}/role")
 def update_role(user_id: int, payload: UserRoleUpdate, db: Session = Depends(get_db), admin: UserORM = Depends(require_admin_user)):
+    if user_id == admin.id and payload.role != "admin":
+        raise HTTPException(status_code=409, detail="admin cannot remove own admin role")
     try:
         user = update_user_role_service(user_id, payload, db)
     except UserNotFoundError:
@@ -89,6 +102,8 @@ def update_role(user_id: int, payload: UserRoleUpdate, db: Session = Depends(get
 def update_status(user_id: int, payload: UserUpdate, db: Session = Depends(get_db), admin: UserORM = Depends(require_admin_user)):
     if payload.is_active is None:
         raise HTTPException(status_code=422, detail="is_active is required")
+    if user_id == admin.id and not payload.is_active:
+        raise HTTPException(status_code=409, detail="admin cannot deactivate own account")
     try:
         user = update_user_service(user_id, UserUpdate(is_active=payload.is_active), db)
     except UserNotFoundError:
@@ -96,6 +111,18 @@ def update_status(user_id: int, payload: UserUpdate, db: Session = Depends(get_d
     write_audit_log(actor_user_id=admin.id, action="admin.user.status_updated", target_type="user", target_id=user.id,
                     knowledge_base_id=None, details={"is_active": user.is_active}, db=db)
     return ok(UserResponse.model_validate(user, from_attributes=True))
+
+
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(user_id: int, db: Session = Depends(get_db), admin: UserORM = Depends(require_admin_user)):
+    if user_id == admin.id:
+        raise HTTPException(status_code=409, detail="admin cannot delete own account")
+    try:
+        delete_user_service(user_id, db)
+    except UserNotFoundError:
+        raise HTTPException(status_code=404, detail="user not found")
+    write_audit_log(actor_user_id=admin.id, action="admin.user.deleted", target_type="user", target_id=user_id,
+                    knowledge_base_id=None, details=None, db=db)
 
 
 @router.get("/operations/worker-status")
@@ -111,12 +138,30 @@ def worker_status(_: UserORM = Depends(require_admin_user)):
     })
 
 
+@router.get("/operations/jobs")
+def document_jobs(limit: int = 20, db: Session = Depends(get_db), _: UserORM = Depends(require_admin_user)):
+    status_counts = dict(db.execute(
+        select(DocumentORM.status, func.count()).group_by(DocumentORM.status)
+    ).all())
+    recent = db.scalars(
+        select(DocumentORM).where(DocumentORM.status.in_(("uploaded", "processing", "failed")))
+        .order_by(DocumentORM.created_at.desc()).limit(min(max(limit, 1), 100))
+    ).all()
+    return ok({
+        "status_counts": status_counts,
+        "recent": [{"id": item.id, "filename": item.filename, "status": item.status,
+                    "error_message": item.error_message, "created_at": item.created_at,
+                    "knowledge_base_id": item.knowledge_base_id} for item in recent],
+    })
+
+
 @router.get("/audit-logs")
 def audit_logs(limit: int = 50, db: Session = Depends(get_db), _: UserORM = Depends(require_admin_user)):
-    rows = db.scalars(select(AuditLogORM).order_by(AuditLogORM.id.desc()).limit(min(max(limit, 1), 100))).all()
-    return ok([{ "id": item.id, "actor_user_id": item.actor_user_id, "action": item.action,
+    rows = db.execute(select(AuditLogORM, UserORM.username).join(UserORM, UserORM.id == AuditLogORM.actor_user_id)
+                      .order_by(AuditLogORM.id.desc()).limit(min(max(limit, 1), 100))).all()
+    return ok([{ "id": item.id, "actor_user_id": item.actor_user_id, "actor_username": username, "action": item.action,
                 "target_type": item.target_type, "target_id": item.target_id,
-                "details": item.details, "created_at": item.created_at } for item in rows])
+                "details": item.details, "created_at": item.created_at } for item, username in rows])
 
 
 @router.get("/analytics/overview")
