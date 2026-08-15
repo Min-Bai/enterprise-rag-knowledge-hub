@@ -8,6 +8,7 @@ import {
   MessageSquareText,
   History,
   LayoutDashboard,
+  Settings,
 } from "lucide-vue-next";
 import { useAuthStore } from "../stores/auth";
 
@@ -22,7 +23,11 @@ async function handleLogout() {
   await auth.signOut();
   await router.push({ name: "login" });
 }
-async function handleAccountCommand(command: "admin" | "logout") {
+async function handleAccountCommand(command: "profile" | "admin" | "logout") {
+  if (command === "profile") {
+    await router.push({ name: "profile" });
+    return;
+  }
   if (command === "admin") {
     await router.push({ name: "admin-login" });
     return;
@@ -73,7 +78,8 @@ async function handleAccountCommand(command: "admin" | "logout") {
           </button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="admin"><LayoutDashboard :size="15" /> 管理台登录</el-dropdown-item>
+              <el-dropdown-item command="profile"><Settings :size="15" /> 个人资料与安全</el-dropdown-item>
+              <el-dropdown-item v-if="auth.isAdmin" command="admin"><LayoutDashboard :size="15" /> 进入管理台</el-dropdown-item>
               <el-dropdown-item command="logout" divided><LogOut :size="15" /> 退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>

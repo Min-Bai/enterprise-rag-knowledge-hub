@@ -6,6 +6,17 @@ export interface User {
   email: string | null;
   is_active: boolean;
   role: UserRole;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+}
+
+export interface PublicUserProfile {
+  id: number;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
 }
 
 export interface LoginResponse {

@@ -131,10 +131,10 @@ onMounted(load);
           description="添加企业账户后可授予编辑或只读权限。"
         /><el-table v-else :data="members"
           ><el-table-column
-            prop="username"
             label="成员"
             min-width="220"
-          /><el-table-column label="角色" width="180"
+          ><template #default="{ row }"><RouterLink class="table-link" :to="`/app/members/${row.user_id}`">{{ row.username }}</RouterLink></template></el-table-column
+          ><el-table-column label="角色" width="180"
             ><template #default="{ row }">
               <el-tag v-if="row.role === 'owner'" effect="plain">{{ roleLabel(row.role) }}</el-tag>
               <el-select
