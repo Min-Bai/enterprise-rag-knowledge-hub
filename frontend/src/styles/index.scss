@@ -752,6 +752,7 @@ textarea:focus-visible {
   margin-top: var(--space-5);
 }
 .login-return-link:hover { color: var(--color-accent-hover); text-decoration: underline; }
+.login-links { display: flex; gap: var(--space-4); }
 .admin-login-page { background: #edf4ef; }
 .admin-page { display: grid; gap: var(--space-5); }
 .admin-page .page-header { margin-bottom: 0; }

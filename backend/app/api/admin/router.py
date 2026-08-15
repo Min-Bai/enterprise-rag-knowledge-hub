@@ -13,6 +13,7 @@ from ...services.auth_sessions import clear_refresh_cookie, issue_session, revok
 from ...services.users import change_password_service, create_user_with_role_service, delete_user_service, login_user_service, update_my_profile_service, update_user_role_service, update_user_service
 from ...services.audit_logs import write_audit_log
 from ...celery_app import celery_app
+from ...rate_limit import enforce_login_rate_limit
 from ..common.response import ok
 from ..dependencies import require_admin_access, require_admin_user
 
@@ -34,7 +35,7 @@ def _admin_login(payload: UserLogin, request: Request, response: Response, db: S
 
 
 @router.post("/auth/login")
-def login(payload: UserLogin, request: Request, response: Response, db: Session = Depends(get_db)):
+def login(payload: UserLogin, request: Request, response: Response, _: None = Depends(enforce_login_rate_limit), db: Session = Depends(get_db)):
     return _admin_login(payload, request, response, db)
 
 

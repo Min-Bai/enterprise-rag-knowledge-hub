@@ -2,19 +2,37 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
 from ...database import get_db
-from ...exceptions import InvalidCredentialsError, UserInactiveError
+from ...config import ALLOW_SELF_REGISTRATION
+from ...exceptions import DuplicateUsernameError, InvalidCredentialsError, UserInactiveError
 from ...models.user import UserORM
-from ...schemas.user import UserLogin, UserResponse
+from ...schemas.user import UserCreate, UserLogin, UserResponse
 from ...services.auth_sessions import clear_refresh_cookie, issue_session, revoke_session, rotate_session, set_refresh_cookie
-from ...services.users import login_user_service
+from ...services.users import create_user_service, login_user_service
+from ...rate_limit import enforce_login_rate_limit
 from ..common.response import ok
 from ..dependencies import require_client_access
 
 router = APIRouter()
 
 
+@router.get("/auth/registration-status")
+def registration_status():
+    return ok({"enabled": ALLOW_SELF_REGISTRATION})
+
+
+@router.post("/auth/register", status_code=201)
+def register(payload: UserCreate, _: None = Depends(enforce_login_rate_limit), db: Session = Depends(get_db)):
+    if not ALLOW_SELF_REGISTRATION:
+        raise HTTPException(status_code=403, detail="self registration is disabled")
+    try:
+        user = create_user_service(user=payload, db=db)
+    except DuplicateUsernameError:
+        raise HTTPException(status_code=409, detail="username already exists")
+    return ok(UserResponse.model_validate(user, from_attributes=True))
+
+
 @router.post("/auth/login")
-def login(payload: UserLogin, request: Request, response: Response, db: Session = Depends(get_db)):
+def login(payload: UserLogin, request: Request, response: Response, _: None = Depends(enforce_login_rate_limit), db: Session = Depends(get_db)):
     try:
         user = login_user_service(user_login=payload, db=db)
     except InvalidCredentialsError:

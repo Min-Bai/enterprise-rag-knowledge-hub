@@ -3,6 +3,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
+from backend.app.api.client import router as client_router
 
 
 client = TestClient(app)
@@ -51,3 +52,19 @@ def test_v1_invalid_requests_have_the_standard_error_envelope():
     assert response.json()["code"] == "VALIDATION_ERROR"
     assert response.json()["data"] is None
     assert response.json()["request_id"]
+
+
+def test_client_registration_obeys_policy_and_returns_standard_envelope(monkeypatch):
+    disabled = client.get("/api/v1/client/auth/registration-status")
+    assert disabled.status_code == 200
+    assert isinstance(disabled.json()["data"]["enabled"], bool)
+
+    monkeypatch.setattr(client_router, "ALLOW_SELF_REGISTRATION", True)
+    username = f"registered_{uuid4().hex[:8]}"
+    response = client.post(
+        "/api/v1/client/auth/register",
+        json={"username": username, "password": "secret123"},
+    )
+    assert response.status_code == 201
+    assert response.json()["code"] == "OK"
+    assert response.json()["data"]["username"] == username
