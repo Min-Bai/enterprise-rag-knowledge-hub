@@ -6,6 +6,7 @@ from ..schemas.user import (
     PasswordChange,
     UserCreate,
     UserDetailResponse,
+    PublicUserProfile,
     UserResponse,
     UserUpdate,
     UserRoleUpdate,
@@ -19,6 +20,7 @@ from ..services.users import (
     delete_user_service,
     update_user_service,
     get_user_detail_service,
+    get_public_user_profile_service,
     change_password_service,
     logout_user_service,
     update_my_profile_service,
@@ -145,6 +147,18 @@ def get_user_detail(
 ):
     try:
         return get_user_detail_service(user_id=user_id, db=db)
+    except UserNotFoundError:
+        raise HTTPException(status_code=404, detail="user not found")
+
+
+@router.get("/{user_id}/profile", response_model=PublicUserProfile)
+def get_public_user_profile(
+    user_id: int,
+    _: UserORM = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        return get_public_user_profile_service(user_id=user_id, db=db)
     except UserNotFoundError:
         raise HTTPException(status_code=404, detail="user not found")
 

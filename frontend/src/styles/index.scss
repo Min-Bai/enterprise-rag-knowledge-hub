@@ -735,6 +735,29 @@ textarea:focus-visible {
 .section-caption { color: var(--color-text-muted); font-size: 13px; }
 .metric-grid strong { color: var(--color-text); font-size: 27px; line-height: 1.2; overflow-wrap: anywhere; }
 .admin-audit-table { overflow-x: auto; }
+.profile-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.profile-avatar-editor,
+.member-profile-card {
+  align-items: center;
+  display: flex;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.profile-avatar-editor p,
+.security-note,
+.member-username,
+.member-bio {
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin: var(--space-1) 0 0;
+}
+.member-profile-card { max-width: 720px; }
+.member-profile-card h1 { font-size: 24px; margin: 0; }
+.member-bio { color: var(--color-text); margin-top: var(--space-5); max-width: 560px; white-space: pre-wrap; }
 .form-alert {
   margin-bottom: var(--space-4);
 }
@@ -968,6 +991,7 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-grid { grid-template-columns: 1fr; }
   .composer-actions {
     gap: var(--space-3);
   }

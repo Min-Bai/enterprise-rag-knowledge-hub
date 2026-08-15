@@ -590,6 +590,41 @@ def test_user_can_update_own_profile():
     assert response.json()["email"] == "me@example.com"
     assert response.json()["role"] == "user"
 
+
+def test_authenticated_member_can_read_another_member_public_profile():
+    first = client.post(
+        "/users",
+        json={"username": f"user_{uuid4().hex[:8]}", "password": "secret123"},
+    ).json()
+    second = client.post(
+        "/users",
+        json={"username": f"user_{uuid4().hex[:8]}", "password": "secret123"},
+    ).json()
+
+    update = client.patch(
+        "/users/me",
+        json={
+            "display_name": "Enterprise Member",
+            "avatar_url": "https://example.com/avatar.png",
+            "bio": "Knowledge-base editor",
+        },
+        headers=auth_headers(first["id"]),
+    )
+    assert update.status_code == 200
+
+    response = client.get(
+        f"/users/{first['id']}/profile",
+        headers=auth_headers(second["id"]),
+    )
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": first["id"],
+        "username": first["username"],
+        "display_name": "Enterprise Member",
+        "avatar_url": "https://example.com/avatar.png",
+        "bio": "Knowledge-base editor",
+    }
+
 def test_user_cannot_change_own_role_or_active_status():
     response = client.post(
         "/users",
