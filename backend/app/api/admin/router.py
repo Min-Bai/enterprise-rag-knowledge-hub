@@ -1,3 +1,7 @@
+from datetime import UTC, datetime, timedelta
+from hashlib import sha256
+from secrets import token_urlsafe
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -8,11 +12,13 @@ from ...models.user import UserORM
 from ...models.audit_log import AuditLogORM
 from ...models.document import DocumentORM
 from ...models.knowledge_base import KnowledgeBaseORM
-from ...schemas.user import AdminUserCreate, PasswordChange, UserLogin, UserProfileUpdate, UserResponse, UserRoleUpdate, UserUpdate
+from ...models.user_invitation import UserInvitationORM
+from ...schemas.user import AdminUserCreate, InvitationCreate, PasswordChange, UserLogin, UserProfileUpdate, UserResponse, UserRoleUpdate, UserUpdate
 from ...services.auth_sessions import clear_refresh_cookie, issue_session, revoke_session, rotate_session, set_refresh_cookie
 from ...services.users import change_password_service, create_user_with_role_service, delete_user_service, login_user_service, update_my_profile_service, update_user_role_service, update_user_service
 from ...services.audit_logs import write_audit_log
 from ...celery_app import celery_app
+from ...rate_limit import enforce_login_rate_limit
 from ..common.response import ok
 from ..dependencies import require_admin_access, require_admin_user
 
@@ -34,7 +40,7 @@ def _admin_login(payload: UserLogin, request: Request, response: Response, db: S
 
 
 @router.post("/auth/login")
-def login(payload: UserLogin, request: Request, response: Response, db: Session = Depends(get_db)):
+def login(payload: UserLogin, request: Request, response: Response, _: None = Depends(enforce_login_rate_limit), db: Session = Depends(get_db)):
     return _admin_login(payload, request, response, db)
 
 
@@ -142,6 +148,83 @@ def delete_user(user_id: int, db: Session = Depends(get_db), admin: UserORM = De
         raise HTTPException(status_code=404, detail="user not found")
     write_audit_log(actor_user_id=admin.id, action="admin.user.deleted", target_type="user", target_id=user_id,
                     knowledge_base_id=None, details=None, db=db)
+
+
+def _invitation_response(invitation: UserInvitationORM) -> dict:
+    return {
+        "id": invitation.id,
+        "email": invitation.email,
+        "expires_at": invitation.expires_at,
+        "accepted_at": invitation.accepted_at,
+        "revoked_at": invitation.revoked_at,
+        "created_at": invitation.created_at,
+        "created_by_user_id": invitation.created_by_user_id,
+    }
+
+
+@router.get("/invitations")
+def invitations(db: Session = Depends(get_db), _: UserORM = Depends(require_admin_user)):
+    rows = db.scalars(
+        select(UserInvitationORM).order_by(UserInvitationORM.created_at.desc()).limit(100)
+    ).all()
+    return ok([_invitation_response(item) for item in rows])
+
+
+@router.post("/invitations", status_code=201)
+def create_invitation(
+    payload: InvitationCreate,
+    db: Session = Depends(get_db),
+    admin: UserORM = Depends(require_admin_user),
+):
+    token = token_urlsafe(32)
+    now = datetime.now(UTC).replace(tzinfo=None)
+    invitation = UserInvitationORM(
+        email=payload.email,
+        token_hash=sha256(token.encode("utf-8")).hexdigest(),
+        created_by_user_id=admin.id,
+        expires_at=now + timedelta(hours=payload.expires_in_hours),
+    )
+    db.add(invitation)
+    db.flush()
+    write_audit_log(
+        actor_user_id=admin.id,
+        action="admin.invitation.created",
+        target_type="user_invitation",
+        target_id=None,
+        knowledge_base_id=None,
+        details={"invitation_id": invitation.id, "email": invitation.email},
+        db=db,
+        commit=False,
+    )
+    db.commit()
+    db.refresh(invitation)
+    return ok({**_invitation_response(invitation), "invitation_token": token})
+
+
+@router.delete("/invitations/{invitation_id}", status_code=204)
+def revoke_invitation(
+    invitation_id: str,
+    db: Session = Depends(get_db),
+    admin: UserORM = Depends(require_admin_user),
+):
+    invitation = db.get(UserInvitationORM, invitation_id)
+    if invitation is None:
+        raise HTTPException(status_code=404, detail="invitation not found")
+    if invitation.accepted_at is not None:
+        raise HTTPException(status_code=409, detail="accepted invitation cannot be revoked")
+    if invitation.revoked_at is None:
+        invitation.revoked_at = datetime.now(UTC).replace(tzinfo=None)
+        write_audit_log(
+            actor_user_id=admin.id,
+            action="admin.invitation.revoked",
+            target_type="user_invitation",
+            target_id=None,
+            knowledge_base_id=None,
+            details={"invitation_id": invitation.id, "email": invitation.email},
+            db=db,
+            commit=False,
+        )
+        db.commit()
 
 
 @router.get("/operations/worker-status")
