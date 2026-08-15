@@ -8,6 +8,7 @@ from backend.app.main import app
 from backend.app.api.client import router as client_router
 from backend.app.models.user import UserORM
 from backend.app.models.user_invitation import UserInvitationORM
+from backend.app.models.password_reset import PasswordResetORM
 from backend.app.tests.conftest import TestingSessionLocal
 
 
@@ -145,3 +146,45 @@ def test_revoked_and_expired_invitations_cannot_be_accepted():
     response = client.post("/api/v1/client/auth/accept-invitation", json={"username": f"expired_{uuid4().hex[:8]}", "email": expired["email"], "password": "secret123", "invitation_token": expired["invitation_token"]})
     assert response.status_code == 400
     assert response.json()["code"] == "INVITATION_EXPIRED"
+
+
+def test_admin_password_reset_is_one_time_and_invalidates_existing_sessions():
+    admin_username, admin_password = create_user()
+    target_username, target_password = create_user()
+    with TestingSessionLocal() as db:
+        admin = db.query(UserORM).filter(UserORM.username == admin_username).one()
+        admin.role = "admin"
+        db.commit()
+
+    admin_login = client.post("/api/v1/admin/auth/login", json={"username": admin_username, "password": admin_password})
+    admin_headers = {"Authorization": f"Bearer {admin_login.json()['data']['access_token']}"}
+    target_login = client.post("/api/v1/client/auth/login", json={"username": target_username, "password": target_password})
+    old_access_token = target_login.json()["data"]["access_token"]
+
+    with TestingSessionLocal() as db:
+        target = db.query(UserORM).filter(UserORM.username == target_username).one()
+        target_id = target.id
+
+    first_link = client.post(f"/api/v1/admin/users/{target_id}/password-reset", json={"expires_in_hours": 1}, headers=admin_headers)
+    assert first_link.status_code == 201
+    first_token = first_link.json()["data"]["reset_token"]
+    second_link = client.post(f"/api/v1/admin/users/{target_id}/password-reset", json={"expires_in_hours": 1}, headers=admin_headers)
+    assert second_link.status_code == 201
+    second_token = second_link.json()["data"]["reset_token"]
+    assert first_token != second_token
+
+    with TestingSessionLocal() as db:
+        reset = db.query(PasswordResetORM).filter(PasswordResetORM.token_hash == sha256(second_token.encode("utf-8")).hexdigest()).one()
+        assert reset.token_hash != second_token
+        assert db.query(PasswordResetORM).filter(PasswordResetORM.token_hash == sha256(first_token.encode("utf-8")).hexdigest()).one().revoked_at is not None
+
+    old_link = client.post("/api/v1/client/auth/reset-password", json={"reset_token": first_token, "new_password": "updated123"})
+    assert old_link.status_code == 400
+    reset = client.post("/api/v1/client/auth/reset-password", json={"reset_token": second_token, "new_password": "updated123"})
+    assert reset.status_code == 204
+
+    old_session = client.get("/api/v1/client/me", headers={"Authorization": f"Bearer {old_access_token}"})
+    assert old_session.status_code == 401
+    assert client.post("/api/v1/client/auth/login", json={"username": target_username, "password": target_password}).status_code == 401
+    assert client.post("/api/v1/client/auth/login", json={"username": target_username, "password": "updated123"}).status_code == 200
+    assert client.post("/api/v1/client/auth/reset-password", json={"reset_token": second_token, "new_password": "another123"}).status_code == 400

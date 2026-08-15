@@ -52,6 +52,13 @@ export function acceptInvitation(payload: { username: string; email: string; pas
   });
 }
 
+export function resetPassword(payload: { reset_token: string; new_password: string }) {
+  return v1Request<void>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function getCurrentUser(accessToken: string) {
   return v1Request<User>("/me", {
     headers: { Authorization: `Bearer ${accessToken}` },

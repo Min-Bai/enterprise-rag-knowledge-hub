@@ -127,3 +127,12 @@ class InvitationCreate(StrictRequestSchema):
 
 class InvitationAccept(UserCreate):
     invitation_token: str = Field(min_length=20, max_length=200)
+
+
+class PasswordResetLinkCreate(StrictRequestSchema):
+    expires_in_hours: int = Field(default=24, ge=1, le=168)
+
+
+class PasswordResetConfirm(StrictRequestSchema):
+    reset_token: str = Field(min_length=20, max_length=200)
+    new_password: str = Field(min_length=6, max_length=72)

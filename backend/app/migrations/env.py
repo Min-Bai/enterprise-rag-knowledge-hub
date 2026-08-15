@@ -16,6 +16,7 @@ from backend.app.models.knowledge_base_member import KnowledgeBaseMemberORM
 from backend.app.models.audit_log import AuditLogORM
 from backend.app.models.auth_session import AuthSessionORM
 from backend.app.models.user_invitation import UserInvitationORM
+from backend.app.models.password_reset import PasswordResetORM
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

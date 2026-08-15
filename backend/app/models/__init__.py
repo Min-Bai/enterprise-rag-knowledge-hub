@@ -6,6 +6,7 @@ from .knowledge_base_member import KnowledgeBaseMemberORM
 from .audit_log import AuditLogORM
 from .auth_session import AuthSessionORM
 from .user_invitation import UserInvitationORM
+from .password_reset import PasswordResetORM
 
 __all__ = [
     "ConversationMessageORM",
@@ -17,4 +18,5 @@ __all__ = [
     "KnowledgeBaseMemberORM",
     "UserORM",
     "UserInvitationORM",
+    "PasswordResetORM",
 ]
