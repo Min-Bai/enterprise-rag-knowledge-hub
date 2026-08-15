@@ -123,6 +123,9 @@ textarea:focus-visible {
   padding: var(--space-4) var(--space-2) 0;
 }
 .account-summary {
+  background: transparent;
+  border: 0;
+  color: inherit;
   display: grid;
   grid-template-columns: 28px 1fr;
   column-gap: var(--space-2);
@@ -690,6 +693,58 @@ textarea:focus-visible {
 .login-submit {
   width: 100%;
 }
+.account-menu-trigger {
+  cursor: pointer;
+  padding: var(--space-2);
+  text-align: left;
+  width: 100%;
+}
+.account-menu-trigger:hover,
+.account-menu-trigger:focus-visible {
+  background: rgb(255 255 255 / 8%);
+  border-radius: var(--radius-sm);
+}
+.sidebar-footer .el-dropdown {
+  flex: 1;
+  min-width: 0;
+}
+.sidebar-footer .account-menu-trigger {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-rows: 18px 16px;
+  gap: 0 var(--space-2);
+  min-height: 52px;
+  padding: var(--space-2);
+  text-align: left;
+  width: 100%;
+}
+.sidebar-footer .account-menu-trigger:hover,
+.sidebar-footer .account-menu-trigger:focus-visible {
+  background: rgb(255 255 255 / 8%);
+  border-radius: var(--radius-sm);
+}
+.sidebar-footer .account-menu-trigger .account-avatar {
+  grid-row: 1 / span 2;
+  height: 32px;
+  width: 32px;
+}
+.sidebar-footer .account-menu-trigger .account-name,
+.sidebar-footer .account-menu-trigger small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.el-dropdown-menu__item {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+}
 .login-return-link {
   color: var(--color-accent);
   display: inline-block;
@@ -725,9 +780,13 @@ textarea:focus-visible {
 .metric-grid strong { color: var(--color-text); font-size: 27px; line-height: 1.2; overflow-wrap: anywhere; }
 .admin-audit-table { overflow-x: auto; }
 .profile-grid {
+  align-items: start;
   display: grid;
   gap: var(--space-4);
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.profile-grid > .table-surface {
+  min-width: 0;
 }
 .profile-avatar-editor,
 .member-profile-card {
