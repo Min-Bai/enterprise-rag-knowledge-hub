@@ -14,9 +14,11 @@ from ...models.document import DocumentORM
 from ...models.knowledge_base import KnowledgeBaseORM
 from ...models.user_invitation import UserInvitationORM
 from ...models.password_reset import PasswordResetORM
-from ...schemas.user import AdminUserCreate, InvitationCreate, PasswordChange, PasswordResetLinkCreate, UserLogin, UserProfileUpdate, UserResponse, UserRoleUpdate, UserUpdate
+from ...models.password_reset_request import PasswordResetRequestORM
+from ...models.registration_request import RegistrationRequestORM
+from ...schemas.user import AccountRequestReview, AdminUserCreate, InvitationCreate, PasswordChange, PasswordResetLinkCreate, UserLogin, UserProfileUpdate, UserResponse, UserRoleUpdate, UserUpdate
 from ...services.auth_sessions import clear_refresh_cookie, issue_session, revoke_session, rotate_session, set_refresh_cookie
-from ...services.users import change_password_service, create_user_with_role_service, delete_user_service, login_user_service, update_my_profile_service, update_user_role_service, update_user_service
+from ...services.users import change_password_service, create_user_from_password_hash_service, create_user_with_role_service, delete_user_service, login_user_service, update_my_profile_service, update_user_role_service, update_user_service
 from ...services.audit_logs import write_audit_log
 from ...celery_app import celery_app
 from ...rate_limit import enforce_login_rate_limit
@@ -190,6 +192,163 @@ def create_password_reset_link(
         target_id=None,
         knowledge_base_id=None,
         details={"password_reset_id": reset.id, "user_id": user.id},
+        db=db,
+        commit=False,
+    )
+    db.commit()
+    return ok({"expires_at": reset.expires_at, "reset_token": token})
+
+
+def _registration_request_response(item: RegistrationRequestORM) -> dict:
+    return {
+        "id": item.id,
+        "username": item.username,
+        "email": item.email,
+        "status": item.status,
+        "reviewed_by_user_id": item.reviewed_by_user_id,
+        "reviewed_at": item.reviewed_at,
+        "rejection_reason": item.rejection_reason,
+        "created_at": item.created_at,
+    }
+
+
+@router.get("/registration-requests")
+def registration_requests(db: Session = Depends(get_db), _: UserORM = Depends(require_admin_user)):
+    rows = db.scalars(
+        select(RegistrationRequestORM).order_by(RegistrationRequestORM.created_at.desc()).limit(100)
+    ).all()
+    return ok([_registration_request_response(item) for item in rows])
+
+
+@router.post("/registration-requests/{request_id}/approve", status_code=201)
+def approve_registration_request(
+    request_id: str,
+    db: Session = Depends(get_db),
+    admin: UserORM = Depends(require_admin_user),
+):
+    request_item = db.scalar(
+        select(RegistrationRequestORM).where(RegistrationRequestORM.id == request_id).with_for_update()
+    )
+    if request_item is None:
+        raise HTTPException(status_code=404, detail="registration request not found")
+    if request_item.status != "pending":
+        raise HTTPException(status_code=409, detail="registration request has already been reviewed")
+    if db.scalar(select(UserORM.id).where(
+        (UserORM.username == request_item.username) | (func.lower(UserORM.email) == request_item.email)
+    )) is not None:
+        raise HTTPException(status_code=409, detail="username or email already exists")
+    try:
+        user = create_user_from_password_hash_service(
+            username=request_item.username,
+            email=request_item.email,
+            password_hash=request_item.password_hash,
+            db=db,
+            commit=False,
+        )
+    except DuplicateUsernameError:
+        raise HTTPException(status_code=409, detail="username or email already exists")
+    now = datetime.now(UTC).replace(tzinfo=None)
+    request_item.status = "approved"
+    request_item.reviewed_by_user_id = admin.id
+    request_item.reviewed_at = now
+    write_audit_log(
+        actor_user_id=admin.id,
+        action="admin.registration_request.approved",
+        target_type="registration_request",
+        target_id=None,
+        knowledge_base_id=None,
+        details={"registration_request_id": request_item.id, "user_id": user.id},
+        db=db,
+        commit=False,
+    )
+    db.commit()
+    return ok(UserResponse.model_validate(user, from_attributes=True))
+
+
+@router.post("/registration-requests/{request_id}/reject", status_code=204)
+def reject_registration_request(
+    request_id: str,
+    payload: AccountRequestReview,
+    db: Session = Depends(get_db),
+    admin: UserORM = Depends(require_admin_user),
+):
+    request_item = db.scalar(
+        select(RegistrationRequestORM).where(RegistrationRequestORM.id == request_id).with_for_update()
+    )
+    if request_item is None:
+        raise HTTPException(status_code=404, detail="registration request not found")
+    if request_item.status != "pending":
+        raise HTTPException(status_code=409, detail="registration request has already been reviewed")
+    request_item.status = "rejected"
+    request_item.reviewed_by_user_id = admin.id
+    request_item.reviewed_at = datetime.now(UTC).replace(tzinfo=None)
+    request_item.rejection_reason = payload.rejection_reason.strip() if payload.rejection_reason else None
+    write_audit_log(
+        actor_user_id=admin.id,
+        action="admin.registration_request.rejected",
+        target_type="registration_request",
+        target_id=None,
+        knowledge_base_id=None,
+        details={"registration_request_id": request_item.id},
+        db=db,
+        commit=False,
+    )
+    db.commit()
+
+
+@router.get("/password-reset-requests")
+def password_reset_requests(db: Session = Depends(get_db), _: UserORM = Depends(require_admin_user)):
+    rows = db.scalars(
+        select(PasswordResetRequestORM).order_by(PasswordResetRequestORM.created_at.desc()).limit(100)
+    ).all()
+    return ok([{
+        "id": item.id, "email": item.email, "status": item.status,
+        "reviewed_by_user_id": item.reviewed_by_user_id, "reviewed_at": item.reviewed_at,
+        "created_at": item.created_at,
+    } for item in rows])
+
+
+@router.post("/password-reset-requests/{request_id}/approve", status_code=201)
+def approve_password_reset_request(
+    request_id: str,
+    payload: PasswordResetLinkCreate,
+    db: Session = Depends(get_db),
+    admin: UserORM = Depends(require_admin_user),
+):
+    request_item = db.scalar(
+        select(PasswordResetRequestORM).where(PasswordResetRequestORM.id == request_id).with_for_update()
+    )
+    if request_item is None:
+        raise HTTPException(status_code=404, detail="password reset request not found")
+    if request_item.status != "pending":
+        raise HTTPException(status_code=409, detail="password reset request has already been reviewed")
+    user = db.scalar(select(UserORM).where(func.lower(UserORM.email) == request_item.email))
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=409, detail="inactive user cannot reset password")
+    now = datetime.now(UTC).replace(tzinfo=None)
+    db.execute(update(PasswordResetORM).where(
+        PasswordResetORM.user_id == user.id,
+        PasswordResetORM.used_at.is_(None),
+        PasswordResetORM.revoked_at.is_(None),
+    ).values(revoked_at=now))
+    token = token_urlsafe(32)
+    reset = PasswordResetORM(
+        user_id=user.id, created_by_user_id=admin.id,
+        token_hash=sha256(token.encode("utf-8")).hexdigest(),
+        expires_at=now + timedelta(hours=payload.expires_in_hours),
+    )
+    request_item.status = "approved"
+    request_item.reviewed_by_user_id = admin.id
+    request_item.reviewed_at = now
+    db.add(reset)
+    db.flush()
+    write_audit_log(
+        actor_user_id=admin.id,
+        action="admin.password_reset_request.approved",
+        target_type="password_reset_request",
+        target_id=None,
+        knowledge_base_id=None,
+        details={"password_reset_request_id": request_item.id, "user_id": user.id},
         db=db,
         commit=False,
     )

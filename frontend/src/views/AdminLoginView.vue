@@ -33,7 +33,6 @@ async function submit() {
         <el-alert v-if="errorMessage" class="form-alert" type="error" :closable="false" :title="errorMessage" />
         <el-button class="login-submit" native-type="submit" type="primary" :loading="auth.isLoading">登录管理台</el-button>
       </el-form>
-      <RouterLink class="login-return-link" to="/login">返回用户工作台登录</RouterLink>
     </section>
   </main>
 </template>

@@ -56,7 +56,7 @@ async function submit() {
           >登录</el-button
         >
       </el-form>
-      <div class="login-links"><RouterLink class="login-return-link" to="/register">注册账号</RouterLink><RouterLink class="login-return-link" to="/password-reset">重置密码</RouterLink><RouterLink class="login-return-link" to="/admin/login">管理员登录</RouterLink></div>
+      <div class="login-links"><RouterLink class="login-return-link" to="/register">注册账号</RouterLink><RouterLink class="login-return-link" to="/password-reset">重置密码</RouterLink></div>
     </section>
   </main>
 </template>

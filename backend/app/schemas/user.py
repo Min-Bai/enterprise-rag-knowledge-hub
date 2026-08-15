@@ -136,3 +136,31 @@ class PasswordResetLinkCreate(StrictRequestSchema):
 class PasswordResetConfirm(StrictRequestSchema):
     reset_token: str = Field(min_length=20, max_length=200)
     new_password: str = Field(min_length=6, max_length=72)
+
+
+class RegistrationRequestCreate(UserCreate):
+    email: str = Field(min_length=3, max_length=100)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value):
+        email = value.strip().lower()
+        if "@" not in email or email.startswith("@") or email.endswith("@"):
+            raise ValueError("email must be valid")
+        return email
+
+
+class AccountRequestReview(StrictRequestSchema):
+    rejection_reason: str | None = Field(default=None, max_length=280)
+
+
+class PasswordResetRequestCreate(StrictRequestSchema):
+    email: str = Field(min_length=3, max_length=100)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value):
+        email = value.strip().lower()
+        if "@" not in email or email.startswith("@") or email.endswith("@"):
+            raise ValueError("email must be valid")
+        return email

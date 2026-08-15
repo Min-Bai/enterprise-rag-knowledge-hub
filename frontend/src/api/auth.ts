@@ -35,13 +35,20 @@ export function login(username: string, password: string) {
 }
 
 export function getRegistrationStatus() {
-  return v1Request<{ enabled: boolean }>("/auth/registration-status");
+  return v1Request<{ enabled: boolean; approval_required: boolean }>("/auth/registration-status");
 }
 
 export function register(payload: { username: string; email?: string; password: string }) {
-  return v1Request<User>("/auth/register", {
+  return v1Request<{ status: "pending" }>("/auth/register", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export function requestPasswordReset(email: string) {
+  return v1Request<{ status: "pending" }>("/auth/password-reset-request", {
+    method: "POST",
+    body: JSON.stringify({ email }),
   });
 }
 

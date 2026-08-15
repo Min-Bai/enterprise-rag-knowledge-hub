@@ -45,6 +45,12 @@ export const router = createRouter({
       meta: { requiresAuth: true, adminOnly: true },
     },
     {
+      path: "/admin/account-requests",
+      name: "admin-account-requests",
+      component: () => import("../views/AdminAccountRequestsView.vue"),
+      meta: { requiresAuth: true, adminOnly: true },
+    },
+    {
       path: "/register",
       name: "register",
       component: () => import("../views/RegisterView.vue"),
@@ -60,6 +66,7 @@ export const router = createRouter({
       component: () => import("../views/AdminProfileView.vue"),
       meta: { requiresAuth: true, adminOnly: true },
     },
+    { path: "/admin/security", name: "admin-security", component: () => import("../views/AdminSecurityView.vue"), meta: { requiresAuth: true, adminOnly: true } },
     {
       path: "/app/chat",
       alias: "/chat",
@@ -112,6 +119,7 @@ export const router = createRouter({
       component: () => import("../views/ProfileView.vue"),
       meta: { requiresAuth: true },
     },
+    { path: "/app/security", name: "security", component: () => import("../views/SecurityView.vue"), meta: { requiresAuth: true } },
     { path: "/settings", redirect: "/app/profile" },
     {
       path: "/app/members/:id",
