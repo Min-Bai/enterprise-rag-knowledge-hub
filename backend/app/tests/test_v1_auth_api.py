@@ -25,6 +25,8 @@ def test_client_auth_uses_envelope_cookie_refresh_and_audience_boundary():
     assert body["data"]["token_type"] == "bearer"
     assert "rag_client_refresh" in login.headers["set-cookie"]
     assert "HttpOnly" in login.headers["set-cookie"]
+    csrf_cookie = next(value for value in login.headers.get_list("set-cookie") if "rag_client_refresh_csrf=" in value)
+    assert "Path=/" in csrf_cookie
 
     access = body["data"]["access_token"]
     me = client.get("/api/v1/client/me", headers={"Authorization": f"Bearer {access}"})
