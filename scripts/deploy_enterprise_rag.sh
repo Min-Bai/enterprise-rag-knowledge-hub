@@ -47,15 +47,15 @@ if [[ -z "${GHCR_USERNAME:-}" || -z "${GHCR_READ_TOKEN:-}" ]]; then
   echo "GHCR_USERNAME and GHCR_READ_TOKEN are required in $ghcr_credentials_file" >&2
   exit 1
 fi
-printf '%s' "$GHCR_READ_TOKEN" | sudo docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
+printf '%s' "$GHCR_READ_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
 
 compose_start_failed=0
-if ! sudo env API_IMAGE="$api_image" WEB_IMAGE="$web_image" docker compose pull api worker beat frontend; then
+if ! env API_IMAGE="$api_image" WEB_IMAGE="$web_image" docker compose pull api worker beat frontend; then
   echo "Failed to pull the requested GHCR images." >&2
   exit 1
 fi
 
-if ! sudo env API_IMAGE="$api_image" WEB_IMAGE="$web_image" docker compose up -d --no-build api worker beat frontend; then
+if ! env API_IMAGE="$api_image" WEB_IMAGE="$web_image" docker compose up -d --no-build api worker beat frontend; then
   # Compose can report a transient dependency-health failure while the API is
   # still applying migrations and restarting. The checks below decide whether
   # the deployment actually failed.
@@ -64,7 +64,7 @@ if ! sudo env API_IMAGE="$api_image" WEB_IMAGE="$web_image" docker compose up -d
 fi
 
 for attempt in {1..12}; do
-  running_services="$(sudo docker compose ps --status running --services)"
+  running_services="$(docker compose ps --status running --services)"
   required_services_ready=1
   for service in api worker beat frontend; do
     if ! grep -qx "$service" <<<"$running_services"; then
@@ -87,6 +87,6 @@ for attempt in {1..12}; do
 done
 
 echo "Deployment did not reach the required final state."
-sudo docker compose ps
-sudo docker compose logs api worker beat frontend --tail 100
+docker compose ps
+docker compose logs api worker beat frontend --tail 100
 exit 1
