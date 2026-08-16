@@ -16,6 +16,7 @@ body {
   font-size: 14px;
   caret-color: transparent;
 }
+
 button,
 input,
 textarea,
@@ -1073,4 +1074,56 @@ textarea:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .admin-toolbar .el-select { width: calc(50% - var(--space-2)); }
+}
+
+/* Keep these overrides last: earlier layout rules provide structure, this block owns the visual system. */
+:root {
+  --el-color-primary: #409eff;
+  --el-color-primary-light-3: #79bbff;
+  --el-color-primary-light-5: #a0cfff;
+  --el-color-primary-light-8: #d9ecff;
+  --el-color-primary-light-9: #ecf5ff;
+  --el-border-color: #e6eaf0;
+  --el-border-color-light: #edf0f5;
+  --el-border-radius-base: 3px;
+  --el-fill-color-blank: #fff;
+  --el-bg-color-page: #f5f7fb;
+  --el-text-color-primary: #1f2937;
+  --el-text-color-regular: #566074;
+  --el-text-color-secondary: #7a8495;
+}
+.app-layout { grid-template-columns: 248px minmax(0, 1fr); }
+.app-sidebar { background: #171a2d; color: #c2c7dc; padding: var(--space-6) var(--space-3); }
+.brand { font-size: 17px; min-height: 34px; }
+.brand-mark { background: #409eff; }
+.nav-item { border-left: 3px solid transparent; color: #b7bdd2; padding: 11px 12px; }
+.nav-item:hover { background: rgb(255 255 255 / 6%); }
+.nav-item.active { background: #252a44; border-left-color: #409eff; }
+.sidebar-footer { border-top-color: rgb(255 255 255 / 10%); }
+.account-avatar { background: #333b62; }
+.app-content { background: #f5f7fb; }
+.app-topbar { align-items: center; background: #fff; border-bottom: 1px solid #e6eaf0; display: flex; height: 56px; justify-content: space-between; padding: 0 var(--space-6); position: sticky; top: 0; z-index: 5; }
+.app-topbar strong { color: #252b3a; font-size: 15px; }
+.topbar-context, .topbar-user { align-items: center; color: #7a8495; display: flex; font-size: 13px; gap: var(--space-3); }
+.page-shell { max-width: none; padding: 28px var(--space-6) var(--space-8); }
+.page-header { margin-bottom: 22px; }
+.page-header h1 { color: #202737; font-size: 22px; }
+.eyebrow { color: #8b95a7; }
+.table-surface, .metric-grid article { border-radius: 2px; }
+.table-surface { padding: 20px; }
+.table-toolbar .el-input, .table-toolbar .el-select { max-width: 300px; }
+.el-button { border-radius: 3px; font-weight: 500; }
+.el-button--primary { box-shadow: none; }
+.el-input__wrapper, .el-select__wrapper, .el-textarea__inner { border-radius: 3px; box-shadow: 0 0 0 1px #dfe4ec inset !important; }
+.el-input__wrapper.is-focus, .el-select__wrapper.is-focused, .el-textarea__inner:focus { box-shadow: 0 0 0 1px #409eff inset !important; }
+.el-table { --el-table-border-color: #edf0f5; --el-table-header-bg-color: #f8f9fc; --el-table-row-hover-bg-color: #f5f9ff; }
+.el-table th.el-table__cell { color: #697386; font-size: 13px; font-weight: 600; }
+.el-table td.el-table__cell, .el-table th.el-table__cell { padding: 12px 0; }
+.el-tag, .el-dialog { border-radius: 3px; }
+.metric-grid article { min-height: 118px; padding: 22px 20px; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline-color: rgb(64 158 255 / 45%); }
+@media (max-width: 720px) {
+  .app-topbar { height: 50px; padding: 0 var(--space-4); }
+  .topbar-context, .topbar-user { display: none; }
+  .page-shell { padding: var(--space-5) var(--space-4); }
 }

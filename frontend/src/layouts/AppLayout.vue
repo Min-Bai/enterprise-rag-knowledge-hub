@@ -18,6 +18,12 @@ const isLoggingOut = ref(false);
 const activePath = computed(() =>
   route.path.startsWith("/app/knowledge-bases") ? "/app/knowledge-bases" : route.path,
 );
+const sectionTitle = computed(() => {
+  if (route.path.startsWith("/app/knowledge-bases")) return "知识库管理";
+  if (route.path.startsWith("/app/conversations")) return "历史会话";
+  if (route.path.startsWith("/app/profile") || route.path.startsWith("/app/security")) return "账户中心";
+  return "问答对话";
+});
 
 async function handleLogout() {
   if (isLoggingOut.value) return;
@@ -88,6 +94,12 @@ async function handleAccountCommand(command: "profile" | "security") {
         <el-button class="sidebar-logout" :icon="LogOut" circle title="退出登录" aria-label="退出登录" :loading="isLoggingOut" @click.stop="handleLogout" />
       </div>
     </aside>
-    <main class="app-content"><slot /></main>
+    <main class="app-content">
+      <header class="app-topbar">
+        <strong>{{ sectionTitle }}</strong>
+        <span class="topbar-context">企业知识问答系统</span>
+      </header>
+      <slot />
+    </main>
   </div>
 </template>
