@@ -1220,6 +1220,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .activity-stat + .activity-stat { border-left-color: #409eff; }
 .activity-stat strong { color: #30394a; font-size: 22px; }.activity-stat p { color: #788397; font-size: 12px; line-height: 1.6; margin: 0; }
 @media (max-width: 1100px) { .dashboard-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.dashboard-detail-grid { grid-template-columns: 1fr; } }
+
+.model-provider-page .el-alert { margin: 0; }
+.model-provider-grid { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.model-provider-card { min-width: 0; overflow: hidden; padding: 18px; }
+.model-provider-card > header { align-items: center; border-bottom: 1px solid #edf0f5; display: flex; justify-content: space-between; margin: -18px -18px 16px; padding: 14px 18px; }
+.model-provider-card > header > div { align-items: center; color: #30394a; display: flex; gap: 8px; }.model-provider-card h2 { font-size: 15px; margin: 0; }
+.model-provider-actions { align-items: center; display: flex; justify-content: space-between; margin-top: 4px; }.model-provider-note { align-items: center; color: #7c8799; display: flex; font-size: 12px; gap: 6px; margin: 0; }
+@media (max-width: 900px) { .model-provider-grid { grid-template-columns: 1fr; } }
 @media (max-width: 720px) {
   .app-topbar { height: 50px; padding: 0 var(--space-4); }
   .topbar-context, .topbar-user { display: none; }

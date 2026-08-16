@@ -16,10 +16,12 @@ from ...models.user_invitation import UserInvitationORM
 from ...models.password_reset import PasswordResetORM
 from ...models.password_reset_request import PasswordResetRequestORM
 from ...models.registration_request import RegistrationRequestORM
+from ...schemas.model_provider import ModelProviderUpsert
 from ...schemas.user import AccountRequestReview, AdminUserCreate, InvitationCreate, PasswordChange, PasswordResetLinkCreate, UserLogin, UserProfileUpdate, UserResponse, UserRoleUpdate, UserUpdate
 from ...services.auth_sessions import clear_refresh_cookie, issue_session, revoke_session, rotate_session, set_refresh_cookie
 from ...services.users import change_password_service, create_user_from_password_hash_service, create_user_with_role_service, delete_user_service, login_user_service, update_my_profile_service, update_user_role_service, update_user_service
 from ...services.audit_logs import write_audit_log
+from ...services.model_providers import list_model_providers, upsert_model_provider
 from ...celery_app import celery_app
 from ...rate_limit import enforce_login_rate_limit
 from ..common.response import ok
@@ -66,6 +68,37 @@ def logout(request: Request, response: Response, user: UserORM = Depends(require
 @router.get("/me")
 def me(user: UserORM = Depends(require_admin_user)):
     return ok(UserResponse.model_validate(user, from_attributes=True))
+
+
+@router.get("/model-providers")
+def model_providers(
+    db: Session = Depends(get_db),
+    _: UserORM = Depends(require_admin_user),
+):
+    return ok(list_model_providers(db))
+
+
+@router.put("/model-providers/{slug}")
+def save_model_provider(
+    slug: str,
+    payload: ModelProviderUpsert,
+    db: Session = Depends(get_db),
+    admin: UserORM = Depends(require_admin_user),
+):
+    normalized_slug = slug.strip().lower()
+    if not normalized_slug or not normalized_slug.replace("-", "").isalnum():
+        raise HTTPException(status_code=422, detail="model provider slug is invalid")
+    provider = upsert_model_provider(db, normalized_slug, payload)
+    write_audit_log(
+        actor_user_id=admin.id,
+        action="admin.model_provider.updated",
+        target_type="model_provider",
+        target_id=None,
+        knowledge_base_id=None,
+        details={"slug": normalized_slug, "is_active": provider["is_active"]},
+        db=db,
+    )
+    return ok(provider)
 
 
 @router.patch("/me")

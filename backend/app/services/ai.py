@@ -32,6 +32,7 @@ from .conversations import (
 )
 from .documents import get_document_service, get_ready_documents_service
 from .knowledge_bases import get_knowledge_base_service
+from .model_providers import RuntimeModelProvider, get_runtime_model_provider
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,20 @@ class PreparedDocumentAnswer:
     sources: list[SourceItem]
 
 
+def get_active_provider(db: Session) -> RuntimeModelProvider:
+    provider = get_runtime_model_provider(db)
+    # Preserve the existing environment configuration and test extension point
+    # until an administrator has explicitly enabled a database provider.
+    if provider.slug == "deepseek" and not provider.configured:
+        return RuntimeModelProvider(
+            "deepseek",
+            DEEPSEEK_BASE_URL.rstrip("/"),
+            DEEPSEEK_MODEL,
+            DEEPSEEK_API_KEY or None,
+        )
+    return provider
+
+
 def sse_event(event: str, data: object) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
@@ -76,16 +91,17 @@ def get_model_message(response: requests.Response) -> dict[str, object]:
 
 
 def rewrite_retrieval_question(question: str) -> str:
-    if not RAG_QUERY_REWRITE_ENABLED or not DEEPSEEK_API_KEY:
+    provider = RuntimeModelProvider("deepseek", DEEPSEEK_BASE_URL, DEEPSEEK_MODEL, DEEPSEEK_API_KEY or None)
+    if not RAG_QUERY_REWRITE_ENABLED or not provider.api_key:
         return question
 
     started_at = perf_counter()
     try:
         response = requests.post(
-            f"{DEEPSEEK_BASE_URL}/chat/completions",
-            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+            f"{provider.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {provider.api_key}"},
             json={
-                "model": DEEPSEEK_MODEL,
+                "model": provider.model_name,
                 "messages": build_query_rewrite_messages(question=question),
                 "stream": False,
                 "max_tokens": 120,
@@ -185,7 +201,7 @@ def prepare_document_answer(
     )
     if not hits:
         return PreparedDocumentAnswer(conversation=conversation, hits=[], sources=[])
-    if not DEEPSEEK_API_KEY:
+    if not get_active_provider(db).api_key:
         raise AiNotConfiguredError
     sources = [
         SourceItem(
@@ -247,7 +263,7 @@ def prepare_knowledge_base_answer(
     )
     if not hits:
         return PreparedDocumentAnswer(conversation=conversation, hits=[], sources=[])
-    if not DEEPSEEK_API_KEY:
+    if not get_active_provider(db).api_key:
         raise AiNotConfiguredError
     return PreparedDocumentAnswer(
         conversation=conversation,
@@ -273,8 +289,9 @@ def create_model_request(
     stream: bool,
 ) -> dict[str, object]:
     context = '\n\n'.join(str(hit['text']) for hit in hits)
+    provider = get_active_provider(db)
     return {
-        'model': DEEPSEEK_MODEL,
+        'model': provider.model_name,
         'messages': build_document_answer_messages(
             context=context,
             question=request.question,
@@ -311,9 +328,10 @@ def answer_document_service(*, request: DocumentAnswerRequest, current_user: Use
         )
     try:
         provider_started_at = perf_counter()
+        provider = get_active_provider(db)
         response = requests.post(
-            f'{DEEPSEEK_BASE_URL}/chat/completions',
-            headers={'Authorization': f'Bearer {DEEPSEEK_API_KEY}'},
+            f'{provider.base_url}/chat/completions',
+            headers={'Authorization': f'Bearer {provider.api_key}'},
             json=create_model_request(
                 request=request,
                 conversation_id=prepared.conversation.id,
@@ -381,9 +399,10 @@ def stream_document_answer_service(
     answer_parts: list[str] = []
     try:
         provider_started_at = perf_counter()
+        provider = get_active_provider(db)
         with requests.post(
-            f'{DEEPSEEK_BASE_URL}/chat/completions',
-            headers={'Authorization': f'Bearer {DEEPSEEK_API_KEY}'},
+            f'{provider.base_url}/chat/completions',
+            headers={'Authorization': f'Bearer {provider.api_key}'},
             json=create_model_request(
                 request=request,
                 conversation_id=prepared.conversation.id,
