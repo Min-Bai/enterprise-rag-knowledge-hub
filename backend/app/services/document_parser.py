@@ -1,9 +1,17 @@
 import csv
 from dataclasses import dataclass
 from pathlib import Path
+from zipfile import BadZipFile, ZipFile
+from xml.etree import ElementTree
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
+
+
+OFFICE_MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
+OFFICE_MAX_MEMBERS = 2_000
+WORD_NAMESPACE = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+SPREADSHEET_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 
 
 @dataclass(frozen=True)
@@ -92,16 +100,104 @@ def extract_text_document(storage_path: str) -> str:
     return content
 
 
+def _open_office_archive(storage_path: str, required_member: str) -> ZipFile:
+    try:
+        archive = ZipFile(Path(storage_path))
+    except BadZipFile as error:
+        raise ValueError("Office document is invalid") from error
+    infos = archive.infolist()
+    if len(infos) > OFFICE_MAX_MEMBERS or sum(info.file_size for info in infos) > OFFICE_MAX_UNCOMPRESSED_BYTES:
+        archive.close()
+        raise ValueError("Office document expands beyond the allowed extraction size")
+    if required_member not in archive.namelist():
+        archive.close()
+        raise ValueError("Office document is invalid")
+    return archive
+
+
+def _xml_root(archive: ZipFile, member: str) -> ElementTree.Element:
+    try:
+        return ElementTree.fromstring(archive.read(member))
+    except (KeyError, ElementTree.ParseError) as error:
+        raise ValueError("Office document contains invalid XML") from error
+
+
+def extract_docx_text(storage_path: str) -> str:
+    with _open_office_archive(storage_path, "word/document.xml") as archive:
+        root = _xml_root(archive, "word/document.xml")
+    paragraphs = []
+    for paragraph in root.iter(f"{WORD_NAMESPACE}p"):
+        text = "".join(node.text or "" for node in paragraph.iter(f"{WORD_NAMESPACE}t")).strip()
+        if text:
+            paragraphs.append(text)
+    content = "\n".join(paragraphs).strip()
+    if not content:
+        raise ValueError("Word document does not contain extractable text")
+    return content
+
+
+def _xlsx_shared_strings(archive: ZipFile) -> list[str]:
+    if "xl/sharedStrings.xml" not in archive.namelist():
+        return []
+    root = _xml_root(archive, "xl/sharedStrings.xml")
+    return ["".join(node.text or "" for node in item.iter(f"{SPREADSHEET_NAMESPACE}t")) for item in root.iter(f"{SPREADSHEET_NAMESPACE}si")]
+
+
+def _xlsx_cell_value(cell: ElementTree.Element, shared_strings: list[str]) -> str:
+    cell_type = cell.get("t")
+    if cell_type == "inlineStr":
+        return "".join(node.text or "" for node in cell.iter(f"{SPREADSHEET_NAMESPACE}t"))
+    value_node = cell.find(f"{SPREADSHEET_NAMESPACE}v")
+    if value_node is None or value_node.text is None:
+        return ""
+    if cell_type == "s":
+        try:
+            return shared_strings[int(value_node.text)]
+        except (IndexError, ValueError):
+            return ""
+    return value_node.text
+
+
+def extract_xlsx_text(storage_path: str) -> str:
+    with _open_office_archive(storage_path, "xl/workbook.xml") as archive:
+        shared_strings = _xlsx_shared_strings(archive)
+        sheet_members = sorted(
+            member for member in archive.namelist()
+            if member.startswith("xl/worksheets/") and member.endswith(".xml")
+        )
+        lines: list[str] = []
+        for sheet_number, member in enumerate(sheet_members, start=1):
+            root = _xml_root(archive, member)
+            rows = []
+            for row in root.iter(f"{SPREADSHEET_NAMESPACE}row"):
+                values = [_xlsx_cell_value(cell, shared_strings).strip() for cell in row.iter(f"{SPREADSHEET_NAMESPACE}c")]
+                if any(values):
+                    rows.append("\t".join(values))
+            if rows:
+                lines.extend([f"工作表 {sheet_number}", *rows])
+    content = "\n".join(lines).strip()
+    if not content:
+        raise ValueError("Excel document does not contain extractable cells")
+    return content
+
+
 def split_document_into_chunks(
     storage_path: str,
     chunk_size: int = 500,
     overlap: int = 50,
 ) -> list[DocumentChunk]:
-    if Path(storage_path).suffix.lower() == ".pdf":
+    suffix = Path(storage_path).suffix.lower()
+    if suffix == ".pdf":
         return split_pdf_into_chunks(storage_path, chunk_size, overlap)
+    if suffix == ".docx":
+        content = extract_docx_text(storage_path)
+    elif suffix == ".xlsx":
+        content = extract_xlsx_text(storage_path)
+    else:
+        content = extract_text_document(storage_path)
     return [
         DocumentChunk(text=chunk, page=1)
         for chunk in split_text_into_chunks(
-            extract_text_document(storage_path), chunk_size, overlap
+            content, chunk_size, overlap
         )
     ]

@@ -18,8 +18,8 @@
 ## 已实现功能
 
 - 私有知识库，包含所有者、编辑者和查看者三种协作角色。
-- PDF 格式校验、同知识库内的 SHA-256 重复文件检测，以及受权限保护的原文件下载。
-- 后台 PDF 文本提取、LangChain 递归分块、向量嵌入、Qdrant 索引，以及失败重试和重新索引。
+- PDF、Word（DOCX）、Excel（XLSX）、TXT、Markdown、CSV 格式校验，同知识库内的 SHA-256 重复文件检测，以及受权限保护的原文件下载。
+- 后台文档文本与表格提取、LangChain 递归分块、向量嵌入、Qdrant 混合检索索引，以及失败重试和重新索引。
 - 文档标签：用于分类、向量检索过滤和 RAG 回答过滤。修改已就绪文档的标签会自动重建向量，保证元数据与检索结果一致。
 - 文档列表展示处理状态、分块数量和最近一次成功索引时间。
 - 基于 DeepSeek 的知识库问答和单文档问答，支持 SSE 流式输出、来源引用、多轮对话和引用追问。
@@ -31,8 +31,8 @@
 ### 文档处理流程
 
 ```text
-上传 PDF -> SHA-256 重复检查 -> uploaded -> Redis/Celery
-    -> processing -> PDF 分块 -> 向量嵌入 -> Qdrant -> ready
+上传文档 -> SHA-256 重复检查 -> uploaded -> Redis/Celery
+    -> processing -> 内容/表格提取与分块 -> 向量嵌入 -> Qdrant -> ready
                                               \-> failed -> 重试
 ```
 

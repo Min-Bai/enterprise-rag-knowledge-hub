@@ -259,14 +259,14 @@ async function reindexSelected() {
     ElMessage.error(caught instanceof Error ? caught.message : "批量重建索引失败，请稍后重试。");
   }
 }
-const supportedDocumentExtensions = [".pdf", ".txt", ".md", ".markdown", ".csv"];
+const supportedDocumentExtensions = [".pdf", ".txt", ".md", ".markdown", ".csv", ".docx", ".xlsx"];
 
 function selectFile(uploadFile: UploadFile) {
   const selectedFile = uploadFile.raw;
   if (!selectedFile) return;
   const lowerName = selectedFile.name.toLowerCase();
   if (!supportedDocumentExtensions.some((extension) => lowerName.endsWith(extension))) {
-    ElMessage.error("仅支持 PDF、TXT、Markdown 和 CSV 文件。");
+    ElMessage.error("仅支持 PDF、Word、Excel、TXT、Markdown 和 CSV 文件。");
     file.value = null;
     fileUploadRef.value?.clearFiles();
     return;
@@ -393,7 +393,7 @@ onMounted(load);
         <el-skeleton v-if="loading" :rows="7" animated /><AppEmpty
           v-else-if="documents.length === 0"
           title="知识库中还没有文档"
-          description="上传 PDF 文档后，系统会自动解析并建立检索索引。"
+            description="上传文档后，系统会自动解析并建立检索索引。"
         /><AppEmpty
           v-else-if="filteredDocuments.length === 0"
           title="没有符合条件的文档"
@@ -498,11 +498,11 @@ onMounted(load);
             ref="fileUploadRef"
             :auto-upload="false"
             :limit="1"
-            accept=".pdf,.txt,.md,.markdown,.csv,application/pdf,text/plain,text/markdown,text/csv"
+              accept=".pdf,.docx,.xlsx,.txt,.md,.markdown,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/markdown,text/csv"
             :on-change="selectFile"
             :on-exceed="replaceFile"
             :on-remove="() => (file = null)"
-            ><el-button>选择 PDF 文件</el-button
+              ><el-button>选择文件</el-button
             ><template #tip
               ><div class="el-upload__tip">
                 支持 PDF、TXT、Markdown、CSV（UTF-8 编码），文件不能超过 10 MB。

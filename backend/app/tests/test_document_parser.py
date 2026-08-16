@@ -1,7 +1,14 @@
 import pytest
+from zipfile import ZipFile
 
 from backend.app.services import document_parser
 from backend.app.services.document_parser import split_document_into_chunks, split_pdf_into_chunks, split_text_into_chunks
+
+
+def write_office_archive(path, files: dict[str, str]) -> None:
+    with ZipFile(path, "w") as archive:
+        for name, content in files.items():
+            archive.writestr(name, content)
 
 
 def test_split_text_into_chunks_prefers_paragraph_boundaries():
@@ -78,3 +85,27 @@ def test_split_document_into_chunks_reads_utf8_csv(tmp_path):
     chunks = split_document_into_chunks(str(document), chunk_size=100, overlap=10)
 
     assert [(chunk.text, chunk.page) for chunk in chunks] == [("月份\t销售额\n一月\t100", 1)]
+
+
+def test_split_document_into_chunks_reads_docx_paragraphs_and_table_cells(tmp_path):
+    document = tmp_path / "handbook.docx"
+    write_office_archive(document, {
+        "word/document.xml": """<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>员工手册</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>年假</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>5 天</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>""",
+    })
+
+    chunks = split_document_into_chunks(str(document), chunk_size=100, overlap=10)
+
+    assert [(chunk.text, chunk.page) for chunk in chunks] == [("员工手册\n年假\n5 天", 1)]
+
+
+def test_split_document_into_chunks_reads_xlsx_shared_and_inline_strings(tmp_path):
+    document = tmp_path / "sales.xlsx"
+    write_office_archive(document, {
+        "xl/workbook.xml": "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" />",
+        "xl/sharedStrings.xml": "<sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><si><t>月份</t></si><si><t>销售额</t></si></sst>",
+        "xl/worksheets/sheet1.xml": """<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>一月</t></is></c><c r="B2"><v>100</v></c></row></sheetData></worksheet>""",
+    })
+
+    chunks = split_document_into_chunks(str(document), chunk_size=100, overlap=10)
+
+    assert [(chunk.text, chunk.page) for chunk in chunks] == [("工作表 1\n月份\t销售额\n一月\t100", 1)]

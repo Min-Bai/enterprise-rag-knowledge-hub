@@ -1,6 +1,8 @@
 from pathlib import Path
 from hashlib import sha256
+from io import BytesIO
 from uuid import uuid4
+from zipfile import BadZipFile, ZipFile
 
 from fastapi import UploadFile
 
@@ -15,11 +17,25 @@ SUPPORTED_DOCUMENT_TYPES = {
     ".md": {"text/markdown", "text/plain", "application/octet-stream"},
     ".markdown": {"text/markdown", "text/plain", "application/octet-stream"},
     ".csv": {"text/csv", "application/csv", "application/vnd.ms-excel", "application/octet-stream"},
+    ".docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/octet-stream"},
+    ".xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel", "application/octet-stream"},
 }
 
 
 class DocumentTooLargeError(ValueError):
     pass
+
+
+def validate_office_document(content: bytes, suffix: str) -> None:
+    if not content.startswith(b"PK\x03\x04"):
+        raise ValueError("invalid Office document")
+    required_member = "word/document.xml" if suffix == ".docx" else "xl/workbook.xml"
+    try:
+        with ZipFile(BytesIO(content)) as archive:
+            if required_member not in archive.namelist():
+                raise ValueError("invalid Office document")
+    except BadZipFile as error:
+        raise ValueError("invalid Office document") from error
 
 
 def get_stored_document_file(storage_path: str) -> Path:
@@ -50,7 +66,10 @@ async def save_document_file(file: UploadFile) -> tuple[str, str]:
     if suffix == ".pdf" and not content.startswith(b"%PDF-"):
         raise ValueError("invalid PDF file")
 
-    if suffix != ".pdf":
+    if suffix in {".docx", ".xlsx"}:
+        validate_office_document(content, suffix)
+
+    if suffix not in {".pdf", ".docx", ".xlsx"}:
         try:
             content.decode("utf-8-sig")
         except UnicodeDecodeError as error:

@@ -1,10 +1,19 @@
 from pathlib import Path
 from io import BytesIO
+from zipfile import ZipFile
 
 import pytest
 from fastapi import UploadFile
 
 from backend.app.services import document_storage
+
+
+def office_bytes(files: dict[str, str]) -> bytes:
+    output = BytesIO()
+    with ZipFile(output, "w") as archive:
+        for name, content in files.items():
+            archive.writestr(name, content)
+    return output.getvalue()
 
 
 def test_document_directory_matches_application_data_volume():
@@ -40,7 +49,7 @@ async def test_save_document_file_saves_valid_pdf(monkeypatch, tmp_path):
             "resume.docx",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             b"not a supported document",
-            "unsupported document type",
+            "invalid Office document",
         ),
         (
             "resume.txt",
@@ -101,3 +110,23 @@ async def test_save_document_file_saves_utf8_text_document(monkeypatch, tmp_path
 
     assert Path(storage_path).suffix == ".md"
     assert Path(storage_path).read_text(encoding="utf-8") == "# 差旅制度\n报销需要审批。"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("filename", "content_type", "required_member"),
+    [
+        ("handbook.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "word/document.xml"),
+        ("sales.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xl/workbook.xml"),
+    ],
+)
+async def test_save_document_file_saves_valid_office_document(monkeypatch, tmp_path, filename, content_type, required_member):
+    monkeypatch.setattr(document_storage, "DOCUMENT_DIRECTORY", tmp_path)
+    content = office_bytes({required_member: "<root />"})
+    file = UploadFile(filename=filename, file=BytesIO(content), headers={"content-type": content_type})
+
+    storage_path, content_sha256 = await document_storage.save_document_file(file)
+
+    assert Path(storage_path).suffix == Path(filename).suffix
+    assert Path(storage_path).read_bytes() == content
+    assert len(content_sha256) == 64
