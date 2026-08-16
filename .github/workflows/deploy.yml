@@ -1,4 +1,4 @@
-name: Deploy Enterprise RAG
+name: Build and Deploy Enterprise RAG
 
 on:
   workflow_dispatch:
@@ -9,10 +9,76 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
+  build-images:
+    name: Build and publish GHCR images
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    outputs:
+      api_image: ${{ steps.api-meta.outputs.tags }}
+      web_image: ${{ steps.web-meta.outputs.tags }}
+    env:
+      DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - name: Check out checked CI commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Define API image metadata
+        id: api-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/enterprise-rag-api
+          tags: type=raw,value=sha-${{ env.DEPLOY_SHA }}
+
+      - name: Build and publish API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.api-meta.outputs.tags }}
+          labels: ${{ steps.api-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Define web image metadata
+        id: web-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/enterprise-rag-web
+          tags: type=raw,value=sha-${{ env.DEPLOY_SHA }}
+
+      - name: Build and publish web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ steps.web-meta.outputs.tags }}
+          labels: ${{ steps.web-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   deploy:
     name: Deploy to Enterprise RAG VM
+    needs: build-images
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
@@ -24,11 +90,14 @@ jobs:
       cancel-in-progress: false
     env:
       DEPLOY_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      API_IMAGE: ${{ needs.build-images.outputs.api_image }}
+      WEB_IMAGE: ${{ needs.build-images.outputs.web_image }}
     steps:
       - name: Deploy checked CI commit
         shell: powershell
         run: |
-          ssh enterprise-rag-vm "bash ~/deploy-enterprise-rag.sh $env:DEPLOY_SHA"
+          $remoteCommand = "cd ~/enterprise-rag-knowledge-hub && git fetch origin main && git show '$($env:DEPLOY_SHA):scripts/deploy_enterprise_rag.sh' > /tmp/deploy_enterprise_rag.sh && bash /tmp/deploy_enterprise_rag.sh '$env:DEPLOY_SHA' '$env:API_IMAGE' '$env:WEB_IMAGE'"
+          ssh enterprise-rag-vm $remoteCommand
 
       - name: Check API health
         shell: powershell
