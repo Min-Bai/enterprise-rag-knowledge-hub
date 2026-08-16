@@ -1234,3 +1234,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .page-shell { padding: var(--space-5) var(--space-4); }
   .knowledge-base-grid { grid-template-columns: 1fr; }
 }
+
+/* Knowledge-base collaboration is an operational table, with the role model visible before mutation. */
+.access-page { display: grid; gap: 18px; }
+.access-page .page-header { margin-bottom: 4px; }
+.access-role-grid { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.access-role-card { background: #fff; border: 1px solid #e6eaf0; border-left: 3px solid #409eff; display: grid; gap: 7px 10px; grid-template-columns: auto 1fr; min-height: 124px; padding: 16px; }
+.access-role-card > svg { color: #409eff; margin-top: 2px; }.access-role-card > div { align-items: baseline; display: flex; gap: 8px; }.access-role-card strong { color: #30394a; font-size: 14px; }.access-role-card span { color: #8a94a6; font-size: 12px; }
+.access-role-card p { color: #717c8f; font-size: 12px; grid-column: 1 / -1; line-height: 1.65; margin: 0; }
+.access-role-card.editor { border-left-color: #19a4a8; }.access-role-card.editor > svg { color: #19a4a8; }.access-role-card.viewer { border-left-color: #7462d6; }.access-role-card.viewer > svg { color: #7462d6; }
+.access-members { overflow: hidden; }.access-members .section-heading { align-items: end; }.access-members .table-toolbar { margin-top: 16px; }.access-members .table-toolbar .el-input { max-width: 320px; }
+.member-identity { align-items: center; color: #3b4559; display: flex; gap: 10px; }.member-identity > span { align-items: center; background: #edf5ff; border-radius: 50%; color: #409eff; display: inline-flex; font-size: 12px; font-weight: 700; height: 28px; justify-content: center; width: 28px; }
+.dialog-description { color: #7c8799; font-size: 13px; line-height: 1.65; margin: 0 0 18px; }
+@media (max-width: 800px) { .access-role-grid { grid-template-columns: 1fr; }.access-members .table-toolbar .el-input { max-width: none; } }
