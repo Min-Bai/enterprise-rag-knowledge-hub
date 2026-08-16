@@ -1,8 +1,9 @@
 from datetime import UTC, datetime
+from pathlib import Path
 
 from ..database import SessionLocal
 from ..models.document import DocumentORM
-from .document_parser import split_document_into_chunks
+from .document_parser import split_document_into_chunks, split_pdf_into_chunks
 from .document_vectors import index_document_chunks
 from sqlalchemy import update
 
@@ -44,7 +45,11 @@ def process_document(document_id: int) -> None:
         document.processed_at = None
         db.commit()
 
-        chunks = split_document_into_chunks(document.storage_path)
+        chunks = (
+            split_pdf_into_chunks(document.storage_path)
+            if Path(document.storage_path).suffix.lower() == ".pdf"
+            else split_document_into_chunks(document.storage_path)
+        )
 
         index_document_chunks(
             document_id=document.id,
