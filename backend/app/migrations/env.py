@@ -19,6 +19,7 @@ from backend.app.models.user_invitation import UserInvitationORM
 from backend.app.models.password_reset import PasswordResetORM
 from backend.app.models.password_reset_request import PasswordResetRequestORM
 from backend.app.models.registration_request import RegistrationRequestORM
+from backend.app.models.model_provider import ModelProviderORM
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

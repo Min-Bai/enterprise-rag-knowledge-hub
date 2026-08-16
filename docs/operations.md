@@ -29,6 +29,24 @@ sudo docker compose logs worker --tail 100
 
 部署包含 Celery 的第一个版本前，先停止旧 RQ Worker。然后使用 `scripts/requeue_uploaded_documents.py` 预览状态为 `uploaded` 的文档；确认旧 Worker 已停止后，使用 `--execute` 将这些文档投递到 Celery。旧 RQ 队列任务不会被 Celery 自动消费，因此该步骤不能跳过。
 
+### 启用混合检索后的首次回填
+
+混合检索新增了独立的稀疏词项索引集合，不会删除已有语义向量。上线后，先确认 API 与 Celery Worker 均健康，再预览需要回填的已就绪文档：
+
+```bash
+sudo docker compose run --rm --no-deps api \
+  python scripts/backfill_hybrid_document_index.py
+```
+
+确认数量无误后，使用 `--execute` 将文档标记为待处理并投递到 Worker：
+
+```bash
+sudo docker compose run --rm --no-deps api \
+  python scripts/backfill_hybrid_document_index.py --execute
+```
+
+回填期间对应文档会短暂显示为“等待处理”；完成后恢复为“已完成”。不要并发执行该脚本，也不要在 Worker 未运行时使用 `--execute`。
+
 ## 备份与恢复验证
 
 手动或通过定时任务创建备份：

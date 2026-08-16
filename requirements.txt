@@ -40,3 +40,4 @@ python-multipart==0.0.20
 pypdf==5.7.0
 celery[redis]==5.5.3
 flower==2.0.1
+cryptography==49.0.0

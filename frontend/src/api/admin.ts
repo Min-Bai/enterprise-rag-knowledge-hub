@@ -41,3 +41,6 @@ export interface AdminJob { id: number; filename: string; status: string; error_
 export function getAdminJobs(token: string) { return adminRequest<{ status_counts: Record<string, number>; recent: AdminJob[] }>("/operations/jobs", { headers: { Authorization: `Bearer ${token}` } }); }
 export interface AuditLog { id: number; actor_user_id: number; actor_username: string; action: string; target_type: string; target_id: number | null; details: Record<string, unknown> | null; created_at: string; }
 export function getAdminAuditLogs(token: string) { return adminRequest<AuditLog[]>("/audit-logs", { headers: { Authorization: `Bearer ${token}` } }); }
+export interface ModelProvider { slug: string; display_name: string; base_url: string; model_name: string; api_key_configured: boolean; api_key_masked: string | null; is_active: boolean; }
+export function getModelProviders(token: string) { return adminRequest<ModelProvider[]>("/model-providers", { headers: { Authorization: `Bearer ${token}` } }); }
+export function saveModelProvider(token: string, slug: string, payload: { display_name: string; base_url: string; model_name: string; api_key?: string; is_active: boolean }) { return adminRequest<ModelProvider>(`/model-providers/${slug}`, { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) }); }
