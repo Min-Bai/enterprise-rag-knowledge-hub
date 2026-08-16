@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { ApiError } from "../api/client";
 import { getDocuments } from "../api/documents";
-import { MoreHorizontal, Plus, Search } from "lucide-vue-next";
+import { ArrowUpRight, FileText, MessageSquareText, MoreHorizontal, Plus, Search, Users } from "lucide-vue-next";
 import {
   createKnowledgeBase,
   deleteKnowledgeBase,
@@ -163,7 +163,7 @@ onMounted(load);
         :title="error"
         show-icon
       />
-      <section class="table-surface">
+      <section class="knowledge-library-surface">
         <div class="table-toolbar">
           <el-input
             v-model="query"
@@ -183,78 +183,35 @@ onMounted(load);
           v-else-if="filteredItems.length === 0"
           title="还没有可访问的知识库"
           description="创建知识库后即可上传文档并开始问答。"
-        /><el-table v-else :data="filteredItems" class="data-table"
-          ><el-table-column prop="name" label="知识库名称" min-width="200"
-            ><template #default="{ row }"
-              ><RouterLink
-                class="table-link"
-                :to="`/app/knowledge-bases/${row.id}`"
-                >{{ row.name }}</RouterLink
-              >
-              <p v-if="row.description" class="table-secondary">
-                {{ row.description }}
-              </p></template
-            ></el-table-column
-          ><el-table-column label="权限" width="110"
-            ><template #default="{ row }"
-              ><el-tag effect="plain">{{
-                roleLabel(row.role)
-              }}</el-tag></template
-            ></el-table-column
-          ><el-table-column label="已加载文档" width="110"
-            ><template #default="{ row }">{{
-              summaries[row.id]?.documentCount ?? "-"
-            }}</template></el-table-column
-          ><el-table-column label="已加载状态" width="120"
-            ><template #default="{ row }"
-              ><el-tag
-                :type="summaryType(summaries[row.id]?.status ?? '暂无文档')"
-                effect="plain"
-                >{{ summaries[row.id]?.status ?? "加载中" }}</el-tag
-              ></template
-            ></el-table-column
-          ><el-table-column label="最近文档上传" min-width="165"
-            ><template #default="{ row }">{{
-              summaries[row.id]?.lastDocumentAt
-                ? formatDate(summaries[row.id].lastDocumentAt!)
-                : "暂无文档"
-            }}</template></el-table-column
-          ><el-table-column label="创建时间" min-width="165"
-            ><template #default="{ row }">{{
-              formatDate(row.created_at)
-            }}</template></el-table-column
-          ><el-table-column label="操作" width="150" fixed="right"
-            ><template #default="{ row }"
-              ><el-button
-                link
-                type="primary"
-                @click="$router.push(`/app/knowledge-bases/${row.id}/documents`)"
-                >文档</el-button
-              ><el-dropdown v-if="row.role === 'owner'"
-                ><button
-                  class="icon-button light"
-                  type="button"
-                  title="更多操作"
-                  aria-label="更多操作"
-                >
-                  <MoreHorizontal :size="18" /></button
-                ><template #dropdown
-                  ><el-dropdown-menu
-                    ><el-dropdown-item
-                      ><RouterLink
-                        class="menu-link"
-                        :to="`/app/knowledge-bases/${row.id}/access`"
-                        >成员权限</RouterLink
-                      ></el-dropdown-item
-                    ><el-dropdown-item divided @click="remove(row)"
-                      >删除知识库</el-dropdown-item
-                    ></el-dropdown-menu
-                  ></template
-                ></el-dropdown
-              ></template
-            ></el-table-column
-          ></el-table
-        >
+        />
+        <div v-else class="knowledge-base-grid" aria-label="知识库列表">
+          <article v-for="item in filteredItems" :key="item.id" class="knowledge-base-card">
+            <header>
+              <span class="knowledge-base-icon"><FileText :size="24" /></span>
+              <el-tag size="small" effect="plain">{{ roleLabel(item.role) }}</el-tag>
+            </header>
+            <RouterLink class="knowledge-base-name" :to="`/app/knowledge-bases/${item.id}`">
+              {{ item.name }} <ArrowUpRight :size="15" />
+            </RouterLink>
+            <p class="knowledge-base-description">{{ item.description || "暂未填写知识库说明" }}</p>
+            <dl class="knowledge-base-meta">
+              <div><dt>文档</dt><dd>{{ summaries[item.id]?.documentCount ?? 0 }} 份</dd></div>
+              <div><dt>状态</dt><dd><el-tag size="small" :type="summaryType(summaries[item.id]?.status ?? '暂无文档')" effect="light">{{ summaries[item.id]?.status ?? "加载中" }}</el-tag></dd></div>
+            </dl>
+            <footer>
+              <el-button type="primary" size="small" @click="$router.push({ name: 'chat', query: { knowledge_base_id: item.id } })"><MessageSquareText :size="15" />开始问答</el-button>
+              <el-button size="small" @click="$router.push(`/app/knowledge-bases/${item.id}/documents`)">管理文档</el-button>
+              <el-dropdown v-if="item.role === 'owner'" trigger="click">
+                <button class="icon-button light" type="button" title="更多操作" aria-label="更多操作"><MoreHorizontal :size="17" /></button>
+                <template #dropdown><el-dropdown-menu>
+                  <el-dropdown-item><RouterLink class="menu-link" :to="`/app/knowledge-bases/${item.id}/access`"><Users :size="15" />成员权限</RouterLink></el-dropdown-item>
+                  <el-dropdown-item divided @click="remove(item)">删除知识库</el-dropdown-item>
+                </el-dropdown-menu></template>
+              </el-dropdown>
+            </footer>
+            <small>最近更新：{{ summaries[item.id]?.lastDocumentAt ? formatDate(summaries[item.id].lastDocumentAt!) : formatDate(item.created_at) }}</small>
+          </article>
+        </div>
       </section>
     </section>
     <el-dialog

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
+from mimetypes import guess_type
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -77,7 +78,7 @@ async def upload_document(
     current_user: UserORM = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    original_filename = file.filename or "document.pdf"
+    original_filename = file.filename or "document"
 
     try:
         document_tags = parse_document_tags(tags)
@@ -310,7 +311,11 @@ def download_document(
         details={"filename": document.filename},
         db=db,
     )
-    return FileResponse(storage_path, media_type="application/pdf", filename=document.filename)
+    return FileResponse(
+        storage_path,
+        media_type=guess_type(document.filename)[0] or "application/octet-stream",
+        filename=document.filename,
+    )
 
 @router.delete(
     "/{document_id}",

@@ -45,7 +45,7 @@ ERROR_CODE_BY_DETAIL = {
     "member not found": "KNOWLEDGE_BASE_MEMBER_NOT_FOUND",
     "only failed documents can be retried": "DOCUMENT_RETRY_NOT_ALLOWED",
     "only ready documents can be reindexed": "DOCUMENT_REINDEX_NOT_ALLOWED",
-    "only PDF files are allowed": "DOCUMENT_FILE_TYPE_INVALID",
+    "unsupported document type": "DOCUMENT_FILE_TYPE_INVALID",
     "processing documents cannot have tags updated": "DOCUMENT_TAGS_LOCKED",
     "rate limit service unavailable": "RATE_LIMIT_SERVICE_UNAVAILABLE",
     "too many login attempts": "LOGIN_RATE_LIMITED",
@@ -60,8 +60,10 @@ def get_error_code(detail: Any, status_code: int) -> str:
     if isinstance(detail, str):
         if detail.startswith("file size must not exceed "):
             return "DOCUMENT_FILE_TOO_LARGE"
-        if detail == "file content type must be application/pdf":
+        if detail == "file content type does not match document type":
             return "DOCUMENT_FILE_TYPE_INVALID"
+        if detail == "text document must use UTF-8 encoding":
+            return "DOCUMENT_FILE_INVALID"
         if detail == "invalid PDF file":
             return "DOCUMENT_FILE_INVALID"
         if detail.startswith("provide at least one field to update"):

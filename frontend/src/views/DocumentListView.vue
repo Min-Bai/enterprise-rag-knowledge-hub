@@ -259,14 +259,14 @@ async function reindexSelected() {
     ElMessage.error(caught instanceof Error ? caught.message : "批量重建索引失败，请稍后重试。");
   }
 }
+const supportedDocumentExtensions = [".pdf", ".txt", ".md", ".markdown", ".csv"];
+
 function selectFile(uploadFile: UploadFile) {
   const selectedFile = uploadFile.raw;
   if (!selectedFile) return;
-  if (
-    selectedFile.type !== "application/pdf" &&
-    !selectedFile.name.toLowerCase().endsWith(".pdf")
-  ) {
-    ElMessage.error("仅支持上传 PDF 文件。");
+  const lowerName = selectedFile.name.toLowerCase();
+  if (!supportedDocumentExtensions.some((extension) => lowerName.endsWith(extension))) {
+    ElMessage.error("仅支持 PDF、TXT、Markdown 和 CSV 文件。");
     file.value = null;
     fileUploadRef.value?.clearFiles();
     return;
@@ -294,7 +294,8 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 function fileType(filename: string) {
-  return filename.toLowerCase().endsWith(".pdf") ? "PDF" : "文件";
+  const suffix = filename.split(".").pop()?.toUpperCase();
+  return suffix === "MARKDOWN" ? "MD" : suffix || "文件";
 }
 function formatDocumentError(errorMessage: string) {
   return getDocumentProcessingErrorMessage(errorMessage);
@@ -497,14 +498,14 @@ onMounted(load);
             ref="fileUploadRef"
             :auto-upload="false"
             :limit="1"
-            accept="application/pdf"
+            accept=".pdf,.txt,.md,.markdown,.csv,application/pdf,text/plain,text/markdown,text/csv"
             :on-change="selectFile"
             :on-exceed="replaceFile"
             :on-remove="() => (file = null)"
             ><el-button>选择 PDF 文件</el-button
             ><template #tip
               ><div class="el-upload__tip">
-                仅支持 PDF，文件不能超过 10 MB。
+                支持 PDF、TXT、Markdown、CSV（UTF-8 编码），文件不能超过 10 MB。
               </div></template
             ></el-upload
           ></el-form-item
