@@ -9,6 +9,13 @@ from ..config import MAX_DOCUMENT_SIZE_MB
 
 MAX_DOCUMENT_SIZE = MAX_DOCUMENT_SIZE_MB * 1024 * 1024
 DOCUMENT_DIRECTORY = Path(__file__).resolve().parents[1] / "data" / "documents"
+SUPPORTED_DOCUMENT_TYPES = {
+    ".pdf": {"application/pdf"},
+    ".txt": {"text/plain", "application/octet-stream"},
+    ".md": {"text/markdown", "text/plain", "application/octet-stream"},
+    ".markdown": {"text/markdown", "text/plain", "application/octet-stream"},
+    ".csv": {"text/csv", "application/csv", "application/vnd.ms-excel", "application/octet-stream"},
+}
 
 
 class DocumentTooLargeError(ValueError):
@@ -25,12 +32,13 @@ def get_stored_document_file(storage_path: str) -> Path:
 
 async def save_document_file(file: UploadFile) -> tuple[str, str]:
     original_filename = file.filename or ""
+    suffix = Path(original_filename).suffix.lower()
 
-    if Path(original_filename).suffix.lower() != ".pdf":
-        raise ValueError("only PDF files are allowed")
+    if suffix not in SUPPORTED_DOCUMENT_TYPES:
+        raise ValueError("unsupported document type")
 
-    if file.content_type != "application/pdf":
-        raise ValueError("file content type must be application/pdf")
+    if file.content_type not in SUPPORTED_DOCUMENT_TYPES[suffix]:
+        raise ValueError("file content type does not match document type")
 
     content = await file.read(MAX_DOCUMENT_SIZE + 1)
 
@@ -39,12 +47,18 @@ async def save_document_file(file: UploadFile) -> tuple[str, str]:
             f"file size must not exceed {MAX_DOCUMENT_SIZE_MB} MB"
         )
 
-    if not content.startswith(b"%PDF-"):
+    if suffix == ".pdf" and not content.startswith(b"%PDF-"):
         raise ValueError("invalid PDF file")
+
+    if suffix != ".pdf":
+        try:
+            content.decode("utf-8-sig")
+        except UnicodeDecodeError as error:
+            raise ValueError("text document must use UTF-8 encoding") from error
 
     DOCUMENT_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
-    storage_filename = f"{uuid4().hex}.pdf"
+    storage_filename = f"{uuid4().hex}{suffix}"
     storage_path = DOCUMENT_DIRECTORY / storage_filename
     storage_path.write_bytes(content)
 

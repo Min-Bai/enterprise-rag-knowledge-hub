@@ -1,7 +1,7 @@
 import pytest
 
 from backend.app.services import document_parser
-from backend.app.services.document_parser import split_pdf_into_chunks, split_text_into_chunks
+from backend.app.services.document_parser import split_document_into_chunks, split_pdf_into_chunks, split_text_into_chunks
 
 
 def test_split_text_into_chunks_prefers_paragraph_boundaries():
@@ -69,3 +69,12 @@ def test_split_pdf_into_chunks_rejects_pdf_without_extractable_text(monkeypatch)
 
     with pytest.raises(ValueError, match="PDF does not contain extractable text"):
         split_pdf_into_chunks("document.pdf")
+
+
+def test_split_document_into_chunks_reads_utf8_csv(tmp_path):
+    document = tmp_path / "sales.csv"
+    document.write_text("月份,销售额\n一月,100", encoding="utf-8")
+
+    chunks = split_document_into_chunks(str(document), chunk_size=100, overlap=10)
+
+    assert [(chunk.text, chunk.page) for chunk in chunks] == [("月份\t销售额\n一月\t100", 1)]

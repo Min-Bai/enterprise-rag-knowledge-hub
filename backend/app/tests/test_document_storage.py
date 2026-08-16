@@ -37,16 +37,16 @@ async def test_save_document_file_saves_valid_pdf(monkeypatch, tmp_path):
     ("filename", "content_type", "content", "message"),
     [
         (
+            "resume.docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            b"not a supported document",
+            "unsupported document type",
+        ),
+        (
             "resume.txt",
             "application/pdf",
             b"%PDF-1.4 content",
-            "only PDF files are allowed",
-        ),
-        (
-            "resume.pdf",
-            "text/plain",
-            b"%PDF-1.4 content",
-            "file content type must be application/pdf",
+            "file content type does not match document type",
         ),
         (
             "resume.pdf",
@@ -86,3 +86,18 @@ async def test_save_document_file_rejects_oversized_pdf():
         match="file size must not exceed 10 MB",
     ):
         await document_storage.save_document_file(file)
+
+
+@pytest.mark.anyio
+async def test_save_document_file_saves_utf8_text_document(monkeypatch, tmp_path):
+    monkeypatch.setattr(document_storage, "DOCUMENT_DIRECTORY", tmp_path)
+    file = UploadFile(
+        filename="policy.md",
+        file=BytesIO("# 差旅制度\n报销需要审批。".encode()),
+        headers={"content-type": "text/markdown"},
+    )
+
+    storage_path, _ = await document_storage.save_document_file(file)
+
+    assert Path(storage_path).suffix == ".md"
+    assert Path(storage_path).read_text(encoding="utf-8") == "# 差旅制度\n报销需要审批。"

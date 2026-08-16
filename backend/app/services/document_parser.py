@@ -1,3 +1,4 @@
+import csv
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -75,4 +76,32 @@ def split_pdf_into_chunks(
         DocumentChunk(text=chunk, page=page_number)
         for page_number, page_text in extract_pdf_pages(storage_path)
         for chunk in splitter.split_text(page_text)
+    ]
+
+
+def extract_text_document(storage_path: str) -> str:
+    path = Path(storage_path)
+    content = path.read_text(encoding="utf-8-sig").strip()
+    if not content:
+        raise ValueError("text document does not contain extractable text")
+    if path.suffix.lower() == ".csv":
+        rows = csv.reader(content.splitlines())
+        content = "\n".join("\t".join(cell.strip() for cell in row) for row in rows).strip()
+    if not content:
+        raise ValueError("text document does not contain extractable text")
+    return content
+
+
+def split_document_into_chunks(
+    storage_path: str,
+    chunk_size: int = 500,
+    overlap: int = 50,
+) -> list[DocumentChunk]:
+    if Path(storage_path).suffix.lower() == ".pdf":
+        return split_pdf_into_chunks(storage_path, chunk_size, overlap)
+    return [
+        DocumentChunk(text=chunk, page=1)
+        for chunk in split_text_into_chunks(
+            extract_text_document(storage_path), chunk_size, overlap
+        )
     ]
