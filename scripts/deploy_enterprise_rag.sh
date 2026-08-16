@@ -32,19 +32,39 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-sudo docker compose up -d --build api worker beat frontend
+compose_start_failed=0
+if ! sudo docker compose up -d --build api worker beat frontend; then
+  # Compose can report a transient dependency-health failure while the API is
+  # still applying migrations and restarting. The checks below decide whether
+  # the deployment actually failed.
+  compose_start_failed=1
+  echo "Docker Compose reported a startup error; verifying final service state."
+fi
 
 for attempt in {1..12}; do
-  if curl -fsS http://localhost:8000/health; then
+  running_services="$(sudo docker compose ps --status running --services)"
+  required_services_ready=1
+  for service in api worker beat frontend; do
+    if ! grep -qx "$service" <<<"$running_services"; then
+      required_services_ready=0
+      break
+    fi
+  done
+
+  if [[ "$required_services_ready" -eq 1 ]] && curl -fsS http://localhost:8000/health; then
     echo
+    if [[ "$compose_start_failed" -eq 1 ]]; then
+      echo "Services recovered after the transient Compose startup error."
+    fi
     echo "Enterprise RAG deployment succeeded."
     exit 0
   fi
 
-  echo "Waiting for API health check ($attempt/12)..."
+  echo "Waiting for required services and API health check ($attempt/12)..."
   sleep 5
 done
 
-echo "API health check failed."
-sudo docker compose logs api --tail 100
+echo "Deployment did not reach the required final state."
+sudo docker compose ps
+sudo docker compose logs api worker beat frontend --tail 100
 exit 1
