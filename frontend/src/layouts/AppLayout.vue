@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   BotMessageSquare,
@@ -7,7 +7,6 @@ import {
   LogOut,
   MessageSquareText,
   History,
-  LayoutDashboard,
   Settings,
 } from "lucide-vue-next";
 import { useAuthStore } from "../stores/auth";
@@ -15,24 +14,33 @@ import { useAuthStore } from "../stores/auth";
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+const isLoggingOut = ref(false);
 const activePath = computed(() =>
   route.path.startsWith("/app/knowledge-bases") ? "/app/knowledge-bases" : route.path,
 );
+const sectionTitle = computed(() => {
+  if (route.path.startsWith("/app/knowledge-bases")) return "知识库管理";
+  if (route.path.startsWith("/app/conversations")) return "历史会话";
+  if (route.path.startsWith("/app/profile") || route.path.startsWith("/app/security")) return "账户中心";
+  return "问答对话";
+});
 
 async function handleLogout() {
-  await auth.signOut();
-  await router.push({ name: "login" });
+  if (isLoggingOut.value) return;
+  isLoggingOut.value = true;
+  try {
+    await auth.signOut();
+    await router.replace({ name: "login" });
+  } finally {
+    isLoggingOut.value = false;
+  }
 }
-async function handleAccountCommand(command: "profile" | "admin" | "logout") {
+async function handleAccountCommand(command: "profile" | "security") {
   if (command === "profile") {
     await router.push({ name: "profile" });
     return;
   }
-  if (command === "admin") {
-    await router.push({ name: "admin-login" });
-    return;
-  }
-  await handleLogout();
+  await router.push({ name: "security" });
 }
 </script>
 
@@ -78,14 +86,20 @@ async function handleAccountCommand(command: "profile" | "admin" | "logout") {
           </button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="profile"><Settings :size="15" /> 个人资料与安全</el-dropdown-item>
-              <el-dropdown-item v-if="auth.isAdmin" command="admin"><LayoutDashboard :size="15" /> 进入管理台</el-dropdown-item>
-              <el-dropdown-item command="logout" divided><LogOut :size="15" /> 退出登录</el-dropdown-item>
+              <el-dropdown-item command="profile"><Settings :size="15" /> 个人资料</el-dropdown-item>
+              <el-dropdown-item command="security"><Settings :size="15" /> 账户安全</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
+        <el-button class="sidebar-logout" :icon="LogOut" circle title="退出登录" aria-label="退出登录" :loading="isLoggingOut" @click.stop="handleLogout" />
       </div>
     </aside>
-    <main class="app-content"><slot /></main>
+    <main class="app-content">
+      <header class="app-topbar">
+        <strong>{{ sectionTitle }}</strong>
+        <span class="topbar-context">企业知识问答系统</span>
+      </header>
+      <slot />
+    </main>
   </div>
 </template>

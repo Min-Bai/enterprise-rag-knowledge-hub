@@ -7,6 +7,8 @@ from .audit_log import AuditLogORM
 from .auth_session import AuthSessionORM
 from .user_invitation import UserInvitationORM
 from .password_reset import PasswordResetORM
+from .password_reset_request import PasswordResetRequestORM
+from .registration_request import RegistrationRequestORM
 
 __all__ = [
     "ConversationMessageORM",
@@ -19,4 +21,6 @@ __all__ = [
     "UserORM",
     "UserInvitationORM",
     "PasswordResetORM",
+    "PasswordResetRequestORM",
+    "RegistrationRequestORM",
 ]

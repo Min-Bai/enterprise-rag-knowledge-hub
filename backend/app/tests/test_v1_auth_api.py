@@ -5,10 +5,11 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
-from backend.app.api.client import router as client_router
 from backend.app.models.user import UserORM
 from backend.app.models.user_invitation import UserInvitationORM
 from backend.app.models.password_reset import PasswordResetORM
+from backend.app.models.password_reset_request import PasswordResetRequestORM
+from backend.app.models.registration_request import RegistrationRequestORM
 from backend.app.tests.conftest import TestingSessionLocal
 
 
@@ -60,20 +61,61 @@ def test_v1_invalid_requests_have_the_standard_error_envelope():
     assert response.json()["request_id"]
 
 
-def test_client_registration_obeys_policy_and_returns_standard_envelope(monkeypatch):
-    disabled = client.get("/api/v1/client/auth/registration-status")
-    assert disabled.status_code == 200
-    assert isinstance(disabled.json()["data"]["enabled"], bool)
-
-    monkeypatch.setattr(client_router, "ALLOW_SELF_REGISTRATION", True)
+def test_client_registration_requires_admin_approval_before_login():
+    status = client.get("/api/v1/client/auth/registration-status")
+    assert status.status_code == 200
+    assert status.json()["data"]["approval_required"] is True
     username = f"registered_{uuid4().hex[:8]}"
+    email = f"{username}@example.com"
     response = client.post(
         "/api/v1/client/auth/register",
-        json={"username": username, "password": "secret123"},
+        json={"username": username, "email": email, "password": "secret123"},
     )
-    assert response.status_code == 201
+    assert response.status_code == 202
     assert response.json()["code"] == "OK"
-    assert response.json()["data"]["username"] == username
+    assert response.json()["data"]["status"] == "pending"
+    assert client.post("/api/v1/client/auth/login", json={"username": username, "password": "secret123"}).status_code == 401
+
+    admin_username, admin_password = create_user()
+    with TestingSessionLocal() as db:
+        admin = db.query(UserORM).filter(UserORM.username == admin_username).one()
+        request_item = db.query(RegistrationRequestORM).filter(RegistrationRequestORM.username == username).one()
+        assert request_item.password_hash != "secret123"
+        admin.role = "admin"
+        db.commit()
+        request_id = request_item.id
+    admin_login = client.post("/api/v1/admin/auth/login", json={"username": admin_username, "password": admin_password})
+    headers = {"Authorization": f"Bearer {admin_login.json()['data']['access_token']}"}
+    approved = client.post(f"/api/v1/admin/registration-requests/{request_id}/approve", headers=headers)
+    assert approved.status_code == 201
+    assert approved.json()["data"]["username"] == username
+    assert client.post("/api/v1/client/auth/login", json={"username": username, "password": "secret123"}).status_code == 200
+
+
+def test_client_password_reset_request_requires_admin_approval():
+    admin_username, admin_password = create_user()
+    user_username, user_password = create_user()
+    email = f"{user_username}@example.com"
+    with TestingSessionLocal() as db:
+        admin = db.query(UserORM).filter(UserORM.username == admin_username).one()
+        user = db.query(UserORM).filter(UserORM.username == user_username).one()
+        admin.role = "admin"
+        user.email = email
+        db.commit()
+    unknown = client.post("/api/v1/client/auth/password-reset-request", json={"email": "unknown@example.com"})
+    requested = client.post("/api/v1/client/auth/password-reset-request", json={"email": email})
+    assert unknown.status_code == requested.status_code == 202
+    with TestingSessionLocal() as db:
+        request_item = db.query(PasswordResetRequestORM).filter(PasswordResetRequestORM.email == email).one()
+        request_id = request_item.id
+    admin_login = client.post("/api/v1/admin/auth/login", json={"username": admin_username, "password": admin_password})
+    headers = {"Authorization": f"Bearer {admin_login.json()['data']['access_token']}"}
+    approved = client.post(f"/api/v1/admin/password-reset-requests/{request_id}/approve", json={"expires_in_hours": 1}, headers=headers)
+    assert approved.status_code == 201
+    token = approved.json()["data"]["reset_token"]
+    assert client.post("/api/v1/client/auth/reset-password", json={"reset_token": token, "new_password": "updated123"}).status_code == 204
+    assert client.post("/api/v1/client/auth/login", json={"username": user_username, "password": user_password}).status_code == 401
+    assert client.post("/api/v1/client/auth/login", json={"username": user_username, "password": "updated123"}).status_code == 200
 
 
 def test_invitation_registration_is_one_time_and_works_when_public_registration_is_disabled():

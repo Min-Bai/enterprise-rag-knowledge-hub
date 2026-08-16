@@ -137,6 +137,10 @@ ALLOW_SELF_REGISTRATION = get_optional_bool_env(
     "ALLOW_SELF_REGISTRATION",
     False,
 )
+ALLOW_REGISTRATION_REQUESTS = get_optional_bool_env(
+    "ALLOW_REGISTRATION_REQUESTS",
+    True,
+)
 
 def get_cors_origins() -> list[str]:
     origins = [

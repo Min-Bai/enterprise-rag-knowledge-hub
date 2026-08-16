@@ -103,6 +103,28 @@ def create_user_with_role_service(*, user: UserCreate, role: str, db: Session, c
     return new_user
 
 
+def create_user_from_password_hash_service(
+    *, username: str, email: str, password_hash: str, db: Session, commit: bool = True
+):
+    new_user = UserORM(
+        username=username,
+        email=email,
+        password_hash=password_hash,
+        role="user",
+    )
+    db.add(new_user)
+    try:
+        db.flush()
+        get_default_knowledge_base_service(db, new_user.id)
+        if commit:
+            db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise DuplicateUsernameError("username already exists")
+    db.refresh(new_user)
+    return new_user
+
+
 def get_user_detail_service(user_id: int, db: Session):
     return get_user_service(user_id, db)
 

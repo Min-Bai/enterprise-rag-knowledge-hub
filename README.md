@@ -141,7 +141,7 @@ docker compose exec -it api python scripts/create_admin.py --username admin
 docker compose exec -it api python scripts/promote_user.py --username username
 ```
 
-默认禁止自助注册。已登录的管理员可通过 `POST /users` 创建其他用户；只有明确需要开放注册的环境，才设置 `ALLOW_SELF_REGISTRATION=true`。
+客户端注册会创建待审批申请，不会直接创建账号。管理员在管理端“账户审批”中批准后，系统才会创建普通成员账号和默认知识库。客户端密码重置同样先提交申请，再由管理员生成一次性限时链接。`ALLOW_REGISTRATION_REQUESTS=true` 控制是否接受新的注册申请；遗留 `/users` 接口的 `ALLOW_SELF_REGISTRATION` 必须保持 `false`，不要用它开放账号创建。
 
 API 会在启动时执行 Alembic 数据库迁移。健康检查接口：
 
