@@ -9,6 +9,7 @@ from .user_invitation import UserInvitationORM
 from .password_reset import PasswordResetORM
 from .password_reset_request import PasswordResetRequestORM
 from .registration_request import RegistrationRequestORM
+from .model_provider import ModelProviderORM
 
 __all__ = [
     "ConversationMessageORM",
@@ -23,4 +24,5 @@ __all__ = [
     "PasswordResetORM",
     "PasswordResetRequestORM",
     "RegistrationRequestORM",
+    "ModelProviderORM",
 ]

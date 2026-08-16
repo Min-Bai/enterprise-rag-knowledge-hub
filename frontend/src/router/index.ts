@@ -45,6 +45,12 @@ export const router = createRouter({
       meta: { requiresAuth: true, adminOnly: true },
     },
     {
+      path: "/admin/model-providers",
+      name: "admin-model-providers",
+      component: () => import("../views/AdminModelProvidersView.vue"),
+      meta: { requiresAuth: true, adminOnly: true },
+    },
+    {
       path: "/admin/account-requests",
       name: "admin-account-requests",
       component: () => import("../views/AdminAccountRequestsView.vue"),
