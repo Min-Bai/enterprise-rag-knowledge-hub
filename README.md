@@ -231,4 +231,4 @@ cd ~/enterprise-rag-migration
 bash scripts/migrate_production_resources.sh
 ```
 
-迁移完成后，更新 Windows Runner 的 SSH 配置，使同一台虚拟机可通过 `enterprise-rag-vm` 主机别名访问。部署工作流使用该别名和 `~/deploy-enterprise-rag.sh`。
+迁移完成后，更新 Windows Runner 的 SSH 配置，使同一台虚拟机可通过 `enterprise-rag-vm` 主机别名访问。部署工作流使用该别名连接虚拟机，并从待部署提交中读取版本匹配的部署脚本执行。

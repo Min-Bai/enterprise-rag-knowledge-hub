@@ -17,7 +17,13 @@ cd "$project_dir"
 git fetch origin main
 
 git cat-file -e "${target_commit}^{commit}"
-git checkout --detach "$target_commit"
+git switch main
+git merge --ff-only "$target_commit"
+
+if [[ "$(git rev-parse HEAD)" != "$target_commit" ]]; then
+  echo "The main branch did not reach the requested deployment commit." >&2
+  exit 1
+fi
 
 commit="$(git rev-parse --short HEAD)"
 message="$(git log -1 --pretty=%s)"
@@ -36,13 +42,18 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
+if ! command -v gzip >/dev/null; then
+  echo "gzip is required to load the staged image archives." >&2
+  exit 1
+fi
+
 compose_start_failed=0
 for image_archive in "$api_image_archive" "$web_image_archive"; do
   if [[ ! -f "$image_archive" ]]; then
     echo "Missing staged image archive: $image_archive" >&2
     exit 1
   fi
-  docker load --input "$image_archive"
+  gzip --decompress --stdout "$image_archive" | docker load
   rm -f "$image_archive"
 done
 
@@ -54,7 +65,7 @@ if ! env API_IMAGE="$api_image" WEB_IMAGE="$web_image" docker compose up -d --no
   echo "Docker Compose reported a startup error; verifying final service state."
 fi
 
-for attempt in {1..12}; do
+for attempt in {1..36}; do
   running_services="$(docker compose ps --status running --services)"
   required_services_ready=1
   for service in api worker beat frontend; do
@@ -73,7 +84,7 @@ for attempt in {1..12}; do
     exit 0
   fi
 
-  echo "Waiting for required services and API health check ($attempt/12)..."
+  echo "Waiting for required services and API health check ($attempt/36)..."
   sleep 5
 done
 

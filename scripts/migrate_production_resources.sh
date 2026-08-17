@@ -191,9 +191,6 @@ sudo docker compose exec -T -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql \
     WHERE storage_path LIKE '/app/backend/data/%';
   "
 
-sudo install -m 755 "$target_dir/scripts/deploy_enterprise_rag.sh" \
-  "$HOME/deploy-enterprise-rag.sh"
-
 echo "Starting Enterprise RAG services"
 sudo docker compose up -d --build api worker beat frontend
 
