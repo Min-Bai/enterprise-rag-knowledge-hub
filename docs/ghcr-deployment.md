@@ -9,7 +9,7 @@ The VM checks out the deployed commit only to obtain the matching Compose file. 
 
 ## One-time setup
 
-The Windows self-hosted runner must be able to reach GHCR. The workflow installs the daemonless `crane` client on that runner, so Docker Desktop is not required there. The VM requires Docker and SSH access from that runner, but does not store a GHCR token.
+The Windows self-hosted runner must be able to reach GitHub and GHCR. The workflow downloads the native daemonless `crane.exe` client on that runner, so Docker Desktop and WSL are not required there. The VM requires Docker and SSH access from that runner, but does not store a GHCR token.
 
 ## Deployment and rollback
 
