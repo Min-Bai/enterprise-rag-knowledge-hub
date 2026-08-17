@@ -88,17 +88,19 @@ jobs:
         env:
           API_IMAGE: ${{ steps.api-meta.outputs.tags }}
         run: |
+          set -o pipefail
           mkdir -p "$RUNNER_TEMP/enterprise-rag-images"
           docker pull "$API_IMAGE"
-          docker save --output "$RUNNER_TEMP/enterprise-rag-images/api.tar" "$API_IMAGE"
+          docker save "$API_IMAGE" | gzip -1 > "$RUNNER_TEMP/enterprise-rag-images/api.tar.gz"
           docker image rm --force "$API_IMAGE"
 
       - name: Export immutable web image
         env:
           WEB_IMAGE: ${{ steps.web-meta.outputs.tags }}
         run: |
+          set -o pipefail
           docker pull "$WEB_IMAGE"
-          docker save --output "$RUNNER_TEMP/enterprise-rag-images/web.tar" "$WEB_IMAGE"
+          docker save "$WEB_IMAGE" | gzip -1 > "$RUNNER_TEMP/enterprise-rag-images/web.tar.gz"
           docker image rm --force "$WEB_IMAGE"
 
       - name: Upload immutable deployment images
@@ -136,8 +138,8 @@ jobs:
       - name: Verify deployment image archive
         shell: powershell
         run: |
-          $apiArchive = Join-Path $env:RUNNER_TEMP 'enterprise-rag-images\api.tar'
-          $webArchive = Join-Path $env:RUNNER_TEMP 'enterprise-rag-images\web.tar'
+          $apiArchive = Join-Path $env:RUNNER_TEMP 'enterprise-rag-images\api.tar.gz'
+          $webArchive = Join-Path $env:RUNNER_TEMP 'enterprise-rag-images\web.tar.gz'
           if (!(Test-Path -LiteralPath $apiArchive) -or !(Test-Path -LiteralPath $webArchive)) {
             throw 'One or more deployment image archives were not downloaded.'
           }
@@ -147,20 +149,20 @@ jobs:
       - name: Transfer immutable images to virtual machine
         shell: powershell
         run: |
-          scp $env:API_ARCHIVE enterprise-rag-vm:/tmp/enterprise-rag-api-image.tar
-          scp $env:WEB_ARCHIVE enterprise-rag-vm:/tmp/enterprise-rag-web-image.tar
+          scp $env:API_ARCHIVE enterprise-rag-vm:/tmp/enterprise-rag-api-image.tar.gz
+          scp $env:WEB_ARCHIVE enterprise-rag-vm:/tmp/enterprise-rag-web-image.tar.gz
 
       - name: Deploy checked CI commit
         shell: powershell
         run: |
-          $remoteCommand = "cd ~/enterprise-rag-knowledge-hub && git fetch origin main && git show '$($env:DEPLOY_SHA):scripts/deploy_enterprise_rag.sh' > /tmp/deploy_enterprise_rag.sh && bash /tmp/deploy_enterprise_rag.sh '$env:DEPLOY_SHA' '$env:API_IMAGE' '$env:WEB_IMAGE' /tmp/enterprise-rag-api-image.tar /tmp/enterprise-rag-web-image.tar"
+          $remoteCommand = "cd ~/enterprise-rag-knowledge-hub && git fetch origin main && git show '$($env:DEPLOY_SHA):scripts/deploy_enterprise_rag.sh' > /tmp/deploy_enterprise_rag.sh && bash /tmp/deploy_enterprise_rag.sh '$env:DEPLOY_SHA' '$env:API_IMAGE' '$env:WEB_IMAGE' /tmp/enterprise-rag-api-image.tar.gz /tmp/enterprise-rag-web-image.tar.gz"
           ssh enterprise-rag-vm $remoteCommand
 
       - name: Remove staged image archive
         if: always()
         shell: powershell
         run: |
-          ssh enterprise-rag-vm "rm -f /tmp/enterprise-rag-api-image.tar /tmp/enterprise-rag-web-image.tar /tmp/deploy_enterprise_rag.sh"
+          ssh enterprise-rag-vm "rm -f /tmp/enterprise-rag-api-image.tar.gz /tmp/enterprise-rag-web-image.tar.gz /tmp/deploy_enterprise_rag.sh"
           if ($env:API_ARCHIVE) {
             Remove-Item -Force -ErrorAction SilentlyContinue $env:API_ARCHIVE
           }

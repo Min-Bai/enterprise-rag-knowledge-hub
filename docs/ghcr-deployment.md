@@ -13,6 +13,6 @@ The Windows self-hosted runner must be able to reach GitHub Actions and the VM o
 
 ## Deployment and rollback
 
-`Build and Deploy Enterprise RAG` deploys tags in the form `sha-<full-commit-sha>`. The hosted build job releases its build cache, then exports the API and web images separately to a one-day artifact; the runner transfers both temporary Docker archives and the VM loads them locally before starting Compose.
+`Build and Deploy Enterprise RAG` deploys tags in the form `sha-<full-commit-sha>`. The hosted build job releases its build cache, then streams the API and web images into separate compressed archives in a one-day artifact; the runner transfers both archives and the VM streams them into Docker before starting Compose.
 
 Do not retag `latest` to roll back production. A rollback should deploy a previously published SHA tag through a reviewed manual workflow input.

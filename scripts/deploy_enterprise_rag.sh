@@ -36,13 +36,18 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
+if ! command -v gzip >/dev/null; then
+  echo "gzip is required to load the staged image archives." >&2
+  exit 1
+fi
+
 compose_start_failed=0
 for image_archive in "$api_image_archive" "$web_image_archive"; do
   if [[ ! -f "$image_archive" ]]; then
     echo "Missing staged image archive: $image_archive" >&2
     exit 1
   fi
-  docker load --input "$image_archive"
+  gzip --decompress --stdout "$image_archive" | docker load
   rm -f "$image_archive"
 done
 
