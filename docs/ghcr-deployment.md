@@ -11,7 +11,7 @@ The VM checks out the deployed commit only to obtain the matching Compose file. 
 
 The Windows self-hosted runner must be able to reach GitHub and GHCR. The workflow downloads the native daemonless `crane.exe` client on that runner, so Docker Desktop and WSL are not required there. The VM requires Docker and SSH access from that runner, but does not store a GHCR token.
 
-Add a repository Actions secret named `GHCR_READ_TOKEN`. Its value must be a GitHub personal access token for the package owner with `read:packages` permission (and `repo` as well when using a classic token for a private repository). The deployment job uses this token only to read the two immutable images from GHCR.
+Grant the repository read access to both GHCR packages, `enterprise-rag-api` and `enterprise-rag-web`, under each package's **Manage Actions access** settings. The deployment job then uses its automatically generated `GITHUB_TOKEN` to read the immutable images; no long-lived package token is stored in GitHub Actions.
 
 ## Deployment and rollback
 

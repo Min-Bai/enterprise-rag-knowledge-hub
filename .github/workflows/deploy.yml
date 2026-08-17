@@ -107,7 +107,7 @@ jobs:
       - name: Stage immutable images on Windows runner
         shell: powershell
         env:
-          GHCR_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $env:GHCR_TOKEN | & $env:CRANE auth login ghcr.io --username "${{ github.actor }}" --password-stdin
           $apiArchive = Join-Path $env:RUNNER_TEMP "enterprise-rag-api-$($env:DEPLOY_SHA).tar"
