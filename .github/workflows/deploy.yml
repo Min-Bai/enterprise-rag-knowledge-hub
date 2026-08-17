@@ -8,6 +8,7 @@ on:
     branches: [main]
 
 permissions:
+  actions: read
   contents: read
   packages: write
 
@@ -76,6 +77,24 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Export immutable deployment images
+        env:
+          API_IMAGE: ${{ steps.api-meta.outputs.tags }}
+          WEB_IMAGE: ${{ steps.web-meta.outputs.tags }}
+        run: |
+          docker pull "$API_IMAGE"
+          docker pull "$WEB_IMAGE"
+          docker save --output "$RUNNER_TEMP/enterprise-rag-images.tar" "$API_IMAGE" "$WEB_IMAGE"
+
+      - name: Upload immutable deployment images
+        uses: actions/upload-artifact@v4
+        with:
+          name: enterprise-rag-images-${{ env.DEPLOY_SHA }}
+          path: ${{ runner.temp }}/enterprise-rag-images.tar
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
   deploy:
     name: Deploy to Enterprise RAG VM
     needs: build-images
@@ -93,52 +112,39 @@ jobs:
       API_IMAGE: ${{ needs.build-images.outputs.api_image }}
       WEB_IMAGE: ${{ needs.build-images.outputs.web_image }}
     steps:
-      - name: Install native daemonless image client
-        shell: powershell
-        run: |
-          $version = 'v0.20.3'
-          $toolDirectory = Join-Path $env:RUNNER_TEMP 'crane'
-          $archive = Join-Path $env:RUNNER_TEMP "go-containerregistry-$version-windows-x86_64.tar.gz"
-          New-Item -ItemType Directory -Force $toolDirectory | Out-Null
-          Invoke-WebRequest -Uri "https://github.com/google/go-containerregistry/releases/download/$version/go-containerregistry_Windows_x86_64.tar.gz" -OutFile $archive
-          tar -xzf $archive -C $toolDirectory crane.exe
-          "CRANE=$toolDirectory\\crane.exe" >> $env:GITHUB_ENV
+      - name: Download immutable deployment images
+        uses: actions/download-artifact@v4
+        with:
+          name: enterprise-rag-images-${{ env.DEPLOY_SHA }}
+          path: ${{ runner.temp }}\enterprise-rag-images
 
-      - name: Stage immutable images on Windows runner
+      - name: Verify deployment image archive
         shell: powershell
-        env:
-          GHCR_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
         run: |
-          $env:GHCR_TOKEN | & $env:CRANE auth login ghcr.io --username "${{ github.actor }}" --password-stdin
-          $apiArchive = Join-Path $env:RUNNER_TEMP "enterprise-rag-api-$($env:DEPLOY_SHA).tar"
-          $webArchive = Join-Path $env:RUNNER_TEMP "enterprise-rag-web-$($env:DEPLOY_SHA).tar"
-          & $env:CRANE pull $env:API_IMAGE $apiArchive
-          & $env:CRANE pull $env:WEB_IMAGE $webArchive
-          "API_ARCHIVE=$apiArchive" >> $env:GITHUB_ENV
-          "WEB_ARCHIVE=$webArchive" >> $env:GITHUB_ENV
+          $archive = Join-Path $env:RUNNER_TEMP 'enterprise-rag-images\enterprise-rag-images.tar'
+          if (!(Test-Path -LiteralPath $archive)) {
+            throw "Deployment image archive was not downloaded: $archive"
+          }
+          "IMAGE_ARCHIVE=$archive" >> $env:GITHUB_ENV
 
       - name: Transfer immutable images to virtual machine
         shell: powershell
         run: |
-          scp $env:API_ARCHIVE enterprise-rag-vm:/tmp/enterprise-rag-api-image.tar
-          scp $env:WEB_ARCHIVE enterprise-rag-vm:/tmp/enterprise-rag-web-image.tar
+          scp $env:IMAGE_ARCHIVE enterprise-rag-vm:/tmp/enterprise-rag-images.tar
 
       - name: Deploy checked CI commit
         shell: powershell
         run: |
-          $remoteCommand = "cd ~/enterprise-rag-knowledge-hub && git fetch origin main && git show '$($env:DEPLOY_SHA):scripts/deploy_enterprise_rag.sh' > /tmp/deploy_enterprise_rag.sh && bash /tmp/deploy_enterprise_rag.sh '$env:DEPLOY_SHA' '$env:API_IMAGE' '$env:WEB_IMAGE' /tmp/enterprise-rag-api-image.tar /tmp/enterprise-rag-web-image.tar"
+          $remoteCommand = "cd ~/enterprise-rag-knowledge-hub && git fetch origin main && git show '$($env:DEPLOY_SHA):scripts/deploy_enterprise_rag.sh' > /tmp/deploy_enterprise_rag.sh && bash /tmp/deploy_enterprise_rag.sh '$env:DEPLOY_SHA' '$env:API_IMAGE' '$env:WEB_IMAGE' /tmp/enterprise-rag-images.tar"
           ssh enterprise-rag-vm $remoteCommand
 
       - name: Remove staged image archive
         if: always()
         shell: powershell
         run: |
-          ssh enterprise-rag-vm "rm -f /tmp/enterprise-rag-api-image.tar /tmp/enterprise-rag-web-image.tar /tmp/deploy_enterprise_rag.sh"
-          if ($env:API_ARCHIVE) {
-            Remove-Item -Force -ErrorAction SilentlyContinue $env:API_ARCHIVE
-          }
-          if ($env:WEB_ARCHIVE) {
-            Remove-Item -Force -ErrorAction SilentlyContinue $env:WEB_ARCHIVE
+          ssh enterprise-rag-vm "rm -f /tmp/enterprise-rag-images.tar /tmp/deploy_enterprise_rag.sh"
+          if ($env:IMAGE_ARCHIVE) {
+            Remove-Item -Force -ErrorAction SilentlyContinue $env:IMAGE_ARCHIVE
           }
 
       - name: Check API health
