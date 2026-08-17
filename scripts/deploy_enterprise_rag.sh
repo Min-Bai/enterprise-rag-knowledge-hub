@@ -17,7 +17,7 @@ cd "$project_dir"
 git fetch origin main
 
 git cat-file -e "${target_commit}^{commit}"
-git switch main
+git checkout main
 git merge --ff-only "$target_commit"
 
 if [[ "$(git rev-parse HEAD)" != "$target_commit" ]]; then
