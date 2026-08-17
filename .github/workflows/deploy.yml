@@ -93,19 +93,27 @@ jobs:
       API_IMAGE: ${{ needs.build-images.outputs.api_image }}
       WEB_IMAGE: ${{ needs.build-images.outputs.web_image }}
     steps:
-      - name: Install daemonless image client
-        uses: imjasonh/setup-crane@v0.4
+      - name: Install native daemonless image client
+        shell: powershell
+        run: |
+          $version = 'v0.20.3'
+          $toolDirectory = Join-Path $env:RUNNER_TEMP 'crane'
+          $archive = Join-Path $env:RUNNER_TEMP "go-containerregistry-$version-windows-x86_64.tar.gz"
+          New-Item -ItemType Directory -Force $toolDirectory | Out-Null
+          Invoke-WebRequest -Uri "https://github.com/google/go-containerregistry/releases/download/$version/go-containerregistry_Windows_x86_64.tar.gz" -OutFile $archive
+          tar -xzf $archive -C $toolDirectory crane.exe
+          "CRANE=$toolDirectory\\crane.exe" >> $env:GITHUB_ENV
 
       - name: Stage immutable images on Windows runner
         shell: powershell
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $env:GHCR_TOKEN | crane auth login ghcr.io --username "${{ github.actor }}" --password-stdin
+          $env:GHCR_TOKEN | & $env:CRANE auth login ghcr.io --username "${{ github.actor }}" --password-stdin
           $apiArchive = Join-Path $env:RUNNER_TEMP "enterprise-rag-api-$($env:DEPLOY_SHA).tar"
           $webArchive = Join-Path $env:RUNNER_TEMP "enterprise-rag-web-$($env:DEPLOY_SHA).tar"
-          crane pull $env:API_IMAGE $apiArchive
-          crane pull $env:WEB_IMAGE $webArchive
+          & $env:CRANE pull $env:API_IMAGE $apiArchive
+          & $env:CRANE pull $env:WEB_IMAGE $webArchive
           "API_ARCHIVE=$apiArchive" >> $env:GITHUB_ENV
           "WEB_ARCHIVE=$webArchive" >> $env:GITHUB_ENV
 
