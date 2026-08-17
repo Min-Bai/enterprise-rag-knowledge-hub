@@ -22,4 +22,4 @@ jobs:
       - name: Check Ubuntu deployment prerequisites
         shell: powershell
         run: |
-          ssh enterprise-rag-vm "test -x ~/deploy-enterprise-rag.sh && cd ~/enterprise-rag-knowledge-hub && sudo docker compose ps"
+          ssh enterprise-rag-vm "test -d ~/enterprise-rag-knowledge-hub/.git && command -v docker && command -v gzip && cd ~/enterprise-rag-knowledge-hub && docker compose version && docker compose ps"
