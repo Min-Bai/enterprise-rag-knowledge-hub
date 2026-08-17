@@ -93,11 +93,41 @@ jobs:
       API_IMAGE: ${{ needs.build-images.outputs.api_image }}
       WEB_IMAGE: ${{ needs.build-images.outputs.web_image }}
     steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Stage immutable images on Windows runner
+        shell: powershell
+        run: |
+          docker pull $env:API_IMAGE
+          docker pull $env:WEB_IMAGE
+          $archive = Join-Path $env:RUNNER_TEMP "enterprise-rag-images-$($env:DEPLOY_SHA).tar"
+          docker save --output $archive $env:API_IMAGE $env:WEB_IMAGE
+          "IMAGE_ARCHIVE=$archive" >> $env:GITHUB_ENV
+
+      - name: Transfer immutable images to virtual machine
+        shell: powershell
+        run: |
+          scp $env:IMAGE_ARCHIVE enterprise-rag-vm:/tmp/enterprise-rag-images.tar
+
       - name: Deploy checked CI commit
         shell: powershell
         run: |
-          $remoteCommand = "cd ~/enterprise-rag-knowledge-hub && git fetch origin main && git show '$($env:DEPLOY_SHA):scripts/deploy_enterprise_rag.sh' > /tmp/deploy_enterprise_rag.sh && bash /tmp/deploy_enterprise_rag.sh '$env:DEPLOY_SHA' '$env:API_IMAGE' '$env:WEB_IMAGE'"
+          $remoteCommand = "cd ~/enterprise-rag-knowledge-hub && git fetch origin main && git show '$($env:DEPLOY_SHA):scripts/deploy_enterprise_rag.sh' > /tmp/deploy_enterprise_rag.sh && bash /tmp/deploy_enterprise_rag.sh '$env:DEPLOY_SHA' '$env:API_IMAGE' '$env:WEB_IMAGE' /tmp/enterprise-rag-images.tar"
           ssh enterprise-rag-vm $remoteCommand
+
+      - name: Remove staged image archive
+        if: always()
+        shell: powershell
+        run: |
+          ssh enterprise-rag-vm "rm -f /tmp/enterprise-rag-images.tar /tmp/deploy_enterprise_rag.sh"
+          if ($env:IMAGE_ARCHIVE) {
+            Remove-Item -Force -ErrorAction SilentlyContinue $env:IMAGE_ARCHIVE
+          }
 
       - name: Check API health
         shell: powershell

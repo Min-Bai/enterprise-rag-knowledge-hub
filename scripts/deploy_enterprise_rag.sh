@@ -4,11 +4,11 @@ set -euo pipefail
 target_commit="${1:-}"
 api_image="${2:-}"
 web_image="${3:-}"
+image_archive="${4:-}"
 project_dir="$HOME/enterprise-rag-knowledge-hub"
-ghcr_credentials_file="${GHCR_CREDENTIALS_FILE:-$HOME/.config/enterprise-rag/ghcr.env}"
 
-if [[ -z "$target_commit" || -z "$api_image" || -z "$web_image" ]]; then
-  echo "Usage: $0 <commit-sha> <api-image> <web-image>" >&2
+if [[ -z "$target_commit" || -z "$api_image" || -z "$web_image" || -z "$image_archive" ]]; then
+  echo "Usage: $0 <commit-sha> <api-image> <web-image> <image-archive>" >&2
   exit 2
 fi
 
@@ -35,25 +35,13 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-if [[ ! -f "$ghcr_credentials_file" ]]; then
-  echo "Missing GHCR credentials file: $ghcr_credentials_file" >&2
-  exit 1
-fi
-
-# The package token stays outside the repository and is never passed into
-# Compose or application containers.
-source "$ghcr_credentials_file"
-if [[ -z "${GHCR_USERNAME:-}" || -z "${GHCR_READ_TOKEN:-}" ]]; then
-  echo "GHCR_USERNAME and GHCR_READ_TOKEN are required in $ghcr_credentials_file" >&2
-  exit 1
-fi
-printf '%s' "$GHCR_READ_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
-
 compose_start_failed=0
-if ! env API_IMAGE="$api_image" WEB_IMAGE="$web_image" docker compose pull api worker beat frontend; then
-  echo "Failed to pull the requested GHCR images." >&2
+if [[ ! -f "$image_archive" ]]; then
+  echo "Missing staged image archive: $image_archive" >&2
   exit 1
 fi
+docker load --input "$image_archive"
+rm -f "$image_archive"
 
 if ! env API_IMAGE="$api_image" WEB_IMAGE="$web_image" docker compose up -d --no-build api worker beat frontend; then
   # Compose can report a transient dependency-health failure while the API is
