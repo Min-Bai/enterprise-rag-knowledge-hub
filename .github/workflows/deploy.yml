@@ -111,7 +111,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: enterprise-rag-images-${{ env.DEPLOY_SHA }}
-          path: ${{ runner.temp }}/enterprise-rag-images
+          path: |
+            ${{ runner.temp }}/enterprise-rag-images/api.tar.gz
+            ${{ runner.temp }}/enterprise-rag-images/web.tar.gz
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
@@ -139,11 +141,18 @@ jobs:
       - name: Verify deployment image archive
         shell: powershell
         run: |
-          $apiArchive = Join-Path $env:RUNNER_TEMP 'enterprise-rag-images\api.tar.gz'
-          $webArchive = Join-Path $env:RUNNER_TEMP 'enterprise-rag-images\web.tar.gz'
-          if (!(Test-Path -LiteralPath $apiArchive) -or !(Test-Path -LiteralPath $webArchive)) {
+          $imageDirectory = Join-Path $env:RUNNER_TEMP 'enterprise-rag-images'
+          $apiArchives = @(Get-ChildItem -LiteralPath $imageDirectory -Filter 'api.tar.gz' -File -Recurse -ErrorAction SilentlyContinue)
+          $webArchives = @(Get-ChildItem -LiteralPath $imageDirectory -Filter 'web.tar.gz' -File -Recurse -ErrorAction SilentlyContinue)
+          if ($apiArchives.Count -ne 1 -or $webArchives.Count -ne 1) {
+            Write-Host 'Downloaded deployment artifact files:'
+            Get-ChildItem -LiteralPath $imageDirectory -File -Recurse -ErrorAction SilentlyContinue |
+              Select-Object FullName, Length |
+              Format-Table -AutoSize
             throw 'One or more deployment image archives were not downloaded.'
           }
+          $apiArchive = $apiArchives[0].FullName
+          $webArchive = $webArchives[0].FullName
           "API_ARCHIVE=$apiArchive" >> $env:GITHUB_ENV
           "WEB_ARCHIVE=$webArchive" >> $env:GITHUB_ENV
 
