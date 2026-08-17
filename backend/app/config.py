@@ -1,5 +1,6 @@
 from os import getenv
 from pathlib import Path
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -141,6 +142,29 @@ ALLOW_REGISTRATION_REQUESTS = get_optional_bool_env(
     "ALLOW_REGISTRATION_REQUESTS",
     True,
 )
+
+MAIL_ENABLED = get_optional_bool_env("MAIL_ENABLED", False)
+MAIL_SMTP_HOST = getenv("MAIL_SMTP_HOST", "")
+MAIL_SMTP_PORT = get_positive_int_env("MAIL_SMTP_PORT", 587)
+MAIL_SMTP_USERNAME = getenv("MAIL_SMTP_USERNAME", "")
+MAIL_SMTP_PASSWORD = getenv("MAIL_SMTP_PASSWORD", "")
+MAIL_SMTP_STARTTLS = get_optional_bool_env("MAIL_SMTP_STARTTLS", True)
+MAIL_FROM = getenv("MAIL_FROM", "")
+PUBLIC_APP_URL = getenv("PUBLIC_APP_URL", "")
+MAIL_TIMEOUT_SECONDS = get_positive_int_env("MAIL_TIMEOUT_SECONDS", 10)
+
+if MAIL_ENABLED:
+    if not MAIL_SMTP_HOST or not MAIL_FROM or not PUBLIC_APP_URL:
+        raise RuntimeError(
+            "MAIL_SMTP_HOST, MAIL_FROM, and PUBLIC_APP_URL are required when MAIL_ENABLED is true"
+        )
+    if MAIL_SMTP_USERNAME and not MAIL_SMTP_PASSWORD:
+        raise RuntimeError("MAIL_SMTP_PASSWORD is required when MAIL_SMTP_USERNAME is set")
+    parsed_public_app_url = urlparse(PUBLIC_APP_URL)
+    if parsed_public_app_url.scheme not in {"http", "https"} or not parsed_public_app_url.netloc:
+        raise RuntimeError("PUBLIC_APP_URL must be an absolute http or https URL")
+    if APP_ENV == "production" and parsed_public_app_url.scheme != "https":
+        raise RuntimeError("PUBLIC_APP_URL must use https in production")
 
 def get_cors_origins() -> list[str]:
     origins = [

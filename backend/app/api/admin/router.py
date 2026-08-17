@@ -21,6 +21,7 @@ from ...schemas.user import AccountRequestReview, AdminUserCreate, InvitationCre
 from ...services.auth_sessions import clear_refresh_cookie, issue_session, revoke_session, rotate_session, set_refresh_cookie
 from ...services.users import change_password_service, create_user_from_password_hash_service, create_user_with_role_service, delete_user_service, login_user_service, update_my_profile_service, update_user_role_service, update_user_service
 from ...services.audit_logs import write_audit_log
+from ...services.email_delivery import EmailDeliveryError, send_password_reset_email
 from ...services.model_providers import list_model_providers, upsert_model_provider
 from ...celery_app import celery_app
 from ...rate_limit import enforce_login_rate_limit
@@ -385,8 +386,18 @@ def approve_password_reset_request(
         db=db,
         commit=False,
     )
+    try:
+        send_password_reset_email(
+            recipient_email=request_item.email,
+            reset_token=token,
+            expires_at=reset.expires_at,
+        )
+    except EmailDeliveryError:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="password reset email delivery failed")
+
     db.commit()
-    return ok({"expires_at": reset.expires_at, "reset_token": token})
+    return ok({"expires_at": reset.expires_at, "delivery": "email"})
 
 
 def _invitation_response(invitation: UserInvitationORM) -> dict:

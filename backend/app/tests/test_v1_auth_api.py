@@ -10,6 +10,7 @@ from backend.app.models.user_invitation import UserInvitationORM
 from backend.app.models.password_reset import PasswordResetORM
 from backend.app.models.password_reset_request import PasswordResetRequestORM
 from backend.app.models.registration_request import RegistrationRequestORM
+from backend.app.services.email_delivery import EmailDeliveryError
 from backend.app.tests.conftest import TestingSessionLocal
 
 
@@ -92,7 +93,7 @@ def test_client_registration_requires_admin_approval_before_login():
     assert client.post("/api/v1/client/auth/login", json={"username": username, "password": "secret123"}).status_code == 200
 
 
-def test_client_password_reset_request_requires_admin_approval():
+def test_client_password_reset_request_requires_admin_approval(monkeypatch):
     admin_username, admin_password = create_user()
     user_username, user_password = create_user()
     email = f"{user_username}@example.com"
@@ -110,12 +111,54 @@ def test_client_password_reset_request_requires_admin_approval():
         request_id = request_item.id
     admin_login = client.post("/api/v1/admin/auth/login", json={"username": admin_username, "password": admin_password})
     headers = {"Authorization": f"Bearer {admin_login.json()['data']['access_token']}"}
+    delivered_tokens: list[str] = []
+
+    def capture_reset_email(*, reset_token: str, **_kwargs):
+        delivered_tokens.append(reset_token)
+
+    monkeypatch.setattr("backend.app.api.admin.router.send_password_reset_email", capture_reset_email)
     approved = client.post(f"/api/v1/admin/password-reset-requests/{request_id}/approve", json={"expires_in_hours": 1}, headers=headers)
     assert approved.status_code == 201
-    token = approved.json()["data"]["reset_token"]
-    assert client.post("/api/v1/client/auth/reset-password", json={"reset_token": token, "new_password": "updated123"}).status_code == 204
+    assert approved.json()["data"]["delivery"] == "email"
+    assert "reset_token" not in approved.json()["data"]
+    assert len(delivered_tokens) == 1
+    assert client.post("/api/v1/client/auth/reset-password", json={"reset_token": delivered_tokens[0], "new_password": "updated123"}).status_code == 204
     assert client.post("/api/v1/client/auth/login", json={"username": user_username, "password": user_password}).status_code == 401
     assert client.post("/api/v1/client/auth/login", json={"username": user_username, "password": "updated123"}).status_code == 200
+
+
+def test_password_reset_approval_stays_pending_when_email_delivery_fails(monkeypatch):
+    admin_username, admin_password = create_user()
+    user_username, _ = create_user()
+    email = f"{user_username}@example.com"
+    with TestingSessionLocal() as db:
+        admin = db.query(UserORM).filter(UserORM.username == admin_username).one()
+        user = db.query(UserORM).filter(UserORM.username == user_username).one()
+        admin.role = "admin"
+        user.email = email
+        db.add(PasswordResetRequestORM(email=email))
+        db.commit()
+        user_id = user.id
+        request_id = db.query(PasswordResetRequestORM).filter(PasswordResetRequestORM.email == email).one().id
+
+    def fail_email_delivery(**_kwargs):
+        raise EmailDeliveryError("test delivery failure")
+
+    monkeypatch.setattr("backend.app.api.admin.router.send_password_reset_email", fail_email_delivery)
+    login = client.post("/api/v1/admin/auth/login", json={"username": admin_username, "password": admin_password})
+    response = client.post(
+        f"/api/v1/admin/password-reset-requests/{request_id}/approve",
+        json={"expires_in_hours": 1},
+        headers={"Authorization": f"Bearer {login.json()['data']['access_token']}"},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "PASSWORD_RESET_EMAIL_DELIVERY_FAILED"
+    with TestingSessionLocal() as db:
+        request_item = db.get(PasswordResetRequestORM, request_id)
+        assert request_item is not None
+        assert request_item.status == "pending"
+        assert db.query(PasswordResetORM).filter(PasswordResetORM.user_id == user_id).count() == 0
 
 
 def test_invitation_registration_is_one_time_and_works_when_public_registration_is_disabled():

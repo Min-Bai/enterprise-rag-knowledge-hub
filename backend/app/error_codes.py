@@ -30,6 +30,7 @@ ERROR_CODE_BY_DETAIL = {
     "email already exists": "EMAIL_ALREADY_EXISTS",
     "password reset is invalid": "PASSWORD_RESET_INVALID",
     "password reset has expired": "PASSWORD_RESET_EXPIRED",
+    "password reset email delivery failed": "PASSWORD_RESET_EMAIL_DELIVERY_FAILED",
     "inactive user cannot reset password": "PASSWORD_RESET_USER_INACTIVE",
     "registration requests are disabled": "REGISTRATION_REQUESTS_DISABLED",
     "registration request already pending": "REGISTRATION_REQUEST_PENDING",
