@@ -1,6 +1,6 @@
 """add model providers
 
-Revision ID: a7b8c9d0e1f2
+Revision ID: f9a0b1c2d3e4
 Revises: f6a7b8c9d0e1
 """
 
@@ -8,7 +8,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "a7b8c9d0e1f2"
+revision = "f9a0b1c2d3e4"
 down_revision = "f6a7b8c9d0e1"
 branch_labels = None
 depends_on = None
