@@ -9,10 +9,10 @@ The VM checks out the deployed commit only to obtain the matching Compose file. 
 
 ## One-time setup
 
-The Windows self-hosted runner must have Docker available and be able to reach GHCR. The VM requires Docker and SSH access from that runner, but does not store a GHCR token.
+The Windows self-hosted runner must be able to reach GHCR. The workflow installs the daemonless `crane` client on that runner, so Docker Desktop is not required there. The VM requires Docker and SSH access from that runner, but does not store a GHCR token.
 
 ## Deployment and rollback
 
-`Build and Deploy Enterprise RAG` deploys tags in the form `sha-<full-commit-sha>`. The runner pulls and transfers a temporary Docker archive; the VM loads it locally before starting Compose.
+`Build and Deploy Enterprise RAG` deploys tags in the form `sha-<full-commit-sha>`. The runner uses `crane` to export and transfer temporary Docker archives; the VM loads them locally before starting Compose.
 
 Do not retag `latest` to roll back production. A rollback should deploy a previously published SHA tag through a reviewed manual workflow input.
