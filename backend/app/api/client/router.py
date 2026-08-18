@@ -1,7 +1,8 @@
 from datetime import UTC, datetime
 from hashlib import sha256
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -13,12 +14,12 @@ from ...models.user_invitation import UserInvitationORM
 from ...models.password_reset import PasswordResetORM
 from ...models.password_reset_request import PasswordResetRequestORM
 from ...models.registration_request import RegistrationRequestORM
-from ...schemas.user import InvitationAccept, PasswordResetConfirm, PasswordResetRequestCreate, RegistrationRequestCreate, UserCreate, UserLogin, UserResponse
+from ...schemas.user import InvitationAccept, PasswordResetConfirm, PasswordResetRequestCreate, RefreshTokenRequest, RegistrationRequestCreate, UserCreate, UserLogin, UserResponse
 from ...security import hash_password
 from ...services.audit_logs import write_audit_log
-from ...services.auth_sessions import clear_refresh_cookie, issue_session, revoke_session, rotate_session, set_refresh_cookie
+from ...services.auth_sessions import issue_session, revoke_session, rotate_session
 from ...services.users import create_user_service, login_user_service
-from ...rate_limit import enforce_login_rate_limit
+from ...rate_limit import enforce_account_login_rate_limit, enforce_login_rate_limit
 from ..common.response import ok
 from ..dependencies import require_client_access
 
@@ -160,7 +161,8 @@ def reset_password(
 
 
 @router.post("/auth/login")
-def login(payload: UserLogin, request: Request, response: Response, _: None = Depends(enforce_login_rate_limit), db: Session = Depends(get_db)):
+def login(payload: Annotated[UserLogin, Body()], request: Request, response: Response, _: None = Depends(enforce_login_rate_limit), db: Session = Depends(get_db)):
+    enforce_account_login_rate_limit(payload.username)
     try:
         user = login_user_service(user_login=payload, db=db)
     except InvalidCredentialsError:
@@ -168,14 +170,14 @@ def login(payload: UserLogin, request: Request, response: Response, _: None = De
     except UserInactiveError:
         raise HTTPException(status_code=403, detail="user is inactive")
     result, refresh = issue_session(user=user, audience="client-api", request=request, db=db)
-    result["csrf_token"] = set_refresh_cookie(response, refresh, "client-api")
+    result["refresh_token"] = refresh
     return ok(result)
 
 
 @router.post("/auth/refresh")
-def refresh(request: Request, response: Response, db: Session = Depends(get_db)):
-    result, refresh_token = rotate_session(request=request, audience="client-api", db=db)
-    result["csrf_token"] = set_refresh_cookie(response, refresh_token, "client-api")
+def refresh(payload: Annotated[RefreshTokenRequest, Body()], request: Request, response: Response, db: Session = Depends(get_db)):
+    result, refresh_token = rotate_session(request=request, audience="client-api", refresh_token=payload.refresh_token, db=db)
+    result["refresh_token"] = refresh_token
     return ok(result)
 
 
@@ -185,7 +187,6 @@ def logout(request: Request, response: Response, user: UserORM = Depends(require
     token = request.headers["authorization"].split(" ", 1)[1]
     session_id = str(decode_v1_token(token, expected_audience="client-api", expected_type="access")["sid"])
     revoke_session(session_id=session_id, user_id=user.id, audience="client-api", db=db)
-    clear_refresh_cookie(response, "client-api")
 
 
 @router.get("/me")

@@ -10,6 +10,7 @@ from .config import (
     DOCUMENT_UPLOAD_RATE_LIMIT,
     DOCUMENT_UPLOAD_RATE_WINDOW_SECONDS,
     LOGIN_RATE_LIMIT,
+    LOGIN_IP_RATE_LIMIT,
     LOGIN_RATE_WINDOW_SECONDS,
 )
 from .redis_client import redis_client
@@ -51,14 +52,13 @@ def enforce_login_rate_limit(request: Request) -> None:
         return
 
     client_id = request.client.host if request.client else "unknown"
-    limiter = LoginRateLimiter(
+    ip_limiter = LoginRateLimiter(
         client=redis_client,
-        limit=LOGIN_RATE_LIMIT,
+        limit=LOGIN_IP_RATE_LIMIT,
         window_seconds=LOGIN_RATE_WINDOW_SECONDS,
     )
-
     try:
-        allowed = limiter.is_allowed(client_id)
+        ip_allowed = ip_limiter.is_allowed(client_id)
     except RedisError:
         logger.exception("login rate limit check failed")
         raise HTTPException(
@@ -66,12 +66,31 @@ def enforce_login_rate_limit(request: Request) -> None:
             detail="rate limit service unavailable",
         )
 
-    if not allowed:
+    if not ip_allowed:
         raise HTTPException(
             status_code=429,
             detail="too many login attempts",
-            headers={"Retry-After": str(limiter.retry_after(client_id))},
+            headers={"Retry-After": str(ip_limiter.retry_after(client_id))},
         )
+
+
+def enforce_account_login_rate_limit(username: str) -> None:
+    if redis_client is None:
+        return
+    limiter = LoginRateLimiter(
+        client=redis_client,
+        limit=LOGIN_RATE_LIMIT,
+        window_seconds=LOGIN_RATE_WINDOW_SECONDS,
+        key_prefix="rate_limit:login-account",
+    )
+    account_id = username.strip().lower()
+    try:
+        allowed = limiter.is_allowed(account_id)
+    except RedisError:
+        logger.exception("login account rate limit check failed")
+        raise HTTPException(status_code=503, detail="rate limit service unavailable")
+    if not allowed:
+        raise HTTPException(status_code=429, detail="too many login attempts", headers={"Retry-After": str(limiter.retry_after(account_id))})
 
 
 def enforce_ai_rate_limit(user_id: int) -> None:
