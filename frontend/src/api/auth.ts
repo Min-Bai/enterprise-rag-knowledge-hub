@@ -2,9 +2,9 @@ import type { User } from "../types/api";
 
 export interface AuthTokens {
   access_token: string;
+  refresh_token: string;
   token_type: "bearer";
   expires_in: number;
-  csrf_token: string;
 }
 
 interface ApiEnvelope<T> {
@@ -27,64 +27,14 @@ async function v1Request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export function login(username: string, password: string) {
-  return v1Request<AuthTokens>("/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
+  return v1Request<AuthTokens>("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
 }
 
-export function getRegistrationStatus() {
-  return v1Request<{ enabled: boolean; approval_required: boolean }>("/auth/registration-status");
-}
-
-export function register(payload: { username: string; email?: string; password: string }) {
-  return v1Request<{ status: "pending" }>("/auth/register", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export function requestPasswordReset(email: string) {
-  return v1Request<{ status: "pending" }>("/auth/password-reset-request", {
-    method: "POST",
-    body: JSON.stringify({ email }),
-  });
-}
-
-export function acceptInvitation(payload: { username: string; email: string; password: string; invitation_token: string }) {
-  return v1Request<User>("/auth/accept-invitation", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export function resetPassword(payload: { reset_token: string; new_password: string }) {
-  return v1Request<void>("/auth/reset-password", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export function getCurrentUser(accessToken: string) {
-  return v1Request<User>("/me", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-}
-
-export function refresh(csrfToken: string) {
-  return v1Request<AuthTokens>("/auth/refresh", {
-    method: "POST",
-    headers: { "X-CSRF-Token": csrfToken },
-  });
-}
-
-export function logout(accessToken: string, csrfToken: string) {
-  return v1Request<void>("/auth/logout", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "X-CSRF-Token": csrfToken,
-    },
-  });
-}
+export function getRegistrationStatus() { return v1Request<{ enabled: boolean; approval_required: boolean }>("/auth/registration-status"); }
+export function register(payload: { username: string; email?: string; password: string }) { return v1Request<{ status: "pending" }>("/auth/register", { method: "POST", body: JSON.stringify(payload) }); }
+export function requestPasswordReset(email: string) { return v1Request<{ status: "pending" }>("/auth/password-reset-request", { method: "POST", body: JSON.stringify({ email }) }); }
+export function acceptInvitation(payload: { username: string; email: string; password: string; invitation_token: string }) { return v1Request<User>("/auth/accept-invitation", { method: "POST", body: JSON.stringify(payload) }); }
+export function resetPassword(payload: { reset_token: string; new_password: string }) { return v1Request<void>("/auth/reset-password", { method: "POST", body: JSON.stringify(payload) }); }
+export function getCurrentUser(accessToken: string) { return v1Request<User>("/me", { headers: { Authorization: `Bearer ${accessToken}` } }); }
+export function refresh(refreshToken: string) { return v1Request<AuthTokens>("/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token: refreshToken }) }); }
+export function logout(accessToken: string) { return v1Request<void>("/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } }); }

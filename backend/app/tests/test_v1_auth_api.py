@@ -28,14 +28,11 @@ def create_user() -> tuple[str, str]:
 def test_client_auth_uses_envelope_cookie_refresh_and_audience_boundary():
     username, password = create_user()
     login = client.post("/api/v1/client/auth/login", json={"username": username, "password": password})
-    assert login.status_code == 200
+    assert login.status_code == 200, login.text
     body = login.json()
     assert body["code"] == "OK"
     assert body["data"]["token_type"] == "bearer"
-    assert "rag_client_refresh" in login.headers["set-cookie"]
-    assert "HttpOnly" in login.headers["set-cookie"]
-    csrf_cookie = next(value for value in login.headers.get_list("set-cookie") if "rag_client_refresh_csrf=" in value)
-    assert "Path=/" in csrf_cookie
+    assert len(body["data"]["refresh_token"]) >= 20
 
     access = body["data"]["access_token"]
     me = client.get("/api/v1/client/me", headers={"Authorization": f"Bearer {access}"})
@@ -46,12 +43,31 @@ def test_client_auth_uses_envelope_cookie_refresh_and_audience_boundary():
     assert admin.status_code == 401
     assert admin.json()["code"] == "AUTH_INVALID_TOKEN"
 
-    refresh = client.post(
-        "/api/v1/client/auth/refresh",
-        headers={"X-CSRF-Token": body["data"]["csrf_token"]},
-    )
+    refresh = client.post("/api/v1/client/auth/refresh", json={"refresh_token": body["data"]["refresh_token"]})
     assert refresh.status_code == 200
     assert refresh.json()["data"]["access_token"] != access
+
+
+def test_client_refresh_tokens_are_isolated_between_users():
+    first_username, first_password = create_user()
+    second_username, second_password = create_user()
+    first_client = TestClient(app)
+    second_client = TestClient(app)
+
+    first_login = first_client.post("/api/v1/client/auth/login", json={"username": first_username, "password": first_password})
+    second_login = second_client.post("/api/v1/client/auth/login", json={"username": second_username, "password": second_password})
+    assert first_login.status_code == second_login.status_code == 200, f"first={first_login.text}; second={second_login.text}"
+
+    first_tokens = first_login.json()["data"]
+    second_tokens = second_login.json()["data"]
+    first_refresh = first_client.post("/api/v1/client/auth/refresh", json={"refresh_token": first_tokens["refresh_token"]})
+    second_refresh = second_client.post("/api/v1/client/auth/refresh", json={"refresh_token": second_tokens["refresh_token"]})
+    assert first_refresh.status_code == second_refresh.status_code == 200
+
+    first_me = first_client.get("/api/v1/client/me", headers={"Authorization": f"Bearer {first_refresh.json()['data']['access_token']}"})
+    second_me = second_client.get("/api/v1/client/me", headers={"Authorization": f"Bearer {second_refresh.json()['data']['access_token']}"})
+    assert first_me.json()["data"]["username"] == first_username
+    assert second_me.json()["data"]["username"] == second_username
 
 
 def test_v1_invalid_requests_have_the_standard_error_envelope():

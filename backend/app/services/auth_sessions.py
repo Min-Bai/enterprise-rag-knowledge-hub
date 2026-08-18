@@ -83,11 +83,11 @@ def clear_refresh_cookie(response: Response, audience: str) -> None:
     response.delete_cookie(f"{_cookie_name(audience)}_csrf", path="/")
 
 
-def rotate_session(*, request: Request, audience: str, db: Session) -> tuple[dict[str, object], str]:
+def rotate_session(*, request: Request, audience: str, db: Session, refresh_token: str | None = None) -> tuple[dict[str, object], str]:
     cookie_name = _cookie_name(audience)
-    refresh = request.cookies.get(cookie_name)
+    refresh = refresh_token or request.cookies.get(cookie_name)
     csrf = request.headers.get("X-CSRF-Token")
-    if not refresh or not csrf or csrf != request.cookies.get(f"{cookie_name}_csrf"):
+    if not refresh or (refresh_token is None and (not csrf or csrf != request.cookies.get(f"{cookie_name}_csrf"))):
         raise HTTPException(status_code=401, detail="csrf validation failed")
     try:
         payload = decode_v1_token(refresh, expected_audience=audience, expected_type="refresh")

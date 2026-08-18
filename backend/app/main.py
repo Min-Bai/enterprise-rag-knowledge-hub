@@ -120,7 +120,12 @@ def create_versioned_api(title: str, router) -> FastAPI:
         }, headers=exc.headers)
 
     @versioned.exception_handler(RequestValidationError)
-    async def v1_validation_exception_handler(request: Request, _exc: RequestValidationError):
+    async def v1_validation_exception_handler(request: Request, exc: RequestValidationError):
+        # Log locations and error types only; validation input may contain passwords.
+        logging.getLogger("enterprise_rag.validation").warning(
+            "v1 request validation failed: %s",
+            [{"loc": error.get("loc"), "type": error.get("type")} for error in exc.errors()],
+        )
         return JSONResponse(status_code=422, content={
             "code": "VALIDATION_ERROR", "message": "request validation failed", "data": None,
             "request_id": get_request_id(),

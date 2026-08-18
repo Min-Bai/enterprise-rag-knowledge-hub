@@ -1,8 +1,9 @@
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from secrets import token_urlsafe
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
@@ -24,7 +25,7 @@ from ...services.audit_logs import write_audit_log
 from ...services.email_delivery import EmailDeliveryError, send_password_reset_email
 from ...services.model_providers import list_model_providers, upsert_model_provider
 from ...celery_app import celery_app
-from ...rate_limit import enforce_login_rate_limit
+from ...rate_limit import enforce_account_login_rate_limit, enforce_login_rate_limit
 from ..common.response import ok
 from ..dependencies import require_admin_access, require_admin_user
 
@@ -46,7 +47,8 @@ def _admin_login(payload: UserLogin, request: Request, response: Response, db: S
 
 
 @router.post("/auth/login")
-def login(payload: UserLogin, request: Request, response: Response, _: None = Depends(enforce_login_rate_limit), db: Session = Depends(get_db)):
+def login(payload: Annotated[UserLogin, Body()], request: Request, response: Response, _: None = Depends(enforce_login_rate_limit), db: Session = Depends(get_db)):
+    enforce_account_login_rate_limit(payload.username)
     return _admin_login(payload, request, response, db)
 
 

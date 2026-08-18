@@ -67,6 +67,13 @@ class UserLogin(StrictRequestSchema):
     password: str
 
 
+class RefreshTokenRequest(StrictRequestSchema):
+    # Signed refresh JWTs include audience and session claims, so they are
+    # longer than compact one-time tokens. Keep a bounded request size while
+    # accepting valid tokens from the configured signing implementation.
+    refresh_token: str = Field(min_length=20, max_length=4096)
+
+
 class PasswordChange(StrictRequestSchema):
     old_password: str = Field(min_length=6, max_length=72)
     new_password: str = Field(min_length=6, max_length=72)

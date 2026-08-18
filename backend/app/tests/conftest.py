@@ -51,6 +51,8 @@ app.dependency_overrides[enforce_login_rate_limit] = lambda: None
 @pytest.fixture(autouse=True)
 def allow_self_registration_in_tests(monkeypatch):
     monkeypatch.setattr("backend.app.routers.users.ALLOW_SELF_REGISTRATION", True)
+    monkeypatch.setattr("backend.app.api.client.router.enforce_account_login_rate_limit", lambda _username: None)
+    monkeypatch.setattr("backend.app.api.admin.router.enforce_account_login_rate_limit", lambda _username: None)
 
 
 @pytest.fixture(scope="session", autouse=True)
