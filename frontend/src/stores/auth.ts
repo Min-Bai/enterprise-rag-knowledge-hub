@@ -6,7 +6,9 @@ import type { User } from "../types/api";
 const TAB_ACCOUNT_KEY = "enterprise-rag.client.account-id";
 const TAB_RESTORE_BLOCKED_KEY = "enterprise-rag.client.restore-blocked";
 const CHANNEL_NAME = "enterprise-rag.client-auth";
-const tabId = crypto.randomUUID();
+const tabId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+  ? crypto.randomUUID()
+  : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 type AuthMessage = {
   source: string;
