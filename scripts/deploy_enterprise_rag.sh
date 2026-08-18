@@ -42,10 +42,23 @@ fi
 
 compose_start_failed=0
 echo "Pulling immutable images from GHCR..."
-if ! env API_IMAGE="$api_image" WEB_IMAGE="$web_image" docker compose pull api worker beat frontend; then
-  echo "Unable to pull deployment images from GHCR. Check the VM Docker login and package permissions." >&2
-  exit 1
-fi
+pull_image() {
+  local image="$1"
+  local attempt
+  for attempt in 1 2 3; do
+    echo "Pulling $image (attempt $attempt/3)..."
+    if docker pull "$image"; then
+      return 0
+    fi
+    echo "Image pull was interrupted; retrying in 10 seconds..." >&2
+    sleep 10
+  done
+  echo "Unable to pull $image from GHCR. Check the VM Docker login and package permissions." >&2
+  return 1
+}
+
+pull_image "$api_image"
+pull_image "$web_image"
 
 if ! env API_IMAGE="$api_image" WEB_IMAGE="$web_image" docker compose up -d --no-build api worker beat frontend; then
   # Compose can report a transient dependency-health failure while the API is
