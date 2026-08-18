@@ -10,6 +10,7 @@ from backend.app.models.user_invitation import UserInvitationORM
 from backend.app.models.password_reset import PasswordResetORM
 from backend.app.models.password_reset_request import PasswordResetRequestORM
 from backend.app.models.registration_request import RegistrationRequestORM
+from backend.app.models.audit_log import AuditLogORM
 from backend.app.services.email_delivery import EmailDeliveryError
 from backend.app.tests.conftest import TestingSessionLocal
 
@@ -175,6 +176,64 @@ def test_password_reset_approval_stays_pending_when_email_delivery_fails(monkeyp
         assert request_item is not None
         assert request_item.status == "pending"
         assert db.query(PasswordResetORM).filter(PasswordResetORM.user_id == user_id).count() == 0
+
+
+def test_admin_can_delete_processed_account_requests_without_deleting_audit_log():
+    admin_username, admin_password = create_user()
+    with TestingSessionLocal() as db:
+        admin = db.query(UserORM).filter(UserORM.username == admin_username).one()
+        admin.role = "admin"
+        db.commit()
+
+    registration_username = f"delete_request_{uuid4().hex[:8]}"
+    registration_response = client.post(
+        "/api/v1/client/auth/register",
+        json={
+            "username": registration_username,
+            "email": f"{registration_username}@example.com",
+            "password": "secret123",
+        },
+    )
+    assert registration_response.status_code == 202
+
+    reset_email = f"reset_delete_{uuid4().hex[:8]}@example.com"
+    with TestingSessionLocal() as db:
+        db.add(PasswordResetRequestORM(email=reset_email, status="approved"))
+        db.commit()
+        registration_id = db.query(RegistrationRequestORM).filter(
+            RegistrationRequestORM.username == registration_username
+        ).one().id
+        reset_id = db.query(PasswordResetRequestORM).filter(
+            PasswordResetRequestORM.email == reset_email
+        ).one().id
+
+    login = client.post(
+        "/api/v1/admin/auth/login",
+        json={"username": admin_username, "password": admin_password},
+    )
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['data']['access_token']}"}
+
+    deleted_registration = client.delete(
+        f"/api/v1/admin/registration-requests/{registration_id}", headers=headers
+    )
+    deleted_reset = client.delete(
+        f"/api/v1/admin/password-reset-requests/{reset_id}", headers=headers
+    )
+    assert deleted_registration.status_code == deleted_reset.status_code == 204
+
+    with TestingSessionLocal() as db:
+        assert db.get(RegistrationRequestORM, registration_id) is None
+        assert db.get(PasswordResetRequestORM, reset_id) is None
+        actions = {
+            row.action for row in db.query(AuditLogORM).filter(
+                AuditLogORM.actor_user_id == db.query(UserORM).filter(
+                    UserORM.username == admin_username
+                ).one().id
+            ).all()
+        }
+        assert "admin.registration_request.deleted" in actions
+        assert "admin.password_reset_request.deleted" in actions
 
 
 def test_invitation_registration_is_one_time_and_works_when_public_registration_is_disabled():

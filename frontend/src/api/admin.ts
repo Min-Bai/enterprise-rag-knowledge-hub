@@ -3,11 +3,18 @@ import type { User, UserRole } from "../types/api";
 export interface AdminTokens { access_token: string; token_type: "bearer"; expires_in: number; csrf_token: string; }
 interface Envelope<T> { code: string; message: string; data: T; request_id: string; }
 
+const ADMIN_ERROR_MESSAGES: Record<string, string> = {
+  PASSWORD_RESET_EMAIL_DELIVERY_FAILED: "重置邮件发送失败，请检查 SMTP 配置、邮箱授权码和网络连接。",
+  RATE_LIMIT_SERVICE_UNAVAILABLE: "限流服务暂时不可用，请稍后重试。",
+  PASSWORD_RESET_REQUEST_ALREADY_REVIEWED: "这条重置申请已经处理过了。",
+  REGISTRATION_REQUEST_ALREADY_REVIEWED: "这条注册申请已经处理过了。",
+};
+
 async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`/api/v1/admin${path}`, { ...init, credentials: "include", headers: { "Content-Type": "application/json", ...init.headers } });
   if (response.status === 204) return undefined as T;
   const body = await response.json() as Envelope<T>;
-  if (!response.ok) throw new Error(body.message || "请求失败");
+  if (!response.ok) throw new Error(ADMIN_ERROR_MESSAGES[body.code] || body.message || "请求失败");
   return body.data;
 }
 
@@ -31,9 +38,11 @@ export function createPasswordResetLink(token: string, userId: number, expiresIn
 export interface RegistrationRequest { id: string; username: string; email: string; status: "pending" | "approved" | "rejected"; reviewed_by_user_id: number | null; reviewed_at: string | null; rejection_reason: string | null; created_at: string; }
 export interface PasswordResetRequest { id: string; email: string; status: "pending" | "approved"; reviewed_by_user_id: number | null; reviewed_at: string | null; created_at: string; }
 export function getRegistrationRequests(token: string) { return adminRequest<RegistrationRequest[]>("/registration-requests", { headers: { Authorization: `Bearer ${token}` } }); }
+export function deleteRegistrationRequest(token: string, id: string) { return adminRequest<void>(`/registration-requests/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }); }
 export function approveRegistrationRequest(token: string, id: string) { return adminRequest<User>(`/registration-requests/${id}/approve`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }); }
 export function rejectRegistrationRequest(token: string, id: string, rejectionReason?: string) { return adminRequest<void>(`/registration-requests/${id}/reject`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ rejection_reason: rejectionReason }) }); }
 export function getPasswordResetRequests(token: string) { return adminRequest<PasswordResetRequest[]>("/password-reset-requests", { headers: { Authorization: `Bearer ${token}` } }); }
+export function deletePasswordResetRequest(token: string, id: string) { return adminRequest<void>(`/password-reset-requests/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }); }
 export function approvePasswordResetRequest(token: string, id: string, expiresInHours: number) { return adminRequest<{ expires_at: string; delivery: "email" }>(`/password-reset-requests/${id}/approve`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ expires_in_hours: expiresInHours }) }); }
 export function getOverview(token: string) { return adminRequest<{ users: number; knowledge_bases: number; documents: number; ready_documents: number }>("/analytics/overview", { headers: { Authorization: `Bearer ${token}` } }); }
 export function getWorkerStatus(token: string) { return adminRequest<{ registered_workers: string[]; active_tasks: number; reserved_tasks: number }>("/operations/worker-status", { headers: { Authorization: `Bearer ${token}` } }); }

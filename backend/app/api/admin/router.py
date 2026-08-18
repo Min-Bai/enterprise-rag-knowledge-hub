@@ -344,6 +344,52 @@ def password_reset_requests(db: Session = Depends(get_db), _: UserORM = Depends(
     } for item in rows])
 
 
+@router.delete("/registration-requests/{request_id}", status_code=204)
+def delete_registration_request(
+    request_id: str,
+    db: Session = Depends(get_db),
+    admin: UserORM = Depends(require_admin_user),
+):
+    request_item = db.get(RegistrationRequestORM, request_id)
+    if request_item is None:
+        raise HTTPException(status_code=404, detail="registration request not found")
+    write_audit_log(
+        actor_user_id=admin.id,
+        action="admin.registration_request.deleted",
+        target_type="registration_request",
+        target_id=None,
+        knowledge_base_id=None,
+        details={"registration_request_id": request_item.id, "username": request_item.username},
+        db=db,
+        commit=False,
+    )
+    db.delete(request_item)
+    db.commit()
+
+
+@router.delete("/password-reset-requests/{request_id}", status_code=204)
+def delete_password_reset_request(
+    request_id: str,
+    db: Session = Depends(get_db),
+    admin: UserORM = Depends(require_admin_user),
+):
+    request_item = db.get(PasswordResetRequestORM, request_id)
+    if request_item is None:
+        raise HTTPException(status_code=404, detail="password reset request not found")
+    write_audit_log(
+        actor_user_id=admin.id,
+        action="admin.password_reset_request.deleted",
+        target_type="password_reset_request",
+        target_id=None,
+        knowledge_base_id=None,
+        details={"password_reset_request_id": request_item.id, "email": request_item.email},
+        db=db,
+        commit=False,
+    )
+    db.delete(request_item)
+    db.commit()
+
+
 @router.post("/password-reset-requests/{request_id}/approve", status_code=201)
 def approve_password_reset_request(
     request_id: str,
