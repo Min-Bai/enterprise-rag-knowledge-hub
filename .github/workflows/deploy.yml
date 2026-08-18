@@ -82,42 +82,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Release Docker build cache before export
-        run: |
-          docker buildx rm "${{ steps.buildx.outputs.name }}" || true
-          docker system prune --all --force --volumes
-          df -h /
-
-      - name: Export immutable API image
-        env:
-          API_IMAGE: ${{ steps.api-meta.outputs.tags }}
-        run: |
-          set -o pipefail
-          mkdir -p "$RUNNER_TEMP/enterprise-rag-images"
-          docker pull "$API_IMAGE"
-          docker save "$API_IMAGE" | gzip -1 > "$RUNNER_TEMP/enterprise-rag-images/api.tar.gz"
-          docker image rm --force "$API_IMAGE"
-
-      - name: Export immutable web image
-        env:
-          WEB_IMAGE: ${{ steps.web-meta.outputs.tags }}
-        run: |
-          set -o pipefail
-          docker pull "$WEB_IMAGE"
-          docker save "$WEB_IMAGE" | gzip -1 > "$RUNNER_TEMP/enterprise-rag-images/web.tar.gz"
-          docker image rm --force "$WEB_IMAGE"
-
-      - name: Upload immutable deployment images
-        uses: actions/upload-artifact@v4
-        with:
-          name: enterprise-rag-images-${{ env.DEPLOY_SHA }}
-          path: |
-            ${{ runner.temp }}/enterprise-rag-images/api.tar.gz
-            ${{ runner.temp }}/enterprise-rag-images/web.tar.gz
-          if-no-files-found: error
-          retention-days: 1
-          compression-level: 0
-
   deploy:
     name: Deploy to Enterprise RAG VM
     needs: build-images
@@ -132,53 +96,11 @@ jobs:
       API_IMAGE: ${{ needs.build-images.outputs.api_image }}
       WEB_IMAGE: ${{ needs.build-images.outputs.web_image }}
     steps:
-      - name: Download immutable deployment images
-        uses: actions/download-artifact@v4
-        with:
-          name: enterprise-rag-images-${{ env.DEPLOY_SHA }}
-          path: ${{ runner.temp }}\enterprise-rag-images
-
-      - name: Verify deployment image archive
-        shell: powershell
-        run: |
-          $imageDirectory = Join-Path $env:RUNNER_TEMP 'enterprise-rag-images'
-          $apiArchives = @(Get-ChildItem -LiteralPath $imageDirectory -Filter 'api.tar.gz' -File -Recurse -ErrorAction SilentlyContinue)
-          $webArchives = @(Get-ChildItem -LiteralPath $imageDirectory -Filter 'web.tar.gz' -File -Recurse -ErrorAction SilentlyContinue)
-          if ($apiArchives.Count -ne 1 -or $webArchives.Count -ne 1) {
-            Write-Host 'Downloaded deployment artifact files:'
-            Get-ChildItem -LiteralPath $imageDirectory -File -Recurse -ErrorAction SilentlyContinue |
-              Select-Object FullName, Length |
-              Format-Table -AutoSize
-            throw 'One or more deployment image archives were not downloaded.'
-          }
-          $apiArchive = $apiArchives[0].FullName
-          $webArchive = $webArchives[0].FullName
-          "API_ARCHIVE=$apiArchive" >> $env:GITHUB_ENV
-          "WEB_ARCHIVE=$webArchive" >> $env:GITHUB_ENV
-
-      - name: Transfer immutable images to virtual machine
-        shell: powershell
-        run: |
-          scp $env:API_ARCHIVE enterprise-rag-vm:/tmp/enterprise-rag-api-image.tar.gz
-          scp $env:WEB_ARCHIVE enterprise-rag-vm:/tmp/enterprise-rag-web-image.tar.gz
-
       - name: Deploy checked CI commit
         shell: powershell
         run: |
-          $remoteCommand = "cd ~/enterprise-rag-knowledge-hub && git fetch origin main && git show '$($env:DEPLOY_SHA):scripts/deploy_enterprise_rag.sh' > /tmp/deploy_enterprise_rag.sh && bash /tmp/deploy_enterprise_rag.sh '$env:DEPLOY_SHA' '$env:API_IMAGE' '$env:WEB_IMAGE' /tmp/enterprise-rag-api-image.tar.gz /tmp/enterprise-rag-web-image.tar.gz"
+          $remoteCommand = "cd ~/enterprise-rag-knowledge-hub && git fetch origin main && git show '$($env:DEPLOY_SHA):scripts/deploy_enterprise_rag.sh' > /tmp/deploy_enterprise_rag.sh && bash /tmp/deploy_enterprise_rag.sh '$env:DEPLOY_SHA' '$env:API_IMAGE' '$env:WEB_IMAGE'"
           ssh enterprise-rag-vm $remoteCommand
-
-      - name: Remove staged image archive
-        if: always()
-        shell: powershell
-        run: |
-          ssh enterprise-rag-vm "rm -f /tmp/enterprise-rag-api-image.tar.gz /tmp/enterprise-rag-web-image.tar.gz /tmp/deploy_enterprise_rag.sh"
-          if ($env:API_ARCHIVE) {
-            Remove-Item -Force -ErrorAction SilentlyContinue $env:API_ARCHIVE
-          }
-          if ($env:WEB_ARCHIVE) {
-            Remove-Item -Force -ErrorAction SilentlyContinue $env:WEB_ARCHIVE
-          }
 
       - name: Check API health
         shell: powershell
