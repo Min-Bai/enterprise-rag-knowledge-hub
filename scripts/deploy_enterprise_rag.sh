@@ -4,10 +4,12 @@ set -euo pipefail
 target_commit="${1:-}"
 api_image="${2:-}"
 web_image="${3:-}"
+api_image_archive="${4:-}"
+web_image_archive="${5:-}"
 project_dir="$HOME/enterprise-rag-knowledge-hub"
 
-if [[ -z "$target_commit" || -z "$api_image" || -z "$web_image" ]]; then
-  echo "Usage: $0 <commit-sha> <api-image> <web-image>" >&2
+if [[ -z "$target_commit" || -z "$api_image" || -z "$web_image" || -z "$api_image_archive" || -z "$web_image_archive" ]]; then
+  echo "Usage: $0 <commit-sha> <api-image> <web-image> <api-image-archive> <web-image-archive>" >&2
   exit 2
 fi
 
@@ -40,12 +42,20 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-echo "Pulling API image: $api_image"
-docker pull "$api_image"
-echo "Pulling web image: $web_image"
-docker pull "$web_image"
+if ! command -v gzip >/dev/null; then
+  echo "gzip is required to load the staged image archives." >&2
+  exit 1
+fi
 
 compose_start_failed=0
+for image_archive in "$api_image_archive" "$web_image_archive"; do
+  if [[ ! -f "$image_archive" ]]; then
+    echo "Missing staged image archive: $image_archive" >&2
+    exit 1
+  fi
+  gzip --decompress --stdout "$image_archive" | docker load
+  rm -f "$image_archive"
+done
 
 if ! env API_IMAGE="$api_image" WEB_IMAGE="$web_image" docker compose up -d --no-build api worker beat frontend; then
   # Compose can report a transient dependency-health failure while the API is
