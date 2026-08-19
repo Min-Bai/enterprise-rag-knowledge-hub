@@ -4,6 +4,7 @@ from secrets import token_urlsafe
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
@@ -32,6 +33,10 @@ from ..common.response import ok
 from ..dependencies import require_admin_access, require_admin_user
 
 router = APIRouter()
+
+
+class BulkIdsPayload(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=100)
 
 
 def _admin_login(payload: UserLogin, request: Request, response: Response, db: Session):
@@ -389,6 +394,28 @@ def delete_registration_request(
     db.commit()
 
 
+@router.delete("/registration-requests", status_code=204)
+def delete_registration_requests(
+    payload: BulkIdsPayload,
+    db: Session = Depends(get_db),
+    admin: UserORM = Depends(require_admin_user),
+):
+    rows = db.scalars(select(RegistrationRequestORM).where(RegistrationRequestORM.id.in_(payload.ids))).all()
+    for request_item in rows:
+        write_audit_log(
+            actor_user_id=admin.id,
+            action="admin.registration_request.deleted",
+            target_type="registration_request",
+            target_id=None,
+            knowledge_base_id=None,
+            details={"registration_request_id": request_item.id, "username": request_item.username, "bulk": True},
+            db=db,
+            commit=False,
+        )
+        db.delete(request_item)
+    db.commit()
+
+
 @router.delete("/password-reset-requests/{request_id}", status_code=204)
 def delete_password_reset_request(
     request_id: str,
@@ -409,6 +436,28 @@ def delete_password_reset_request(
         commit=False,
     )
     db.delete(request_item)
+    db.commit()
+
+
+@router.delete("/password-reset-requests", status_code=204)
+def delete_password_reset_requests(
+    payload: BulkIdsPayload,
+    db: Session = Depends(get_db),
+    admin: UserORM = Depends(require_admin_user),
+):
+    rows = db.scalars(select(PasswordResetRequestORM).where(PasswordResetRequestORM.id.in_(payload.ids))).all()
+    for request_item in rows:
+        write_audit_log(
+            actor_user_id=admin.id,
+            action="admin.password_reset_request.deleted",
+            target_type="password_reset_request",
+            target_id=None,
+            knowledge_base_id=None,
+            details={"password_reset_request_id": request_item.id, "email": request_item.email, "bulk": True},
+            db=db,
+            commit=False,
+        )
+        db.delete(request_item)
     db.commit()
 
 
@@ -545,6 +594,28 @@ def revoke_invitation(
             commit=False,
         )
         db.commit()
+
+
+@router.delete("/invitations", status_code=204)
+def delete_invitations(
+    payload: BulkIdsPayload,
+    db: Session = Depends(get_db),
+    admin: UserORM = Depends(require_admin_user),
+):
+    rows = db.scalars(select(UserInvitationORM).where(UserInvitationORM.id.in_(payload.ids))).all()
+    for invitation in rows:
+        write_audit_log(
+            actor_user_id=admin.id,
+            action="admin.invitation.deleted",
+            target_type="user_invitation",
+            target_id=None,
+            knowledge_base_id=None,
+            details={"invitation_id": invitation.id, "email": invitation.email, "bulk": True},
+            db=db,
+            commit=False,
+        )
+        db.delete(invitation)
+    db.commit()
 
 
 @router.get("/operations/worker-status")
