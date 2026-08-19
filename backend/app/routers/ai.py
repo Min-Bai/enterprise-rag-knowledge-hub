@@ -153,7 +153,7 @@ def stream_document_answer(
             db=db,
         )
         stream = stream_document_answer_service(request=request, prepared=prepared, db=db)
-        return StreamingResponse(stream, media_type='text/event-stream')
+        return StreamingResponse(stream, media_type='text/event-stream', headers={'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no', 'Connection': 'keep-alive'})
     except DocumentNotFoundError:
         raise HTTPException(status_code=404, detail='document not found')
     except ConversationNotFoundError:
@@ -176,6 +176,7 @@ def stream_knowledge_base_answer(
         return StreamingResponse(
             stream_document_answer_service(request=request, prepared=prepared, db=db),
             media_type='text/event-stream',
+            headers={'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no', 'Connection': 'keep-alive'},
         )
     except KnowledgeBaseNotFoundError:
         raise HTTPException(status_code=404, detail='knowledge base not found')

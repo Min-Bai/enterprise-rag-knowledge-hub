@@ -34,6 +34,48 @@ export const useChatStore = defineStore("chat", () => {
   const isAnswering = ref(false);
   const errorMessage = ref("");
   let abortController: AbortController | null = null;
+  let streamQueue = "";
+  let streamTimer: ReturnType<typeof setTimeout> | null = null;
+  let streamDrain: Promise<void> | null = null;
+  let resolveStreamDrain: (() => void) | null = null;
+
+  function completeStreamDrain() {
+    const resolver = resolveStreamDrain as (() => void) | null;
+    resolveStreamDrain = null;
+    streamDrain = null;
+    if (resolver) resolver();
+  }
+
+  function renderNextStreamCharacter(messageId: number) {
+    if (!streamQueue) {
+      streamTimer = null;
+      completeStreamDrain();
+      return;
+    }
+    const character = streamQueue[0];
+    streamQueue = streamQueue.slice(1);
+    pendingMessages.value = pendingMessages.value.map((message) =>
+      message.id === messageId
+        ? { ...message, content: message.content + character }
+        : message,
+    );
+    streamTimer = setTimeout(() => renderNextStreamCharacter(messageId), 18);
+  }
+
+  function enqueueStreamText(messageId: number, text: string) {
+    streamQueue += text;
+    if (!streamTimer) renderNextStreamCharacter(messageId);
+  }
+
+  function waitForStreamQueue() {
+    if (!streamQueue && !streamTimer) return Promise.resolve();
+    if (!streamDrain) {
+      streamDrain = new Promise<void>((resolve) => {
+        resolveStreamDrain = resolve;
+      });
+    }
+    return streamDrain;
+  }
 
   const selectedConversation = computed(
     () =>
@@ -162,6 +204,11 @@ export const useChatStore = defineStore("chat", () => {
       local: true,
     };
     pendingMessages.value = [...messages.value, userMessage, assistantMessage];
+    streamQueue = "";
+    if (streamTimer) clearTimeout(streamTimer);
+    streamTimer = null;
+    streamDrain = null;
+    resolveStreamDrain = null;
     activeSources.value = [];
     errorMessage.value = "";
     isAnswering.value = true;
@@ -186,15 +233,12 @@ export const useChatStore = defineStore("chat", () => {
             );
           },
           onToken: (text) => {
-            pendingMessages.value = pendingMessages.value.map((message) =>
-              message.id === assistantMessage.id
-                ? { ...message, content: message.content + text }
-                : message,
-            );
+            enqueueStreamText(assistantMessage.id, text);
           },
         },
         abortController.signal,
       );
+      await waitForStreamQueue();
       await loadConversations();
       pendingMessages.value = [];
     } catch (error) {
@@ -214,6 +258,10 @@ export const useChatStore = defineStore("chat", () => {
         errorMessage.value =
           error instanceof Error ? error.message : "生成回答失败，请稍后重试。";
     } finally {
+      streamQueue = "";
+      if (streamTimer) clearTimeout(streamTimer);
+      streamTimer = null;
+      completeStreamDrain();
       isAnswering.value = false;
       abortController = null;
     }
