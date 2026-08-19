@@ -57,6 +57,9 @@ def list_model_providers(db: Session) -> list[dict[str, object]]:
 
 def upsert_model_provider(db: Session, slug: str, payload: ModelProviderUpsert) -> dict[str, object]:
     provider = db.scalar(select(ModelProviderORM).where(ModelProviderORM.slug == slug))
+    existing_key = provider.api_key_encrypted if provider is not None else None
+    if payload.is_active and slug != "ollama" and not payload.api_key and not existing_key:
+        raise ValueError("active model provider requires an API key")
     if provider is None:
         provider = ModelProviderORM(slug=slug, display_name=payload.display_name, base_url=payload.base_url, model_name=payload.model_name)
         db.add(provider)
