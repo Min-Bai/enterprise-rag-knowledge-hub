@@ -58,7 +58,7 @@ def test_enqueue_document_processing_sends_celery_task(monkeypatch):
 
     task.apply_async.assert_called_once_with(
         args=[42],
-        queue=document_queue.DOCUMENT_QUEUE_NAME,
+        queue=document_queue.DOCUMENT_DEFAULT_QUEUE,
     )
 
 def test_upload_document_rejects_rate_limited_user(monkeypatch, tmp_path):
