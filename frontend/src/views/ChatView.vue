@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import {
   BookOpenCheck,
@@ -24,7 +24,13 @@ const chat = useChatStore();
 const route = useRoute();
 const router = useRouter();
 const citationsOpen = ref(false);
+const messageList = ref<HTMLElement>();
 const hasMessages = computed(() => chat.messages.length > 0);
+
+async function scrollToLatestMessage() {
+  await nextTick();
+  if (messageList.value) messageList.value.scrollTop = messageList.value.scrollHeight;
+}
 
 async function restoreConversationFromRoute() {
   const knowledgeBaseId = Number(route.query.knowledge_base_id);
@@ -58,6 +64,11 @@ watch(
   () => {
     if (chat.knowledgeBases.length) void restoreConversationFromRoute();
   },
+);
+
+watch(
+  () => chat.messages.map((message) => `${message.id}:${message.content.length}`).join("|"),
+  () => void scrollToLatestMessage(),
 );
 
 async function handleDownload(source: Citation) {
@@ -135,7 +146,7 @@ async function handleDownload(source: Citation) {
             <el-skeleton :rows="4" animated />
             <el-skeleton :rows="5" animated />
           </div>
-          <div v-else-if="hasMessages" class="message-list" aria-live="polite">
+          <div v-else-if="hasMessages" ref="messageList" class="message-list" aria-live="polite">
             <AnswerMessage
               v-for="message in chat.messages"
               :key="message.id"

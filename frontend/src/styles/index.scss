@@ -1169,13 +1169,24 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .chat-panel-heading { justify-content: space-between; }
 .chat-panel-heading strong { color: #485267; font-size: 13px; font-weight: 500; }
 .chat-panel-heading span { color: #8892a3; font-size: 12px; }
-.message-list { background: #f8f9fc; gap: 18px; padding: 20px 28px; }
-.message { gap: 8px; max-width: 920px; }
-.message header { color: #6e788b; font-size: 12px; }
-.message-user > p { background: #409eff; border-radius: 3px; color: #fff; padding: 11px 14px; }
-.message-assistant { background: #fff; border: 1px solid #edf0f5; border-radius: 3px; padding: 16px 18px; }
+.message-list { background: #f6f8fc; gap: 20px; padding: 24px 28px; scroll-behavior: smooth; }
+.message { gap: 7px; max-width: min(820px, 88%); }
+.message header { color: #778197; font-size: 12px; }
+.message-user { justify-self: end; max-width: min(620px, 76%); width: auto; }
+.message-user > p { background: #5846e9; border-radius: 14px 14px 4px 14px; box-shadow: 0 2px 5px rgb(55 42 170 / 18%); color: #fff; padding: 12px 16px; }
+.message-assistant { justify-self: start; width: min(820px, 88%); }
+.assistant-bubble { background: #fff; border: 1px solid #e2e6ed; border-radius: 14px 14px 14px 4px; color: #20293a; min-height: 52px; padding: 16px 18px; }
+.message-assistant.streaming .assistant-bubble { border-color: #d7d5ff; }
 .message-assistant .message-actions { border-top: 1px solid #edf0f5; margin-top: 2px; padding-top: 8px; }
 .message-assistant .markdown-content { font-size: 14px; }
+.thinking-indicator { align-items: center; color: #69758b; display: inline-flex; font-style: italic; gap: 9px; min-height: 20px; }
+.thinking-dots { display: inline-flex; gap: 4px; }
+.thinking-dots i { animation: thinking-pulse 1.2s ease-in-out infinite; background: #5b49e7; border-radius: 50%; display: block; height: 6px; width: 6px; }
+.thinking-dots i:nth-child(2) { animation-delay: .16s; }
+.thinking-dots i:nth-child(3) { animation-delay: .32s; }
+.streaming-cursor { animation: streaming-blink 800ms steps(2, start) infinite; background: #5b49e7; display: inline-block; height: 17px; margin-left: 3px; vertical-align: text-bottom; width: 2px; }
+@keyframes thinking-pulse { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+@keyframes streaming-blink { 50% { opacity: 0; } }
 .message-actions .text-button { font-size: 12px; padding: 4px 0; }
 .composer { gap: 10px; padding: 12px 14px; }
 .composer-controls { grid-template-columns: minmax(170px, .36fr) minmax(180px, .64fr); }
