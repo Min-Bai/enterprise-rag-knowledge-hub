@@ -8,6 +8,7 @@ const ADMIN_ERROR_MESSAGES: Record<string, string> = {
   RATE_LIMIT_SERVICE_UNAVAILABLE: "限流服务暂时不可用，请稍后重试。",
   PASSWORD_RESET_REQUEST_ALREADY_REVIEWED: "这条重置申请已经处理过了。",
   REGISTRATION_REQUEST_ALREADY_REVIEWED: "这条注册申请已经处理过了。",
+  MODEL_PROVIDER_KEY_REQUIRED: "启用该模型前必须填写 API Key。",
 };
 
 async function adminRequest<T>(path: string, init: RequestInit = {}): Promise<T> {

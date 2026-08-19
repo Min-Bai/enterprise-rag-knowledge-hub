@@ -91,7 +91,10 @@ def save_model_provider(
     normalized_slug = slug.strip().lower()
     if not normalized_slug or not normalized_slug.replace("-", "").isalnum():
         raise HTTPException(status_code=422, detail="model provider slug is invalid")
-    provider = upsert_model_provider(db, normalized_slug, payload)
+    try:
+        provider = upsert_model_provider(db, normalized_slug, payload)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
     write_audit_log(
         actor_user_id=admin.id,
         action="admin.model_provider.updated",

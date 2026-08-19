@@ -32,6 +32,10 @@ async function load() {
 }
 async function save(provider: ProviderForm) {
   if (!auth.token) return;
+  if (provider.is_active && provider.slug !== "ollama" && !provider.api_key && !provider.api_key_configured) {
+    ElMessage.error("启用该模型前必须填写 API Key。" );
+    return;
+  }
   savingSlug.value = provider.slug;
   try {
     const saved = await saveModelProvider(auth.token, provider.slug, { display_name: provider.display_name, base_url: provider.base_url, model_name: provider.model_name, api_key: provider.api_key || undefined, is_active: provider.is_active });

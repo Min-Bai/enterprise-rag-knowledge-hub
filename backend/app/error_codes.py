@@ -49,6 +49,7 @@ ERROR_CODE_BY_DETAIL = {
     "unsupported document type": "DOCUMENT_FILE_TYPE_INVALID",
     "processing documents cannot have tags updated": "DOCUMENT_TAGS_LOCKED",
     "rate limit service unavailable": "RATE_LIMIT_SERVICE_UNAVAILABLE",
+    "active model provider requires an API key": "MODEL_PROVIDER_KEY_REQUIRED",
     "too many login attempts": "LOGIN_RATE_LIMITED",
     "self registration is disabled": "REGISTRATION_DISABLED",
     "user is inactive": "USER_INACTIVE",
