@@ -13,6 +13,7 @@ from ..schemas.ai import (
     KnowledgeBaseAnswerRequest,
     AnswerFeedbackRequest,
     ConversationMessageResponse,
+    TableQuestionRequest, KnowledgeBaseToolResponse,
 )
 from ..services.answer_feedback import AnswerFeedbackNotFoundError, save_answer_feedback
 from ..services.ai import (
@@ -33,8 +34,53 @@ from ..services.conversations import (
 from ..services.documents import get_document_service
 from ..exceptions import DocumentNotFoundError
 from ..services.knowledge_bases import KnowledgeBaseNotFoundError
+from ..services.ai_tools import answer_table_question, extract_information, summarize_knowledge_base
 
 router = APIRouter(prefix='/ai', tags=['ai'])
+
+
+@router.post('/knowledge-bases/{knowledge_base_id}/summarize', response_model=KnowledgeBaseToolResponse)
+def summarize_knowledge_base_route(knowledge_base_id: int, db: Session = Depends(get_db), current_user: UserORM = Depends(get_current_user)):
+    enforce_ai_rate_limit(current_user.id)
+    try:
+        result, sources = summarize_knowledge_base(knowledge_base_id=knowledge_base_id, user=current_user, db=db)
+        return {"result": result, "sources": sources}
+    except KnowledgeBaseNotFoundError:
+        raise HTTPException(status_code=404, detail='knowledge base not found')
+    except AiNotConfiguredError:
+        raise HTTPException(status_code=503, detail='AI service is not configured')
+    except AiProviderError:
+        raise HTTPException(status_code=502, detail='AI provider request failed')
+
+
+@router.post('/knowledge-bases/{knowledge_base_id}/extract', response_model=KnowledgeBaseToolResponse)
+def extract_knowledge_base_route(knowledge_base_id: int, db: Session = Depends(get_db), current_user: UserORM = Depends(get_current_user)):
+    enforce_ai_rate_limit(current_user.id)
+    try:
+        result, sources = extract_information(knowledge_base_id=knowledge_base_id, user=current_user, db=db)
+        return {"result": result, "sources": sources}
+    except KnowledgeBaseNotFoundError:
+        raise HTTPException(status_code=404, detail='knowledge base not found')
+    except AiNotConfiguredError:
+        raise HTTPException(status_code=503, detail='AI service is not configured')
+    except AiProviderError:
+        raise HTTPException(status_code=502, detail='AI provider request failed')
+
+
+@router.post('/knowledge-bases/{knowledge_base_id}/table-query', response_model=KnowledgeBaseToolResponse)
+def table_query_route(knowledge_base_id: int, payload: TableQuestionRequest, db: Session = Depends(get_db), current_user: UserORM = Depends(get_current_user)):
+    if payload.knowledge_base_id != knowledge_base_id:
+        raise HTTPException(status_code=400, detail='knowledge base id does not match')
+    enforce_ai_rate_limit(current_user.id)
+    try:
+        result, sources = answer_table_question(knowledge_base_id=knowledge_base_id, question=payload.question, user=current_user, db=db)
+        return {"result": result, "sources": sources}
+    except KnowledgeBaseNotFoundError:
+        raise HTTPException(status_code=404, detail='knowledge base not found')
+    except AiNotConfiguredError:
+        raise HTTPException(status_code=503, detail='AI service is not configured')
+    except AiProviderError:
+        raise HTTPException(status_code=502, detail='AI provider request failed')
 
 
 @router.delete('/conversations/{conversation_id}', status_code=204)

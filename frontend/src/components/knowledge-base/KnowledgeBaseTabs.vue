@@ -20,6 +20,10 @@ const tabs = computed(() => [
     path: `/app/knowledge-bases/${props.knowledgeBaseId}/retrieval-test`,
     hidden: props.role === "viewer",
   },
+  {
+    label: "高级能力",
+    path: `/app/knowledge-bases/${props.knowledgeBaseId}/tools`,
+  },
   ...(props.role === "owner"
     ? [
         {

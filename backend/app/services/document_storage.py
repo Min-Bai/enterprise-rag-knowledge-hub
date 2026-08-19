@@ -19,6 +19,17 @@ SUPPORTED_DOCUMENT_TYPES = {
     ".csv": {"text/csv", "application/csv", "application/vnd.ms-excel", "application/octet-stream"},
     ".docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/octet-stream"},
     ".xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel", "application/octet-stream"},
+    ".doc": {"application/msword", "application/octet-stream"},
+    ".xls": {"application/vnd.ms-excel", "application/octet-stream"},
+    ".png": {"image/png", "application/octet-stream"},
+    ".jpg": {"image/jpeg", "image/jpg", "application/octet-stream"},
+    ".jpeg": {"image/jpeg", "image/jpg", "application/octet-stream"},
+    ".tiff": {"image/tiff", "application/octet-stream"},
+    ".bmp": {"image/bmp", "application/octet-stream"},
+    ".mp3": {"audio/mpeg", "application/octet-stream"},
+    ".wav": {"audio/wav", "audio/x-wav", "application/octet-stream"},
+    ".m4a": {"audio/mp4", "audio/x-m4a", "application/octet-stream"},
+    ".ogg": {"audio/ogg", "application/ogg", "application/octet-stream"},
 }
 
 
@@ -69,7 +80,7 @@ async def save_document_file(file: UploadFile) -> tuple[str, str]:
     if suffix in {".docx", ".xlsx"}:
         validate_office_document(content, suffix)
 
-    if suffix not in {".pdf", ".docx", ".xlsx"}:
+    if suffix not in {".pdf", ".docx", ".xlsx", ".doc", ".xls", ".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".mp3", ".wav", ".m4a", ".ogg"}:
         try:
             content.decode("utf-8-sig")
         except UnicodeDecodeError as error:

@@ -1,0 +1,17 @@
+<script setup lang="ts">
+import { onMounted, ref } from "vue";
+import { ArrowLeft, FileSearch, ListTree, Table2 } from "lucide-vue-next";
+import { ElMessage } from "element-plus";
+import { useRoute } from "vue-router";
+import AppLayout from "../layouts/AppLayout.vue";
+import KnowledgeBaseTabs from "../components/knowledge-base/KnowledgeBaseTabs.vue";
+import { getKnowledgeBases } from "../api/knowledgeBases";
+import { extractKnowledgeBase, askTableQuestion, summarizeKnowledgeBase, type ToolResult } from "../api/aiTools";
+import { useAuthStore } from "../stores/auth";
+import type { KnowledgeBase } from "../types/api";
+const route = useRoute(); const auth = useAuthStore(); const id = Number(route.params.id);
+const knowledgeBase = ref<KnowledgeBase | null>(null); const loading = ref(""); const summary = ref<ToolResult | null>(null); const extraction = ref<ToolResult | null>(null); const table = ref<ToolResult | null>(null); const question = ref("");
+onMounted(async () => { if (auth.token) knowledgeBase.value = (await getKnowledgeBases(auth.token)).find(item => item.id === id) ?? null; });
+async function run(name: "summary" | "extraction" | "table") { if (!auth.token) return; if (name === "table" && !question.value.trim()) { ElMessage.warning("请先输入表格问题"); return; } loading.value = name; try { if (name === "summary") summary.value = await summarizeKnowledgeBase(auth.token, id); else if (name === "extraction") extraction.value = await extractKnowledgeBase(auth.token, id); else table.value = await askTableQuestion(auth.token, id, question.value); } catch (e) { ElMessage.error(e instanceof Error ? e.message : "AI 工具执行失败"); } finally { loading.value = ""; } }
+</script>
+<template><AppLayout><section class="page-shell" aria-labelledby="tools-title"><header class="page-header"><div><RouterLink class="back-link" :to="`/app/knowledge-bases/${id}`"><ArrowLeft :size="15"/> 返回知识库概览</RouterLink><p class="eyebrow">AI 工作台</p><h1 id="tools-title">高级能力</h1><p>基于当前知识库已完成文档执行摘要、信息抽取和表格问答。</p></div></header><KnowledgeBaseTabs v-if="knowledgeBase" :knowledge-base-id="id" :role="knowledgeBase.role"/><section class="tool-grid"><article class="table-surface"><FileSearch :size="22"/><h2>文档摘要</h2><p>提炼知识库的主题、关键事实和结论。</p><el-button type="primary" :loading="loading === 'summary'" @click="run('summary')">生成摘要</el-button><el-alert v-if="summary" class="tool-result" type="info" :title="String(summary.result)" show-icon/></article><article class="table-surface"><ListTree :size="22"/><h2>信息抽取</h2><p>识别人名、金额和条款，结果仅来自检索证据。</p><el-button type="primary" :loading="loading === 'extraction'" @click="run('extraction')">开始抽取</el-button><div v-if="extraction && typeof extraction.result !== 'string'" class="extract-result"><h3>人名</h3><p>{{ extraction.result.people.join('、') || '未识别到' }}</p><h3>金额</h3><p>{{ extraction.result.amounts.join('、') || '未识别到' }}</p><h3>条款</h3><p>{{ extraction.result.clauses.join('；') || '未识别到' }}</p></div></article><article class="table-surface tool-table"><Table2 :size="22"/><h2>表格问答</h2><p>询问销量、排名、金额等表格数据，回答会保留来源。</p><el-input v-model="question" type="textarea" :rows="3" maxlength="1000" show-word-limit placeholder="例如：2025 年销售额最高的产品是什么？"/><el-button type="primary" :loading="loading === 'table'" @click="run('table')">查询表格</el-button><el-alert v-if="table" class="tool-result" type="info" :title="String(table.result)" show-icon/></article></section></section></AppLayout></template>

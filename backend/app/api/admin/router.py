@@ -17,13 +17,15 @@ from ...models.user_invitation import UserInvitationORM
 from ...models.password_reset import PasswordResetORM
 from ...models.password_reset_request import PasswordResetRequestORM
 from ...models.registration_request import RegistrationRequestORM
+from ...models.model_provider import ModelProviderORM
 from ...schemas.model_provider import ModelProviderUpsert
 from ...schemas.user import AccountRequestReview, AdminUserCreate, InvitationCreate, PasswordChange, PasswordResetLinkCreate, UserLogin, UserProfileUpdate, UserResponse, UserRoleUpdate, UserUpdate
 from ...services.auth_sessions import clear_refresh_cookie, issue_session, revoke_session, rotate_session, set_refresh_cookie
 from ...services.users import change_password_service, create_user_from_password_hash_service, create_user_with_role_service, delete_user_service, login_user_service, update_my_profile_service, update_user_role_service, update_user_service
 from ...services.audit_logs import write_audit_log
 from ...services.email_delivery import EmailDeliveryError, send_password_reset_email
-from ...services.model_providers import list_model_providers, upsert_model_provider
+from ...services.model_providers import list_model_providers, upsert_model_provider, _cipher
+from ...services.ai_tools import test_provider_connection
 from ...celery_app import celery_app
 from ...rate_limit import enforce_account_login_rate_limit, enforce_login_rate_limit
 from ..common.response import ok
@@ -105,6 +107,23 @@ def save_model_provider(
         db=db,
     )
     return ok(provider)
+
+
+@router.post("/model-providers/{slug}/test")
+def test_model_provider(slug: str, db: Session = Depends(get_db), _: UserORM = Depends(require_admin_user)):
+    provider = db.scalar(select(ModelProviderORM).where(ModelProviderORM.slug == slug.strip().lower()))
+    if provider is None:
+        raise HTTPException(status_code=404, detail="model provider not found")
+    key = _cipher().decrypt(provider.api_key_encrypted.encode("utf-8")).decode("utf-8") if provider.api_key_encrypted else None
+    try:
+        return ok({"message": test_provider_connection(base_url=provider.base_url, model_name=provider.model_name, api_key=key)})
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
+    except Exception as error:
+        from ...services.ai import AiProviderError
+        if isinstance(error, AiProviderError):
+            raise HTTPException(status_code=502, detail=str(error))
+        raise
 
 
 @router.patch("/me")

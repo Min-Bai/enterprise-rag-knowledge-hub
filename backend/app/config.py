@@ -114,6 +114,13 @@ DOCUMENT_UPLOAD_RATE_WINDOW_SECONDS = get_positive_int_env(
     60 * 60,
 )
 MAX_DOCUMENT_SIZE_MB = get_positive_int_env("MAX_DOCUMENT_SIZE_MB", 10)
+OCR_ENABLED = get_optional_bool_env("OCR_ENABLED", False)
+OCR_LANGUAGES = getenv("OCR_LANGUAGES", "chi_sim+eng")
+TRANSCRIPTION_ENABLED = get_optional_bool_env("TRANSCRIPTION_ENABLED", False)
+TRANSCRIPTION_BASE_URL = getenv("TRANSCRIPTION_BASE_URL", "").rstrip("/")
+TRANSCRIPTION_API_KEY = getenv("TRANSCRIPTION_API_KEY", "")
+TRANSCRIPTION_MODEL = getenv("TRANSCRIPTION_MODEL", "whisper-1")
+AI_CONTEXT_MAX_CHARS = get_positive_int_env("AI_CONTEXT_MAX_CHARS", 12000)
 
 
 def get_score_env(name: str, default: float) -> float:

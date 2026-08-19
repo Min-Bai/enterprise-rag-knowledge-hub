@@ -1,0 +1,6 @@
+# Optional image OCR support. Install only when OCR_ENABLED=true.
+Pillow>=10,<12
+pytesseract>=0.3.13,<0.4
+
+# Optional legacy XLS parsing is already included in requirements.txt.
+# Legacy DOC parsing uses the system command `antiword`.
