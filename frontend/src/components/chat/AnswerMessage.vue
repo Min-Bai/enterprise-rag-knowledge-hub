@@ -30,7 +30,7 @@ markdown.renderer.rules.link_open = (
 };
 const html = computed(() =>
   DOMPurify.sanitize(
-    markdown.render(props.message.content || "正在生成回答..."),
+    markdown.render(props.message.content),
     { ALLOWED_ATTR: ["href", "target", "rel"] },
   ),
 );
@@ -48,21 +48,20 @@ async function copyAnswer() {
 <template>
   <article
     class="message"
-    :class="[`message-${message.role}`, { pending: message.pending }]"
+    :class="[`message-${message.role}`, { pending: message.pending, streaming: message.pending && message.role === 'assistant' }]"
   >
-    <header>
-      <strong>{{ message.role === "user" ? "你" : "知识助手" }}</strong
-      ><span
-        v-if="message.pending && message.role === 'assistant'"
-        class="streaming-label"
-        >正在生成</span
-      >
+    <header v-if="message.role === 'assistant'">
+      <strong>知识助手</strong>
+      <span v-if="message.pending" class="streaming-label">AI 思考中</span>
     </header>
-    <div
-      v-if="message.role === 'assistant'"
-      class="markdown-content"
-      v-html="html"
-    />
+    <div v-if="message.role === 'assistant'" class="assistant-bubble">
+      <div v-if="message.pending && !message.content" class="thinking-indicator" role="status">
+        <span class="thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        AI 思考中
+      </div>
+      <div v-else class="markdown-content" v-html="html" />
+      <span v-if="message.pending && message.content" class="streaming-cursor" aria-label="正在生成" />
+    </div>
     <p v-else>{{ message.content }}</p>
     <footer
       v-if="message.role === 'assistant' && !message.pending"
