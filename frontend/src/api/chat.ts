@@ -83,7 +83,7 @@ export async function streamKnowledgeBaseAnswer(
   while (true) {
     const { done, value } = await reader.read();
     buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
-    const frames = buffer.split("\n\n");
+    const frames = buffer.split(/\r?\n\r?\n/);
     buffer = frames.pop() ?? "";
     for (const frame of frames) {
       const event = frame.match(/^event: (.+)$/m)?.[1];
