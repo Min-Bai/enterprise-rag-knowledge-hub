@@ -66,3 +66,13 @@ class ConversationResponse(BaseModel):
     messages: list[ConversationMessageResponse]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TableQuestionRequest(BaseModel):
+    knowledge_base_id: int = Field(gt=0)
+    question: str = Field(min_length=1, max_length=1000)
+
+
+class KnowledgeBaseToolResponse(BaseModel):
+    result: str | dict[str, list[str]]
+    sources: list[SourceItem]

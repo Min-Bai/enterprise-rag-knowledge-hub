@@ -259,14 +259,14 @@ async function reindexSelected() {
     ElMessage.error(caught instanceof Error ? caught.message : "批量重建索引失败，请稍后重试。");
   }
 }
-const supportedDocumentExtensions = [".pdf", ".txt", ".md", ".markdown", ".csv", ".docx", ".xlsx"];
+const supportedDocumentExtensions = [".pdf", ".txt", ".md", ".markdown", ".csv", ".docx", ".xlsx", ".doc", ".xls", ".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".mp3", ".wav", ".m4a", ".ogg"];
 
 function selectFile(uploadFile: UploadFile) {
   const selectedFile = uploadFile.raw;
   if (!selectedFile) return;
   const lowerName = selectedFile.name.toLowerCase();
   if (!supportedDocumentExtensions.some((extension) => lowerName.endsWith(extension))) {
-    ElMessage.error("仅支持 PDF、Word、Excel、TXT、Markdown 和 CSV 文件。");
+    ElMessage.error("仅支持 PDF、Word、Excel、TXT、Markdown、图片和音频文件。");
     file.value = null;
     fileUploadRef.value?.clearFiles();
     return;
@@ -498,14 +498,14 @@ onMounted(load);
             ref="fileUploadRef"
             :auto-upload="false"
             :limit="1"
-              accept=".pdf,.docx,.xlsx,.txt,.md,.markdown,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/markdown,text/csv"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.md,.markdown,.csv,.png,.jpg,.jpeg,.tiff,.bmp,.mp3,.wav,.m4a,.ogg,application/pdf,text/plain,text/markdown,text/csv,image/*,audio/*"
             :on-change="selectFile"
             :on-exceed="replaceFile"
             :on-remove="() => (file = null)"
               ><el-button>选择文件</el-button
             ><template #tip
               ><div class="el-upload__tip">
-                支持 PDF、TXT、Markdown、CSV（UTF-8 编码），文件不能超过 10 MB。
+                支持 PDF、Word、Excel、TXT、Markdown、图片和音频文件，不能超过 10 MB。图片 OCR 和音频转写需由管理员先配置。
               </div></template
             ></el-upload
           ></el-form-item

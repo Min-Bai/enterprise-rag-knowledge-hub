@@ -1119,6 +1119,18 @@ textarea:focus-visible {
 .el-table { --el-table-border-color: #edf0f5; --el-table-header-bg-color: #f8f9fc; --el-table-row-hover-bg-color: #f5f9ff; }
 .el-table th.el-table__cell { color: #697386; font-size: 13px; font-weight: 600; }
 .el-table td.el-table__cell, .el-table th.el-table__cell { padding: 12px 0; }
+
+.tool-grid { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 20px; }
+.tool-grid article { min-height: 260px; }
+.tool-grid h2 { margin: 14px 0 8px; }
+.tool-grid p { color: var(--color-text-muted); line-height: 1.6; }
+.tool-grid .el-button { margin-top: 12px; }
+.tool-result { margin-top: 18px; }
+.extract-result { background: #f8fafc; margin-top: 18px; padding: 12px; }
+.extract-result h3 { font-size: 13px; margin: 8px 0 2px; }
+.extract-result p { margin: 0; }
+.model-provider-toolbar { display: flex; justify-content: flex-end; margin: 12px 0; }
+@media (max-width: 900px) { .tool-grid { grid-template-columns: 1fr; } }
 .el-tag, .el-dialog { border-radius: 3px; }
 .metric-grid article { min-height: 118px; padding: 22px 20px; }
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline-color: rgb(64 158 255 / 45%); }

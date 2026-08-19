@@ -177,6 +177,14 @@ python scripts/evaluate_retrieval.py path/to/retrieval_cases.json --k 3 \
 
 ## 备份
 
+## 高级文档与 AI 能力
+
+系统支持 PDF、DOCX、XLSX、TXT、Markdown、CSV，以及可选的旧版 DOC/XLS、图片 OCR 和音频转写。旧版 DOC 需要服务器安装 `antiword`；图片 OCR 需要安装 `requirements-optional.txt` 并在系统中安装 Tesseract 及中文语言包。OCR 默认关闭，音频转写默认关闭，避免生产环境自动下载大型模型。
+
+知识库的“高级能力”页面提供文档摘要、人名/金额/条款抽取和表格问答。所有结果先经过知识库权限校验和检索，再交给当前启用模型；无证据时会明确返回无法确定，不把模型猜测当作事实。管理员可以在模型管理中配置 DeepSeek、OpenAI、百度文心兼容接口、阿里通义兼容接口、Ollama、LM Studio 和自定义 OpenAI 兼容服务，并测试当前已启用的连接。
+
+可选环境变量：`OCR_ENABLED`、`OCR_LANGUAGES`、`TRANSCRIPTION_ENABLED`、`TRANSCRIPTION_BASE_URL`、`TRANSCRIPTION_API_KEY`、`TRANSCRIPTION_MODEL`、`AI_CONTEXT_MAX_CHARS`。生产环境只应把真实密钥放入未提交的 `.env`，不要写入仓库。
+
 部署、备份、恢复验证、故障处理和安全操作请查看[生产运维手册](docs/operations.md)。
 
 在生产服务器上手动创建 MySQL 备份：

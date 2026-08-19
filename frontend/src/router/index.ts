@@ -114,6 +114,12 @@ export const router = createRouter({
       meta: { requiresAuth: true, knowledgeBaseManagerOnly: true },
     },
     {
+      path: "/app/knowledge-bases/:id/tools",
+      name: "knowledge-base-tools",
+      component: () => import("../views/KnowledgeBaseToolsView.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
       path: "/app/knowledge-bases/:id/access",
       alias: "/knowledge-bases/:id/access",
       component: () => import("../views/KnowledgeBaseAccessView.vue"),

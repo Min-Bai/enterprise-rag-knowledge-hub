@@ -1,4 +1,6 @@
 import csv
+import os
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
@@ -6,6 +8,7 @@ from xml.etree import ElementTree
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
+from ..config import OCR_ENABLED, OCR_LANGUAGES, TRANSCRIPTION_API_KEY, TRANSCRIPTION_BASE_URL, TRANSCRIPTION_ENABLED, TRANSCRIPTION_MODEL
 
 
 OFFICE_MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
@@ -181,6 +184,77 @@ def extract_xlsx_text(storage_path: str) -> str:
     return content
 
 
+def extract_xls_text(storage_path: str) -> str:
+    try:
+        import xlrd
+    except ImportError as error:
+        raise ValueError("旧版 Excel 文件需要安装 xlrd 解析组件") from error
+    workbook = xlrd.open_workbook(storage_path, on_demand=True)
+    lines: list[str] = []
+    for sheet in workbook.sheets():
+        lines.append(f"工作表：{sheet.name}")
+        for row in sheet.get_rows():
+            values = [str(cell.value).strip() for cell in row]
+            if any(values):
+                lines.append("\t".join(values))
+    content = "\n".join(lines).strip()
+    if not content:
+        raise ValueError("Excel 文档不包含可提取的单元格")
+    return content
+
+
+def extract_doc_text(storage_path: str) -> str:
+    try:
+        result = subprocess.run(["antiword", storage_path], capture_output=True, text=True, timeout=30, check=True)
+    except FileNotFoundError as error:
+        raise ValueError("旧版 Word 文件需要在服务器安装 antiword，或先转换为 DOCX") from error
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+        raise ValueError("旧版 Word 文件解析失败，请转换为 DOCX 后重试") from error
+    content = result.stdout.strip()
+    if not content:
+        raise ValueError("Word 文档不包含可提取文本")
+    return content
+
+
+def extract_image_text(storage_path: str) -> str:
+    if not OCR_ENABLED:
+        raise ValueError("图片 OCR 未启用，请在环境变量中设置 OCR_ENABLED=true")
+    try:
+        from PIL import Image
+        import pytesseract
+        image = Image.open(storage_path)
+        content = pytesseract.image_to_string(image, lang=OCR_LANGUAGES).strip()
+    except ImportError as error:
+        raise ValueError("图片 OCR 需要安装 Pillow、pytesseract 和 Tesseract OCR") from error
+    except Exception as error:
+        raise ValueError("图片 OCR 解析失败，请检查 Tesseract 语言包") from error
+    if not content:
+        raise ValueError("图片中未识别到可用文字")
+    return content
+
+
+def extract_audio_text(storage_path: str) -> str:
+    if not TRANSCRIPTION_ENABLED or not TRANSCRIPTION_BASE_URL or not TRANSCRIPTION_API_KEY:
+        raise ValueError("音频转写未配置，请设置 TRANSCRIPTION_ENABLED、TRANSCRIPTION_BASE_URL 和 TRANSCRIPTION_API_KEY")
+    import requests
+    try:
+        with open(storage_path, "rb") as audio:
+            response = requests.post(
+                f"{TRANSCRIPTION_BASE_URL}/audio/transcriptions",
+                headers={"Authorization": f"Bearer {TRANSCRIPTION_API_KEY}"},
+                files={"file": (os.path.basename(storage_path), audio)},
+                data={"model": TRANSCRIPTION_MODEL},
+                timeout=180,
+            )
+        response.raise_for_status()
+        content = str(response.json().get("text", "")).strip()
+    except (requests.RequestException, ValueError, KeyError) as error:
+        raise ValueError("音频转写服务请求失败") from error
+    if not content:
+        raise ValueError("音频转写未返回文本")
+    return content
+
+
 def split_document_into_chunks(
     storage_path: str,
     chunk_size: int = 500,
@@ -191,8 +265,16 @@ def split_document_into_chunks(
         return split_pdf_into_chunks(storage_path, chunk_size, overlap)
     if suffix == ".docx":
         content = extract_docx_text(storage_path)
+    elif suffix == ".doc":
+        content = extract_doc_text(storage_path)
     elif suffix == ".xlsx":
         content = extract_xlsx_text(storage_path)
+    elif suffix == ".xls":
+        content = extract_xls_text(storage_path)
+    elif suffix in {".png", ".jpg", ".jpeg", ".tiff", ".bmp"}:
+        content = extract_image_text(storage_path)
+    elif suffix in {".mp3", ".wav", ".m4a", ".ogg"}:
+        content = extract_audio_text(storage_path)
     else:
         content = extract_text_document(storage_path)
     return [
