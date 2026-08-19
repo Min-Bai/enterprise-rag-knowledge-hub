@@ -373,6 +373,7 @@ textarea:focus-visible {
   align-content: start;
 }
 .message {
+  align-self: start;
   display: grid;
   gap: var(--space-2);
   max-width: 840px;
@@ -1196,7 +1197,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .message { gap: 7px; max-width: min(820px, 88%); }
 .message header { color: #778197; font-size: 12px; }
 .message-user { justify-self: end; max-width: min(620px, 76%); width: auto; }
-.message-user > p { background: #5846e9; border-radius: 14px 14px 4px 14px; box-shadow: 0 2px 5px rgb(55 42 170 / 18%); color: #fff; padding: 12px 16px; }
+.message-user > p { background: #5846e9; border-radius: 14px 14px 4px 14px; box-shadow: 0 2px 5px rgb(55 42 170 / 18%); color: #fff; max-width: 100%; padding: 12px 16px; width: fit-content; }
 .message-assistant { justify-self: start; width: min(820px, 88%); }
 .assistant-bubble { background: #fff; border: 1px solid #e2e6ed; border-radius: 14px 14px 14px 4px; color: #20293a; min-height: 52px; padding: 16px 18px; }
 .message-assistant.streaming .assistant-bubble { border-color: #d7d5ff; }
