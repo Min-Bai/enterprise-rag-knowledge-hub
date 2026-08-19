@@ -6,7 +6,9 @@ import {
   approvePasswordResetRequest,
   approveRegistrationRequest,
   deletePasswordResetRequest,
+  deletePasswordResetRequests,
   deleteRegistrationRequest,
+  deleteRegistrationRequests,
   getPasswordResetRequests,
   getRegistrationRequests,
   rejectRegistrationRequest,
@@ -22,6 +24,8 @@ const resets = ref<PasswordResetRequest[]>([]);
 const loading = ref(false);
 const saving = ref(false);
 const error = ref("");
+const selectedRegistrations = ref<RegistrationRequest[]>([]);
+const selectedResets = ref<PasswordResetRequest[]>([]);
 
 async function load() {
   if (!auth.token) return;
@@ -118,6 +122,36 @@ async function removeReset(item: PasswordResetRequest) {
   }
 }
 
+async function removeRegistrations() {
+  if (!auth.token || selectedRegistrations.value.length === 0) return;
+  try {
+    await ElMessageBox.confirm(`将删除选中的 ${selectedRegistrations.value.length} 条注册申请记录，确认继续吗？`, "批量删除注册申请", { type: "warning" });
+    saving.value = true;
+    const ids = selectedRegistrations.value.map((item) => item.id);
+    await deleteRegistrationRequests(auth.token, ids);
+    registrations.value = registrations.value.filter((item) => !ids.includes(item.id));
+    selectedRegistrations.value = [];
+    ElMessage.success("注册申请已批量删除");
+  } catch (caught) {
+    if (!isCancelled(caught)) ElMessage.error(caught instanceof Error ? caught.message : "批量删除注册申请失败。");
+  } finally { saving.value = false; }
+}
+
+async function removeResets() {
+  if (!auth.token || selectedResets.value.length === 0) return;
+  try {
+    await ElMessageBox.confirm(`将删除选中的 ${selectedResets.value.length} 条密码重置申请记录，确认继续吗？`, "批量删除密码重置申请", { type: "warning" });
+    saving.value = true;
+    const ids = selectedResets.value.map((item) => item.id);
+    await deletePasswordResetRequests(auth.token, ids);
+    resets.value = resets.value.filter((item) => !ids.includes(item.id));
+    selectedResets.value = [];
+    ElMessage.success("密码重置申请已批量删除");
+  } catch (caught) {
+    if (!isCancelled(caught)) ElMessage.error(caught instanceof Error ? caught.message : "批量删除密码重置申请失败。");
+  } finally { saving.value = false; }
+}
+
 function formatDate(value: string) { return new Date(value).toLocaleString("zh-CN"); }
 onMounted(load);
 </script>
@@ -132,8 +166,9 @@ onMounted(load);
       <el-alert v-if="error" class="form-alert" type="error" :title="error" show-icon />
 
       <section class="table-surface">
-        <div class="section-heading"><div><h2>注册申请</h2><p>批准后创建普通成员账号；拒绝后可删除历史记录。</p></div></div>
-        <el-table v-loading="loading" :data="registrations" empty-text="暂无注册申请" class="data-table">
+        <div class="section-heading"><div><h2>注册申请</h2><p>批准后创建普通成员账号；拒绝后可删除历史记录。</p></div><el-button type="danger" :disabled="saving || selectedRegistrations.length === 0" @click="removeRegistrations"><Trash2 :size="15" />批量删除</el-button></div>
+        <el-table v-loading="loading" :data="registrations" empty-text="暂无注册申请" class="data-table" @selection-change="selectedRegistrations = $event">
+          <el-table-column type="selection" width="48" />
           <el-table-column prop="username" label="用户名" min-width="150" />
           <el-table-column prop="email" label="邮箱" min-width="220" />
           <el-table-column label="状态" width="110"><template #default="{ row }"><el-tag :type="row.status === 'pending' ? 'warning' : row.status === 'approved' ? 'success' : 'info'">{{ row.status === "pending" ? "待审批" : row.status === "approved" ? "已批准" : "已拒绝" }}</el-tag></template></el-table-column>
@@ -143,8 +178,9 @@ onMounted(load);
       </section>
 
       <section class="table-surface invitation-surface">
-        <div class="section-heading"><div><h2>密码重置申请</h2><p>批准后向申请邮箱发送一次性重置链接；已处理或无效申请可以删除。</p></div></div>
-        <el-table v-loading="loading" :data="resets" empty-text="暂无密码重置申请" class="data-table">
+        <div class="section-heading"><div><h2>密码重置申请</h2><p>批准后向申请邮箱发送一次性重置链接；已处理或无效申请可以删除。</p></div><el-button type="danger" :disabled="saving || selectedResets.length === 0" @click="removeResets"><Trash2 :size="15" />批量删除</el-button></div>
+        <el-table v-loading="loading" :data="resets" empty-text="暂无密码重置申请" class="data-table" @selection-change="selectedResets = $event">
+          <el-table-column type="selection" width="48" />
           <el-table-column prop="email" label="申请邮箱" min-width="220" />
           <el-table-column label="状态" width="110"><template #default="{ row }"><el-tag :type="row.status === 'pending' ? 'warning' : 'success'">{{ row.status === "pending" ? "待审批" : "已处理" }}</el-tag></template></el-table-column>
           <el-table-column label="申请时间" min-width="180"><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column>

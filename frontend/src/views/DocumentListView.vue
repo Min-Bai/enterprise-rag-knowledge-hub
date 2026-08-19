@@ -505,7 +505,7 @@ onMounted(load);
               ><el-button>选择文件</el-button
             ><template #tip
               ><div class="el-upload__tip">
-                支持 PDF、Word、Excel、TXT、Markdown、图片和音频文件，不能超过 10 MB。图片 OCR 和音频转写需由管理员先配置。
+                支持 PDF、Word、Excel、TXT、Markdown、图片和音频文件，不能超过 10 MB。
               </div></template
             ></el-upload
           ></el-form-item
