@@ -57,21 +57,38 @@ fi
 
 compose_start_failed=0
 echo "Pulling immutable images from GHCR..."
+check_ghcr_connectivity() {
+  local status
+  status="$(curl --connect-timeout 10 --max-time 30 --silent --show-error \
+    --output /dev/null --write-out '%{http_code}' https://ghcr.io/v2/ || true)"
+
+  case "$status" in
+    200|401|405)
+      echo "GHCR registry connectivity check returned HTTP $status"
+      ;;
+    *)
+      echo "GHCR registry connectivity check failed (HTTP ${status:-no response})." >&2
+      return 1
+      ;;
+  esac
+}
+
 pull_image() {
   local image="$1"
   local attempt
-  for attempt in 1 2 3; do
-    echo "Pulling $image (attempt $attempt/3)..."
-    if docker pull "$image"; then
+  for attempt in 1 2; do
+    echo "Pulling $image (attempt $attempt/2, maximum 8 minutes per attempt)..."
+    if timeout --foreground 8m docker pull "$image"; then
       return 0
     fi
-    echo "Image pull was interrupted; retrying in 10 seconds..." >&2
-    sleep 10
+    echo "Image pull failed or timed out; retrying in 15 seconds..." >&2
+    sleep 15
   done
-  echo "Unable to pull $image from GHCR. Check the VM Docker login and package permissions." >&2
+  echo "Unable to pull $image from GHCR after two attempts. Check VM network access and Docker login." >&2
   return 1
 }
 
+check_ghcr_connectivity
 pull_image "$api_image"
 pull_image "$web_image"
 
