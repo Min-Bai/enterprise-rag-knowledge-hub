@@ -30,4 +30,4 @@ def test_migration_graph_has_one_unique_head():
         parent_revisions.update((down_revision,) if isinstance(down_revision, str) else down_revision)
 
     assert parent_revisions <= revisions.keys(), "A migration references a missing parent revision"
-    assert set(revisions) - parent_revisions == {"0a1b2c3d4e5f"}
+    assert set(revisions) - parent_revisions == {"1b2c3d4e5f6a"}
