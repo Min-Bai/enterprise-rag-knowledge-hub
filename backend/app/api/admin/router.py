@@ -19,6 +19,7 @@ from ...models.password_reset import PasswordResetORM
 from ...models.password_reset_request import PasswordResetRequestORM
 from ...models.registration_request import RegistrationRequestORM
 from ...models.model_provider import ModelProviderORM
+from ...models.model_usage import ModelUsageORM
 from ...schemas.model_provider import ModelProviderUpsert
 from ...schemas.user import AccountRequestReview, AdminUserCreate, InvitationCreate, PasswordChange, PasswordResetLinkCreate, UserLogin, UserProfileUpdate, UserResponse, UserRoleUpdate, UserUpdate
 from ...services.auth_sessions import clear_refresh_cookie, issue_session, revoke_session, rotate_session, set_refresh_cookie
@@ -664,4 +665,86 @@ def analytics_overview(db: Session = Depends(get_db), _: UserORM = Depends(requi
         "knowledge_bases": db.scalar(select(func.count()).select_from(KnowledgeBaseORM)),
         "documents": db.scalar(select(func.count()).select_from(DocumentORM)),
         "ready_documents": db.scalar(select(func.count()).select_from(DocumentORM).where(DocumentORM.status == "ready")),
+    })
+
+
+@router.get("/analytics/model-usage")
+def model_usage_analytics(
+    days: int = 30,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    _: UserORM = Depends(require_admin_user),
+):
+    days = min(max(days, 1), 365)
+    limit = min(max(limit, 1), 200)
+    since = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days)
+    rows = db.scalars(
+        select(ModelUsageORM)
+        .where(ModelUsageORM.created_at >= since)
+        .order_by(ModelUsageORM.created_at.desc())
+    ).all()
+    user_names = {
+        user_id: username
+        for user_id, username in db.execute(select(UserORM.id, UserORM.username)).all()
+    }
+    knowledge_base_names = {
+        knowledge_base_id: name
+        for knowledge_base_id, name in db.execute(select(KnowledgeBaseORM.id, KnowledgeBaseORM.name)).all()
+    }
+    providers: dict[tuple[str, str], dict[str, object]] = {}
+    daily: dict[str, dict[str, object]] = {}
+    total_cost = 0.0
+    known_cost_requests = 0
+    total_latency = 0
+    total_tokens = 0
+    for item in rows:
+        key = (item.provider_slug, item.model_name)
+        provider = providers.setdefault(key, {"provider_slug": item.provider_slug, "model_name": item.model_name, "requests": 0, "successful_requests": 0, "failed_requests": 0, "total_tokens": 0, "estimated_cost": 0.0, "cost_known_requests": 0, "latency_ms_total": 0})
+        provider["requests"] = int(provider["requests"]) + 1
+        provider["successful_requests"] = int(provider["successful_requests"]) + int(item.success)
+        provider["failed_requests"] = int(provider["failed_requests"]) + int(not item.success)
+        provider["total_tokens"] = int(provider["total_tokens"]) + (item.total_tokens or 0)
+        provider["latency_ms_total"] = int(provider["latency_ms_total"]) + item.latency_ms
+        total_tokens += item.total_tokens or 0
+        total_latency += item.latency_ms
+        day_key = item.created_at.date().isoformat()
+        day = daily.setdefault(day_key, {"date": day_key, "requests": 0, "total_tokens": 0, "estimated_cost": 0.0, "cost_known_requests": 0})
+        day["requests"] = int(day["requests"]) + 1
+        day["total_tokens"] = int(day["total_tokens"]) + (item.total_tokens or 0)
+        if item.estimated_cost is not None:
+            cost = float(item.estimated_cost)
+            total_cost += cost
+            known_cost_requests += 1
+            provider["estimated_cost"] = round(float(provider["estimated_cost"]) + cost, 8)
+            provider["cost_known_requests"] = int(provider["cost_known_requests"]) + 1
+            day["estimated_cost"] = round(float(day["estimated_cost"]) + cost, 8)
+            day["cost_known_requests"] = int(day["cost_known_requests"]) + 1
+    provider_items = []
+    for provider in providers.values():
+        requests = int(provider.pop("requests"))
+        latency_total = int(provider.pop("latency_ms_total"))
+        provider["average_latency_ms"] = round(latency_total / requests) if requests else 0
+        provider_items.append(provider)
+    summary = {
+        "days": days,
+        "requests": len(rows),
+        "successful_requests": sum(1 for item in rows if item.success),
+        "failed_requests": sum(1 for item in rows if not item.success),
+        "total_tokens": total_tokens,
+        "estimated_cost": round(total_cost, 8),
+        "cost_known_requests": known_cost_requests,
+        "average_latency_ms": round(total_latency / len(rows)) if rows else 0,
+    }
+    return ok({
+        "summary": summary,
+        "by_provider": sorted(provider_items, key=lambda item: float(item["estimated_cost"]), reverse=True),
+        "daily": [daily[key] for key in sorted(daily)],
+        "items": [{
+            "id": item.id, "provider_slug": item.provider_slug, "model_name": item.model_name,
+            "operation": item.operation, "prompt_tokens": item.prompt_tokens,
+            "completion_tokens": item.completion_tokens, "total_tokens": item.total_tokens,
+            "estimated_cost": float(item.estimated_cost) if item.estimated_cost is not None else None,
+            "latency_ms": item.latency_ms, "success": item.success, "created_at": item.created_at,
+            "username": user_names.get(item.user_id), "knowledge_base_name": knowledge_base_names.get(item.knowledge_base_id),
+        } for item in rows[:limit]],
     })

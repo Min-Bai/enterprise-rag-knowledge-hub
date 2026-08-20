@@ -19,7 +19,7 @@ def test_query_rewrite_uses_the_original_question_when_disabled(monkeypatch):
     monkeypatch.setattr(ai, "RAG_QUERY_REWRITE_ENABLED", False)
     monkeypatch.setattr(ai.requests, "post", post)
 
-    result = ai.rewrite_retrieval_question("What leave is available?")
+    result = ai.rewrite_retrieval_question("What leave is available?", db=Mock(), user_id=1, knowledge_base_id=1)
 
     assert result == "What leave is available?"
     post.assert_not_called()
@@ -31,7 +31,7 @@ def test_query_rewrite_uses_deepseek_when_enabled(monkeypatch):
     monkeypatch.setattr(ai, "DEEPSEEK_API_KEY", "test-key")
     monkeypatch.setattr(ai.requests, "post", post)
 
-    result = ai.rewrite_retrieval_question("How much leave can I take each year?")
+    result = ai.rewrite_retrieval_question("How much leave can I take each year?", db=Mock(), user_id=1, knowledge_base_id=1)
 
     assert result == "annual leave policy"
     assert post.call_args.kwargs["json"]["stream"] is False
@@ -45,6 +45,6 @@ def test_query_rewrite_falls_back_when_the_provider_request_fails(monkeypatch, c
     monkeypatch.setattr(ai, "DEEPSEEK_API_KEY", "test-key")
     monkeypatch.setattr(ai.requests, "post", Mock(side_effect=requests.RequestException))
 
-    assert ai.rewrite_retrieval_question(question) == question
+    assert ai.rewrite_retrieval_question(question, db=Mock(), user_id=1, knowledge_base_id=1) == question
     assert any("event=rag_query_rewrite_failed" in record.message for record in caplog.records)
     assert all(question not in record.message for record in caplog.records)

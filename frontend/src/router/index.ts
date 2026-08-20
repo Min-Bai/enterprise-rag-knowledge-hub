@@ -119,6 +119,7 @@ export const router = createRouter({
       component: () => import("../views/KnowledgeBaseToolsView.vue"),
       meta: { requiresAuth: true },
     },
+    { path: "/admin/model-usage", name: "admin-model-usage", component: () => import("../views/AdminModelUsageView.vue"), meta: { requiresAuth: true, adminOnly: true } },
     {
       path: "/app/knowledge-bases/:id/access",
       alias: "/knowledge-bases/:id/access",

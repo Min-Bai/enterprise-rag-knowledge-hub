@@ -5,9 +5,12 @@
 **/*.py[cod]
 **/*.db
 **/.venv/
+.venv*/
 frontend/node_modules/
 frontend/dist/
 backend/app/data/
 .pytest-rq-temp/
 .pytest-tmp/
 .pytest-tmp-*/
+backend/app/evaluations/retrieval_cases.json
+reports/
