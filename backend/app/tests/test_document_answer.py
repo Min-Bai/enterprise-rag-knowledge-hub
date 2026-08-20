@@ -90,7 +90,7 @@ def test_document_answer_uses_the_rewritten_query_for_retrieval(monkeypatch):
     search = Mock(return_value=[])
     monkeypatch.setattr(
         "backend.app.services.ai.rewrite_retrieval_question",
-        lambda _question: "annual leave policy",
+        lambda _question, **_kwargs: "annual leave policy",
     )
     monkeypatch.setattr("backend.app.services.ai.search_document_chunks", search)
 

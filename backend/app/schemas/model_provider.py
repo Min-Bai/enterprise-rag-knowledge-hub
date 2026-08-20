@@ -9,6 +9,8 @@ class ModelProviderUpsert(BaseModel):
     model_name: str = Field(min_length=1, max_length=120)
     api_key: str | None = Field(default=None, max_length=500)
     is_active: bool = False
+    input_price_per_million: float | None = Field(default=None, ge=0, le=1_000_000)
+    output_price_per_million: float | None = Field(default=None, ge=0, le=1_000_000)
 
     @field_validator("display_name", "base_url", "model_name")
     @classmethod
@@ -34,3 +36,5 @@ class ModelProviderResponse(BaseModel):
     api_key_configured: bool
     api_key_masked: str | None
     is_active: bool
+    input_price_per_million: float | None
+    output_price_per_million: float | None

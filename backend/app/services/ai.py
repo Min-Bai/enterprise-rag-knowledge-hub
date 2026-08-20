@@ -33,6 +33,7 @@ from .conversations import (
 from .documents import get_document_service, get_ready_documents_service
 from .knowledge_bases import get_knowledge_base_service
 from .model_providers import RuntimeModelProvider, get_runtime_model_provider
+from .model_usage import record_model_usage
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,9 @@ class PreparedDocumentAnswer:
     conversation: object
     hits: list[dict[str, object]]
     sources: list[SourceItem]
+    user_id: int
+    knowledge_base_id: int
+    operation: str
 
 
 def get_active_provider(db: Session) -> RuntimeModelProvider:
@@ -74,8 +78,7 @@ def sse_event(event: str, data: object) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
-def get_model_message(response: requests.Response) -> dict[str, object]:
-    data = response.json()
+def get_model_message_from_payload(data: object) -> dict[str, object]:
     if not isinstance(data, dict):
         raise AiProviderError('model response is not an object')
     choices = data.get('choices')
@@ -90,7 +93,13 @@ def get_model_message(response: requests.Response) -> dict[str, object]:
     return message
 
 
-def rewrite_retrieval_question(question: str) -> str:
+def get_model_message(response: requests.Response) -> dict[str, object]:
+    return get_model_message_from_payload(response.json())
+
+
+def rewrite_retrieval_question(
+    question: str, *, db: Session, user_id: int, knowledge_base_id: int,
+) -> str:
     provider = RuntimeModelProvider("deepseek", DEEPSEEK_BASE_URL, DEEPSEEK_MODEL, DEEPSEEK_API_KEY or None)
     if not RAG_QUERY_REWRITE_ENABLED or not provider.api_key:
         return question
@@ -110,15 +119,21 @@ def rewrite_retrieval_question(question: str) -> str:
             timeout=10,
         )
         response.raise_for_status()
-        rewritten = str(get_model_message(response).get("content", "")).strip()
+        response_payload = response.json()
+        rewritten = str(get_model_message_from_payload(response_payload).get("content", "")).strip()
     except (AiProviderError, KeyError, IndexError, ValueError, requests.RequestException):
+        record_model_usage(db=db, provider=provider, operation="query_rewrite", latency_ms=(perf_counter() - started_at) * 1000, success=False, user_id=user_id, knowledge_base_id=knowledge_base_id)
+        db.commit()
         logger.warning(
             "event=rag_query_rewrite_failed request_id=%s provider=deepseek",
             get_request_id(),
         )
         return question
 
+    record_model_usage(db=db, provider=provider, operation="query_rewrite", latency_ms=(perf_counter() - started_at) * 1000, success=True, response_payload=response_payload, user_id=user_id, knowledge_base_id=knowledge_base_id)
+
     if not rewritten or len(rewritten) > 500:
+        db.commit()
         logger.warning(
             "event=rag_query_rewrite_rejected request_id=%s provider=deepseek",
             get_request_id(),
@@ -188,7 +203,7 @@ def prepare_document_answer(
         document_id=document.id,
         db=db,
     )
-    retrieval_question = rewrite_retrieval_question(request.question)
+    retrieval_question = rewrite_retrieval_question(request.question, db=db, user_id=current_user.id, knowledge_base_id=document.knowledge_base_id)
     hits = [hit for hit in search_document_chunks(question=retrieval_question, user_id=document.user_id, document_ids=[document.id], limit=3) if float(hit['score']) >= RAG_MIN_SCORE]
     log_retrieval_outcome(scope="document", scope_id=document.id, hits=hits)
     write_retrieval_audit_log(
@@ -200,7 +215,7 @@ def prepare_document_answer(
         db=db,
     )
     if not hits:
-        return PreparedDocumentAnswer(conversation=conversation, hits=[], sources=[])
+        return PreparedDocumentAnswer(conversation=conversation, hits=[], sources=[], user_id=current_user.id, knowledge_base_id=document.knowledge_base_id, operation="document_answer")
     if not get_active_provider(db).api_key:
         raise AiNotConfiguredError
     sources = [
@@ -216,6 +231,9 @@ def prepare_document_answer(
         conversation=conversation,
         hits=hits,
         sources=sources,
+        user_id=current_user.id,
+        knowledge_base_id=document.knowledge_base_id,
+        operation="document_answer",
     )
 
 
@@ -235,7 +253,7 @@ def prepare_knowledge_base_answer(
         db=db,
     )
     filenames = {document.id: document.filename for document in documents}
-    retrieval_question = rewrite_retrieval_question(request.question)
+    retrieval_question = rewrite_retrieval_question(request.question, db=db, user_id=current_user.id, knowledge_base_id=request.knowledge_base_id)
     hits = [
         hit
         for hit in search_document_chunks(
@@ -262,7 +280,7 @@ def prepare_knowledge_base_answer(
         db=db,
     )
     if not hits:
-        return PreparedDocumentAnswer(conversation=conversation, hits=[], sources=[])
+        return PreparedDocumentAnswer(conversation=conversation, hits=[], sources=[], user_id=current_user.id, knowledge_base_id=request.knowledge_base_id, operation="knowledge_base_answer")
     if not get_active_provider(db).api_key:
         raise AiNotConfiguredError
     return PreparedDocumentAnswer(
@@ -277,6 +295,9 @@ def prepare_knowledge_base_answer(
             )
             for hit in hits
         ],
+        user_id=current_user.id,
+        knowledge_base_id=request.knowledge_base_id,
+        operation="knowledge_base_answer",
     )
 
 
@@ -290,7 +311,7 @@ def create_model_request(
 ) -> dict[str, object]:
     context = '\n\n'.join(str(hit['text']) for hit in hits)
     provider = get_active_provider(db)
-    return {
+    payload: dict[str, object] = {
         'model': provider.model_name,
         'messages': build_document_answer_messages(
             context=context,
@@ -304,6 +325,9 @@ def create_model_request(
         'max_tokens': 500,
         'temperature': 0.1,
     }
+    if stream:
+        payload["stream_options"] = {"include_usage": True}
+    return payload
 
 
 def answer_document_service(*, request: DocumentAnswerRequest, current_user: UserORM, db: Session) -> DocumentAnswerResponse:
@@ -342,8 +366,13 @@ def answer_document_service(*, request: DocumentAnswerRequest, current_user: Use
             timeout=30,
         )
         response.raise_for_status()
-        answer = str(get_model_message(response).get('content', '')).strip()
+        response_payload = response.json()
+        message = get_model_message_from_payload(response_payload)
+        answer = str(message.get('content', '')).strip()
     except (KeyError, IndexError, ValueError, requests.RequestException) as error:
+        if 'provider' in locals() and 'provider_started_at' in locals():
+            record_model_usage(db=db, provider=provider, operation=prepared.operation, latency_ms=(perf_counter() - provider_started_at) * 1000, success=False, user_id=prepared.user_id, knowledge_base_id=prepared.knowledge_base_id)
+            db.commit()
         logger.exception(
             "event=rag_provider_failed request_id=%s provider=deepseek stream=false",
             get_request_id(),
@@ -355,7 +384,10 @@ def answer_document_service(*, request: DocumentAnswerRequest, current_user: Use
         (perf_counter() - provider_started_at) * 1000,
     )
     if not answer:
+        record_model_usage(db=db, provider=provider, operation=prepared.operation, latency_ms=(perf_counter() - provider_started_at) * 1000, success=False, user_id=prepared.user_id, knowledge_base_id=prepared.knowledge_base_id)
+        db.commit()
         raise AiProviderError
+    record_model_usage(db=db, provider=provider, operation=prepared.operation, latency_ms=(perf_counter() - provider_started_at) * 1000, success=True, response_payload=response_payload, user_id=prepared.user_id, knowledge_base_id=prepared.knowledge_base_id)
     save_conversation_turn(
         conversation=prepared.conversation,
         question=request.question,
@@ -397,6 +429,7 @@ def stream_document_answer_service(
         return
 
     answer_parts: list[str] = []
+    response_payload: dict[str, object] | None = None
     try:
         provider_started_at = perf_counter()
         provider = get_active_provider(db)
@@ -421,6 +454,8 @@ def stream_document_answer_service(
                 if payload == '[DONE]':
                     break
                 data = json.loads(payload)
+                if isinstance(data, dict) and isinstance(data.get("usage"), dict):
+                    response_payload = data
                 choices = data.get('choices', [])
                 if not choices:
                     continue
@@ -430,6 +465,9 @@ def stream_document_answer_service(
                     answer_parts.append(text)
                     yield sse_event('token', {'text': text})
     except (KeyError, ValueError, requests.RequestException) as error:
+        if 'provider' in locals() and 'provider_started_at' in locals():
+            record_model_usage(db=db, provider=provider, operation=prepared.operation, latency_ms=(perf_counter() - provider_started_at) * 1000, success=False, user_id=prepared.user_id, knowledge_base_id=prepared.knowledge_base_id)
+            db.commit()
         logger.exception(
             "event=rag_provider_failed request_id=%s provider=deepseek stream=true",
             get_request_id(),
@@ -445,8 +483,11 @@ def stream_document_answer_service(
 
     answer = ''.join(answer_parts).strip()
     if not answer:
+        record_model_usage(db=db, provider=provider, operation=prepared.operation, latency_ms=(perf_counter() - provider_started_at) * 1000, success=False, user_id=prepared.user_id, knowledge_base_id=prepared.knowledge_base_id)
+        db.commit()
         yield sse_event('error', {'detail': 'AI provider returned an empty response'})
         return
+    record_model_usage(db=db, provider=provider, operation=prepared.operation, latency_ms=(perf_counter() - provider_started_at) * 1000, success=True, response_payload=response_payload, user_id=prepared.user_id, knowledge_base_id=prepared.knowledge_base_id)
     save_conversation_turn(
         conversation=prepared.conversation,
         question=request.question,

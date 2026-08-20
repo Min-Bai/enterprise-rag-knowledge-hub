@@ -18,6 +18,8 @@ class RuntimeModelProvider:
     model_name: str
     api_key: str | None
     configured: bool = False
+    input_price_per_million: float | None = None
+    output_price_per_million: float | None = None
 
 
 def _cipher() -> Fernet:
@@ -36,7 +38,7 @@ def get_runtime_model_provider(db: Session) -> RuntimeModelProvider:
     if not isinstance(provider, ModelProviderORM):
         return RuntimeModelProvider("deepseek", DEEPSEEK_BASE_URL.rstrip("/"), DEEPSEEK_MODEL, DEEPSEEK_API_KEY or None)
     api_key = _cipher().decrypt(provider.api_key_encrypted.encode("utf-8")).decode("utf-8") if provider.api_key_encrypted else None
-    return RuntimeModelProvider(provider.slug, provider.base_url, provider.model_name, api_key, True)
+    return RuntimeModelProvider(provider.slug, provider.base_url, provider.model_name, api_key, True, float(provider.input_price_per_million) if provider.input_price_per_million is not None else None, float(provider.output_price_per_million) if provider.output_price_per_million is not None else None)
 
 
 def list_model_providers(db: Session) -> list[dict[str, object]]:
@@ -50,6 +52,8 @@ def list_model_providers(db: Session) -> list[dict[str, object]]:
             "api_key_configured": bool(item.api_key_encrypted),
             "api_key_masked": _mask_api_key(_cipher().decrypt(item.api_key_encrypted.encode("utf-8")).decode("utf-8")) if item.api_key_encrypted else None,
             "is_active": item.is_active,
+            "input_price_per_million": float(item.input_price_per_million) if item.input_price_per_million is not None else None,
+            "output_price_per_million": float(item.output_price_per_million) if item.output_price_per_million is not None else None,
         }
         for item in items
     ]
@@ -66,6 +70,8 @@ def upsert_model_provider(db: Session, slug: str, payload: ModelProviderUpsert) 
     provider.display_name = payload.display_name
     provider.base_url = payload.base_url
     provider.model_name = payload.model_name
+    provider.input_price_per_million = payload.input_price_per_million
+    provider.output_price_per_million = payload.output_price_per_million
     if payload.api_key:
         provider.api_key_encrypted = _cipher().encrypt(payload.api_key.encode("utf-8")).decode("utf-8")
     if payload.is_active:
