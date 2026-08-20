@@ -14,6 +14,21 @@ fi
 cd "$project_dir"
 git fetch origin main
 
+# The VM keeps secrets in the ignored root .env. Source files must not block a
+# release, so preserve any tracked local edits as a patch before fast-forwarding
+# to the reviewed deployment commit. Do not run git clean: it could remove .env.
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  backup_dir="$HOME/enterprise-rag-deploy-backups"
+  backup_file="$backup_dir/tracked-changes-$(date +%Y%m%d-%H%M%S).patch"
+  mkdir -p "$backup_dir"
+  {
+    git diff
+    git diff --cached
+  } > "$backup_file"
+  git reset --hard
+  echo "Backed up tracked VM source changes to $backup_file"
+fi
+
 git cat-file -e "${target_commit}^{commit}"
 git checkout main
 git merge --ff-only "$target_commit"
