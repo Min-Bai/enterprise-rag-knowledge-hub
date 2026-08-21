@@ -32,6 +32,7 @@ export const useChatStore = defineStore("chat", () => {
   const activeSources = ref<Citation[]>([]);
   const isLoading = ref(false);
   const isAnswering = ref(false);
+  const isPaused = ref(false);
   const isStopping = ref(false);
   const stopRequested = ref(false);
   const errorMessage = ref("");
@@ -40,6 +41,7 @@ export const useChatStore = defineStore("chat", () => {
   let streamTimer: ReturnType<typeof setTimeout> | null = null;
   let streamDrain: Promise<void> | null = null;
   let resolveStreamDrain: (() => void) | null = null;
+  let streamingMessageId: number | null = null;
 
   function completeStreamDrain() {
     const resolver = resolveStreamDrain as (() => void) | null;
@@ -49,6 +51,10 @@ export const useChatStore = defineStore("chat", () => {
   }
 
   function renderNextStreamCharacter(messageId: number) {
+    if (isPaused.value) {
+      streamTimer = null;
+      return;
+    }
     if (!streamQueue) {
       streamTimer = null;
       completeStreamDrain();
@@ -185,7 +191,6 @@ export const useChatStore = defineStore("chat", () => {
       !auth.token ||
       !selectedKnowledgeBaseId.value ||
       isAnswering.value ||
-      isStopping.value ||
       abortController
     )
       return;
@@ -220,8 +225,8 @@ export const useChatStore = defineStore("chat", () => {
     activeSources.value = [];
     errorMessage.value = "";
     isAnswering.value = true;
-    stopRequested.value = false;
-    isStopping.value = false;
+    isPaused.value = false;
+    streamingMessageId = assistantMessage.id;
     abortController = new AbortController();
     try {
       await streamKnowledgeBaseAnswer(
@@ -234,7 +239,6 @@ export const useChatStore = defineStore("chat", () => {
         },
         {
           onMetadata: ({ conversation_id, sources }) => {
-            if (stopRequested.value) return;
             selectedConversationId.value = conversation_id;
             activeSources.value = sources;
             pendingMessages.value = pendingMessages.value.map((message) =>
@@ -244,7 +248,6 @@ export const useChatStore = defineStore("chat", () => {
             );
           },
           onToken: (text) => {
-            if (stopRequested.value) return;
             enqueueStreamText(assistantMessage.id, text);
           },
         },
@@ -276,9 +279,9 @@ export const useChatStore = defineStore("chat", () => {
       streamTimer = null;
       completeStreamDrain();
       isAnswering.value = false;
-      isStopping.value = false;
-      stopRequested.value = false;
+      isPaused.value = false;
       abortController = null;
+      streamingMessageId = null;
     }
   }
 
@@ -301,6 +304,14 @@ export const useChatStore = defineStore("chat", () => {
         : message,
     );
     isAnswering.value = false;
+  }
+
+  function togglePause() {
+    if (!isAnswering.value) return;
+    isPaused.value = !isPaused.value;
+    if (!isPaused.value && streamQueue && !streamTimer && streamingMessageId !== null) {
+      renderNextStreamCharacter(streamingMessageId);
+    }
   }
 
   async function removeConversation(conversationId: number) {
@@ -347,6 +358,7 @@ export const useChatStore = defineStore("chat", () => {
     activeSources,
     isLoading,
     isAnswering,
+    isPaused,
     isStopping,
     errorMessage,
     initialize,
@@ -355,6 +367,7 @@ export const useChatStore = defineStore("chat", () => {
     startConversation,
     ask,
     stopAnswer,
+    togglePause,
     removeConversation,
     saveFeedback,
   };
