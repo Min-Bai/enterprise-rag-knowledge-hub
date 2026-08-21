@@ -69,7 +69,7 @@ DeepSeek 只负责文本生成，不提供音频转写。音频必须配置独�
 
 ## CI/CD
 
-`Pull Request -> CI 测试/构建 -> 合并 main -> 构建并发布 GHCR -> Windows Runner SSH 到 Ubuntu VM -> 拉取 SHA 镜像 -> Compose 更新 -> /health 验证`。发布前确认 Runner 在线、SSH 别名 `enterprise-rag-vm` 可用、GHCR 令牌有效、虚拟机 `.env` 和外部卷存在。镜像下载依赖 VM 到 GHCR 的网络连通性；部署脚本会先探测仓库连接，并限制每次拉取的超时与重试次数。
+`Pull Request -> CI 测试/构建 -> 合并 main -> 构建并发布 GHCR -> Windows Runner SSH 到 Ubuntu VM -> 拉取 SHA 镜像 -> Compose 更新 -> /health 验证`。发布前确认 Runner 在线、SSH 别名 `enterprise-rag-vm` 可用、GHCR 令牌有效、虚拟机 `.env` 和外部卷存在。镜像下载依赖 VM 到 GHCR 的网络连通性；部署脚本会先探测仓库连接，并为每个镜像保留最长 35 分钟的下载窗口。
 
 ## 文档索引
 
