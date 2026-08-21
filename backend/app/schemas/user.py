@@ -106,7 +106,7 @@ class UserProfileUpdate(StrictRequestSchema):
         return value.strip()
 
 
-    @field_validator("display_name", "avatar_url", "bio")
+    @field_validator("email", "display_name", "avatar_url", "bio")
     @classmethod
     def normalize_optional_text(cls, value):
         return value.strip() if value else None

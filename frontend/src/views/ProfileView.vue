@@ -22,10 +22,10 @@ async function saveProfile() {
   try {
     const updated = await updateMyProfile(auth.token, {
       username: profile.value.username.trim(),
-      email: profile.value.email.trim() || undefined,
-      display_name: profile.value.display_name.trim() || undefined,
-      avatar_url: profile.value.avatar_url.trim() || undefined,
-      bio: profile.value.bio.trim() || undefined,
+      email: profile.value.email.trim() || "",
+      display_name: profile.value.display_name.trim() || "",
+      avatar_url: profile.value.avatar_url.trim() || "",
+      bio: profile.value.bio.trim() || "",
     });
     auth.updateCurrentUser(updated);
     ElMessage.success("个人资料已保存");

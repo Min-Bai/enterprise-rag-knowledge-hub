@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { Pause, Play, Send, Square } from "lucide-vue-next";
+import { Pause, Play, Send } from "lucide-vue-next";
 import type { KnowledgeBase } from "../../types/api";
 
 const props = defineProps<{
@@ -94,8 +94,6 @@ watch(
       <span>Enter 发送，Shift+Enter 换行</span
       ><el-button v-if="isAnswering" type="warning" plain @click="emit('togglePause')"
         ><component :is="isPaused ? Play : Pause" :size="15" />{{ isPaused ? "继续生成" : "暂停生成" }}</el-button
-      ><el-button v-if="false" type="danger" plain :disabled="isStopping" @click="emit('stop')"
-        ><Square :size="15" />{{ isStopping ? "正在停止" : "停止生成" }}</el-button
       ><el-button
         v-else
         native-type="submit"
