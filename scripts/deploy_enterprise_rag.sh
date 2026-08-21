@@ -75,16 +75,14 @@ check_ghcr_connectivity() {
 
 pull_image() {
   local image="$1"
-  local attempt
-  for attempt in 1 2; do
-    echo "Pulling $image (attempt $attempt/2, maximum 8 minutes per attempt)..."
-    if timeout --foreground 8m docker pull "$image"; then
-      return 0
-    fi
-    echo "Image pull failed or timed out; retrying in 15 seconds..." >&2
-    sleep 15
-  done
-  echo "Unable to pull $image from GHCR after two attempts. Check VM network access and Docker login." >&2
+  # Docker retries transient layer failures itself. A new API image includes
+  # the CPU ML runtime, so an eight-minute outer timeout aborts healthy but
+  # slow first pulls on the VM's network.
+  echo "Pulling $image (Docker retries transient layer failures; maximum 35 minutes)..."
+  if timeout --foreground --signal=INT --kill-after=30s 35m docker pull "$image"; then
+    return 0
+  fi
+  echo "Unable to pull $image from GHCR within 35 minutes. Check VM network access and Docker login." >&2
   return 1
 }
 
