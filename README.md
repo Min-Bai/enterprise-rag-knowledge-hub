@@ -1,6 +1,6 @@
-# 企业级 RAG 知识库问答系统
+# RAG 知识库问答系统
 
-基于 FastAPI、Vue 3、MySQL、Redis、Celery、Qdrant 和 DeepSeek 构建的企业内部知识库问答平台。支持文档异步解析、向量检索、权限隔离、来源引用、SSE 流式对话和 GHCR 自动部署。
+基于 FastAPI、Vue 3、MySQL、Redis、Celery、Qdrant 和 DeepSeek 构建的可部署知识库问答平台。支持文档异步解析、向量检索、权限隔离、来源引用、SSE 流式对话和 GHCR 自动部署。
 
 ## 功能
 
