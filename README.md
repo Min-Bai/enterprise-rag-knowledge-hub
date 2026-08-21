@@ -63,13 +63,13 @@ DeepSeek 只负责文本生成，不提供音频转写。音频必须配置独�
 
 ## 生产部署
 
-生产优先使用 GHCR 镜像，不在虚拟机本地构建：`sudo docker compose --env-file .env up -d --no-build api worker beat frontend`。检查服务：`sudo bash scripts/check_production.sh`，健康接口：`curl -fsS http://localhost:8000/health`。创建首个管理员：`sudo docker compose exec -it api python scripts/create_admin.py --username admin`。
+生产发布以 GitHub Actions 工作流为准：PR 合并到 `main` 后构建不可变 SHA 镜像，并由 Runner 连接 Ubuntu VM 更新服务。虚拟机不在本地构建镜像。仅在故障恢复时手工执行 Compose，且必须显式传入已发布的 `API_IMAGE` 和 `WEB_IMAGE`，避免回退到 Docker Hub 默认镜像名。检查服务：`sudo bash scripts/check_production.sh`，健康接口：`curl -fsS http://localhost:8000/health`。创建首个管理员：`sudo docker compose exec -it api python scripts/create_admin.py --username admin`。
 
 客户端入口为 `/login`，管理端入口为 `/admin/login`。注册和密码重置默认需要管理员审批。生产备份使用 `sudo bash scripts/backup_mysql.sh`；数据库备份不能替代文档卷和 Qdrant 卷备份。
 
 ## CI/CD
 
-`Pull Request -> CI 测试/构建 -> 合并 main -> 构建并发布 GHCR -> Windows Runner SSH 到 Ubuntu VM -> Compose 更新 -> /health 验证`。发布前确认 Runner 在线、SSH 别名 `enterprise-rag-vm` 可用、GHCR 令牌有效、虚拟机 `.env` 和外部卷存在。
+`Pull Request -> CI 测试/构建 -> 合并 main -> 构建并发布 GHCR -> Windows Runner SSH 到 Ubuntu VM -> 拉取 SHA 镜像 -> Compose 更新 -> /health 验证`。发布前确认 Runner 在线、SSH 别名 `enterprise-rag-vm` 可用、GHCR 令牌有效、虚拟机 `.env` 和外部卷存在。镜像下载依赖 VM 到 GHCR 的网络连通性；部署脚本会先探测仓库连接，并限制每次拉取的超时与重试次数。
 
 ## 文档索引
 
@@ -77,3 +77,7 @@ DeepSeek 只负责文本生成，不提供音频转写。音频必须配置独�
 - [`docs/开发测试与验收报告.md`](docs/开发测试与验收报告.md)：开发流程、测试证据、验收项和当前结论
 - [`docs/部署与运维手册.md`](docs/部署与运维手册.md)：环境配置、GHCR 发布、生产部署、备份、回滚和故障处理
 - [`docs/架构与接口说明.md`](docs/架构与接口说明.md)：服务架构、文档与问答流程、权限模型和 API 边界
+
+## 许可证
+
+本项目使用 [MIT License](LICENSE) 发布。
