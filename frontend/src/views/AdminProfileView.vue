@@ -16,7 +16,7 @@ async function saveProfile() {
   if (!auth.token || !profile.value.username.trim()) return;
   saving.value = true;
   try {
-    const user = await updateAdminProfile(auth.token, { username: profile.value.username.trim(), email: profile.value.email.trim() || undefined, display_name: profile.value.display_name.trim() || undefined, avatar_url: profile.value.avatar_url.trim() || undefined, bio: profile.value.bio.trim() || undefined });
+    const user = await updateAdminProfile(auth.token, { username: profile.value.username.trim(), email: profile.value.email.trim() || "", display_name: profile.value.display_name.trim() || "", avatar_url: profile.value.avatar_url.trim() || "", bio: profile.value.bio.trim() || "" });
     auth.updateCurrentUser(user);
     ElMessage.success("个人资料已保存");
   } catch (caught) { ElMessage.error(caught instanceof Error ? caught.message : "保存个人资料失败。"); }
