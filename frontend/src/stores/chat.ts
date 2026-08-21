@@ -32,6 +32,7 @@ export const useChatStore = defineStore("chat", () => {
   const activeSources = ref<Citation[]>([]);
   const isLoading = ref(false);
   const isAnswering = ref(false);
+  const stopRequested = ref(false);
   const errorMessage = ref("");
   let abortController: AbortController | null = null;
   let streamQueue = "";
@@ -212,6 +213,7 @@ export const useChatStore = defineStore("chat", () => {
     activeSources.value = [];
     errorMessage.value = "";
     isAnswering.value = true;
+    stopRequested.value = false;
     abortController = new AbortController();
     try {
       await streamKnowledgeBaseAnswer(
@@ -242,7 +244,8 @@ export const useChatStore = defineStore("chat", () => {
       await loadConversations();
       pendingMessages.value = [];
     } catch (error) {
-      const wasStopped = (error as DOMException).name === "AbortError";
+      const wasStopped =
+        stopRequested.value || (error as DOMException).name === "AbortError";
       pendingMessages.value = pendingMessages.value.map((message) =>
         message.id === assistantMessage.id
           ? {
@@ -263,12 +266,29 @@ export const useChatStore = defineStore("chat", () => {
       streamTimer = null;
       completeStreamDrain();
       isAnswering.value = false;
+      stopRequested.value = false;
       abortController = null;
     }
   }
 
   function stopAnswer() {
+    if (!isAnswering.value) return;
+    stopRequested.value = true;
     abortController?.abort();
+    streamQueue = "";
+    if (streamTimer) clearTimeout(streamTimer);
+    streamTimer = null;
+    completeStreamDrain();
+    pendingMessages.value = pendingMessages.value.map((message) =>
+      message.pending
+        ? {
+            ...message,
+            pending: false,
+            content: message.content || "已停止生成。",
+          }
+        : message,
+    );
+    isAnswering.value = false;
   }
 
   async function removeConversation(conversationId: number) {

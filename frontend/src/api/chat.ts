@@ -80,21 +80,29 @@ export async function streamKnowledgeBaseAnswer(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
-    const frames = buffer.split(/\r?\n\r?\n/);
-    buffer = frames.pop() ?? "";
-    for (const frame of frames) {
-      const event = frame.match(/^event: (.+)$/m)?.[1];
-      const data = frame.match(/^data: (.+)$/m)?.[1];
-      if (!event || data === undefined) continue;
-      const payload = JSON.parse(data);
-      if (event === "metadata") handlers.onMetadata(payload);
-      if (event === "token") handlers.onToken(payload.text ?? "");
-      if (event === "error")
-        throw new Error("AI 服务生成回答失败，请稍后重试。");
+  const cancelReader = () => {
+    void reader.cancel();
+  };
+  signal.addEventListener("abort", cancelReader, { once: true });
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+      const frames = buffer.split(/\r?\n\r?\n/);
+      buffer = frames.pop() ?? "";
+      for (const frame of frames) {
+        const event = frame.match(/^event: (.+)$/m)?.[1];
+        const data = frame.match(/^data: (.+)$/m)?.[1];
+        if (!event || data === undefined) continue;
+        const payload = JSON.parse(data);
+        if (event === "metadata") handlers.onMetadata(payload);
+        if (event === "token") handlers.onToken(payload.text ?? "");
+        if (event === "error")
+          throw new Error("AI 服务生成回答失败，请稍后重试。");
+      }
+      if (done) break;
     }
-    if (done) break;
+  } finally {
+    signal.removeEventListener("abort", cancelReader);
   }
 }
