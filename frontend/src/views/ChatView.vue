@@ -169,11 +169,13 @@ async function handleDownload(source: Citation) {
             :available-tags="chat.availableTags"
             :selected-knowledge-base-id="chat.selectedKnowledgeBaseId"
             :is-answering="chat.isAnswering"
+            :is-paused="chat.isPaused"
             :is-stopping="chat.isStopping"
             :is-loading="chat.isLoading"
             @select-knowledge-base="selectKnowledgeBase"
             @submit="chat.ask"
             @stop="chat.stopAnswer"
+            @toggle-pause="chat.togglePause"
           />
         </section>
 
