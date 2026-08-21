@@ -8,6 +8,7 @@ const props = defineProps<{
   availableTags: string[];
   selectedKnowledgeBaseId: number | null;
   isAnswering: boolean;
+  isStopping: boolean;
   isLoading: boolean;
 }>();
 const emit = defineEmits<{
@@ -22,6 +23,7 @@ const canSubmit = computed(() =>
     question.value.trim() &&
     props.selectedKnowledgeBaseId &&
     !props.isAnswering &&
+    !props.isStopping &&
     !props.isLoading,
   ),
 );
@@ -51,7 +53,7 @@ watch(
     <div class="composer-controls">
       <el-select
         :model-value="selectedKnowledgeBaseId"
-        :disabled="isLoading"
+        :disabled="isLoading || isStopping"
         placeholder="选择知识库"
         aria-label="选择知识库"
         @update:model-value="emit('selectKnowledgeBase', Number($event))"
@@ -65,7 +67,7 @@ watch(
         multiple
         collapse-tags
         clearable
-        :disabled="isLoading || availableTags.length === 0"
+        :disabled="isLoading || isStopping || availableTags.length === 0"
         placeholder="按标签筛选（可选）"
         aria-label="按标签筛选"
         ><el-option
@@ -78,7 +80,7 @@ watch(
     <el-input
       v-model="question"
       type="textarea"
-      :disabled="isLoading"
+      :disabled="isLoading || isStopping"
       :rows="3"
       maxlength="2000"
       show-word-limit
@@ -88,8 +90,8 @@ watch(
     />
     <div class="composer-actions">
       <span>Enter 发送，Shift+Enter 换行</span
-      ><el-button v-if="isAnswering" type="danger" plain @click="emit('stop')"
-        ><Square :size="15" />停止生成</el-button
+      ><el-button v-if="isAnswering || isStopping" type="danger" plain :disabled="isStopping" @click="emit('stop')"
+        ><Square :size="15" />{{ isStopping ? "正在停止" : "停止生成" }}</el-button
       ><el-button
         v-else
         native-type="submit"

@@ -32,6 +32,7 @@ export const useChatStore = defineStore("chat", () => {
   const activeSources = ref<Citation[]>([]);
   const isLoading = ref(false);
   const isAnswering = ref(false);
+  const isStopping = ref(false);
   const stopRequested = ref(false);
   const errorMessage = ref("");
   let abortController: AbortController | null = null;
@@ -180,7 +181,13 @@ export const useChatStore = defineStore("chat", () => {
   }
 
   async function ask(question: string, tags: string[]) {
-    if (!auth.token || !selectedKnowledgeBaseId.value || isAnswering.value)
+    if (
+      !auth.token ||
+      !selectedKnowledgeBaseId.value ||
+      isAnswering.value ||
+      isStopping.value ||
+      abortController
+    )
       return;
     const userMessage: PendingMessage = {
       id: -Date.now(),
@@ -214,6 +221,7 @@ export const useChatStore = defineStore("chat", () => {
     errorMessage.value = "";
     isAnswering.value = true;
     stopRequested.value = false;
+    isStopping.value = false;
     abortController = new AbortController();
     try {
       await streamKnowledgeBaseAnswer(
@@ -226,6 +234,7 @@ export const useChatStore = defineStore("chat", () => {
         },
         {
           onMetadata: ({ conversation_id, sources }) => {
+            if (stopRequested.value) return;
             selectedConversationId.value = conversation_id;
             activeSources.value = sources;
             pendingMessages.value = pendingMessages.value.map((message) =>
@@ -235,6 +244,7 @@ export const useChatStore = defineStore("chat", () => {
             );
           },
           onToken: (text) => {
+            if (stopRequested.value) return;
             enqueueStreamText(assistantMessage.id, text);
           },
         },
@@ -266,6 +276,7 @@ export const useChatStore = defineStore("chat", () => {
       streamTimer = null;
       completeStreamDrain();
       isAnswering.value = false;
+      isStopping.value = false;
       stopRequested.value = false;
       abortController = null;
     }
@@ -274,6 +285,7 @@ export const useChatStore = defineStore("chat", () => {
   function stopAnswer() {
     if (!isAnswering.value) return;
     stopRequested.value = true;
+    isStopping.value = true;
     abortController?.abort();
     streamQueue = "";
     if (streamTimer) clearTimeout(streamTimer);
@@ -335,6 +347,7 @@ export const useChatStore = defineStore("chat", () => {
     activeSources,
     isLoading,
     isAnswering,
+    isStopping,
     errorMessage,
     initialize,
     selectKnowledgeBase,
